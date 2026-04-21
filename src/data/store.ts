@@ -77,6 +77,8 @@ interface AppState {
   logout: () => void;
 
   setLog: (taskId: string, date: string, patch: Partial<DailyLog>) => void;
+  addTimerLog: (taskId: string, date: string, minutes: number, backfilled: boolean) => void;
+  deleteLog: (logId: string) => void;
   upsertTask: (t: Task) => void;
   deleteTask: (id: string) => void;
   upsertPlan: (p: RewardPlan) => void;
@@ -111,6 +113,22 @@ export const useApp = create<AppState>()(
         else logs.push({ id: `l-${Date.now()}-${Math.random()}`, taskId, date, ...patch });
         set({ logs });
       },
+      addTimerLog: (taskId, date, minutes, backfilled) => {
+        set({
+          logs: [
+            ...get().logs,
+            {
+              id: `l-${Date.now()}-${Math.random()}`,
+              taskId,
+              date,
+              minutes,
+              backfilled,
+              createdAt: Date.now(),
+            },
+          ],
+        });
+      },
+      deleteLog: (logId) => set({ logs: get().logs.filter((l) => l.id !== logId) }),
       upsertTask: (t) => {
         const tasks = [...get().tasks];
         const i = tasks.findIndex((x) => x.id === t.id);
