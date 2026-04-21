@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApp } from "@/data/store";
-import type { Task, TaskType, UserId } from "@/data/types";
+import type { Task, UserId } from "@/data/types";
 import { PersonChip } from "@/components/PersonChip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowRight, Plus, Trash2, Timer, CheckSquare } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ArrowRight, Plus, Trash2, Timer, CheckSquare, Pencil, Lock, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -22,47 +28,128 @@ const prevMonth = (m: string) => {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
 };
 
-const TaskRow = ({ task, onSave, onDelete }: { task: Task; onSave: (t: Task) => void; onDelete: () => void }) => {
-  const [t, setT] = useState(task);
+const TaskRow = ({
+  task,
+  onSave,
+  onDelete,
+}: {
+  task: Task;
+  onSave: (t: Task) => void;
+  onDelete: () => void;
+}) => {
+  const lockedFromStart = (task.editCount ?? 0) >= 1;
+  // Draft holds in-flight edits; only persisted on "Done editing".
+  const [draft, setDraft] = useState<Task>(task);
+  const [editing, setEditing] = useState<boolean>(!lockedFromStart);
+
+  const locked = !editing;
+
   const update = (patch: Partial<Task>) => {
-    const next = { ...t, ...patch };
-    setT(next);
-    onSave(next);
+    setDraft((d) => ({ ...d, ...patch }));
   };
+
+  const startEdit = () => {
+    if ((task.editCount ?? 0) >= 1) return;
+    setDraft(task);
+    setEditing(true);
+  };
+
+  const finishEdit = () => {
+    // Consume the single monthly edit chance.
+    onSave({ ...draft, editCount: (task.editCount ?? 0) + 1 });
+    setEditing(false);
+    toast.success("已保存 · 本月改动机会已用完");
+  };
+
   return (
-    <div className="bg-background rounded-2xl p-3 border border-border space-y-2">
+    <div
+      className={cn(
+        "bg-background rounded-2xl p-3 border space-y-2 transition-colors",
+        locked ? "border-border/60" : "border-primary/40 ring-1 ring-primary/20",
+      )}
+    >
       <div className="flex items-center gap-2">
         <button
+          disabled={locked}
           onClick={() => update({ type: "count" })}
           className={cn(
-            "pill border",
-            t.type === "count"
+            "pill border transition-opacity",
+            draft.type === "count"
               ? "bg-primary text-primary-foreground border-primary"
               : "bg-card text-muted-foreground border-border",
+            locked && "opacity-60 cursor-not-allowed",
           )}
         >
           <CheckSquare className="w-3 h-3" /> 勾选
         </button>
         <button
+          disabled={locked}
           onClick={() => update({ type: "timer" })}
           className={cn(
-            "pill border",
-            t.type === "timer"
+            "pill border transition-opacity",
+            draft.type === "timer"
               ? "bg-secondary text-secondary-foreground border-secondary"
               : "bg-card text-muted-foreground border-border",
+            locked && "opacity-60 cursor-not-allowed",
           )}
         >
           <Timer className="w-3 h-3" /> 计时
         </button>
-        <button
-          onClick={onDelete}
-          className="ml-auto p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-soft"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+
+        <div className="ml-auto flex items-center gap-1">
+          {editing ? (
+            <button
+              onClick={finishEdit}
+              className="pill bg-success text-success-foreground border border-success"
+            >
+              <Check className="w-3 h-3" /> 完成
+            </button>
+          ) : (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <button
+                      onClick={startEdit}
+                      disabled={(task.editCount ?? 0) >= 1}
+                      className={cn(
+                        "pill border",
+                        (task.editCount ?? 0) >= 1
+                          ? "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"
+                          : "bg-card text-foreground border-border hover:border-primary hover:text-primary",
+                      )}
+                    >
+                      {(task.editCount ?? 0) >= 1 ? (
+                        <>
+                          <Lock className="w-3 h-3" /> 已锁定
+                        </>
+                      ) : (
+                        <>
+                          <Pencil className="w-3 h-3" /> 修改
+                        </>
+                      )}
+                    </button>
+                  </span>
+                </TooltipTrigger>
+                {(task.editCount ?? 0) >= 1 && (
+                  <TooltipContent>已用本月改动机会</TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
+          <button
+            onClick={onDelete}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-soft"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
+
       <Input
-        value={t.title}
+        value={draft.title}
+        disabled={locked}
         onChange={(e) => update({ title: e.target.value })}
         placeholder="任务名 (例：早起 ≥6 天/周)"
         className="rounded-xl"
@@ -73,14 +160,15 @@ const TaskRow = ({ task, onSave, onDelete }: { task: Task; onSave: (t: Task) => 
           <Input
             type="number"
             min={1}
-            value={t.target}
+            disabled={locked}
+            value={draft.target}
             onChange={(e) => update({ target: Math.max(1, +e.target.value || 1) })}
             className="rounded-xl tabular-nums font-bold"
           />
         </div>
         <div>
           <Label className="text-[10px] uppercase text-muted-foreground tracking-wider">单位</Label>
-          <Select value={t.unit} onValueChange={(v) => update({ unit: v })}>
+          <Select value={draft.unit} disabled={locked} onValueChange={(v) => update({ unit: v })}>
             <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="天">天 / 周</SelectItem>
@@ -91,6 +179,12 @@ const TaskRow = ({ task, onSave, onDelete }: { task: Task; onSave: (t: Task) => 
           </Select>
         </div>
       </div>
+
+      {(task.editCount ?? 0) >= 1 && !editing && (
+        <div className="text-[11px] text-muted-foreground flex items-center gap-1 pt-1">
+          <Lock className="w-3 h-3" /> 已用本月改动机会
+        </div>
+      )}
     </div>
   );
 };
@@ -114,6 +208,7 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
       type: "count",
       target: 5,
       unit: "天",
+      editCount: 0,
     });
   };
 
@@ -122,7 +217,7 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
       toast.error("每月最多 3 个任务");
       return;
     }
-    upsertTask({ ...t, id: `t-${userId}-${Date.now()}`, month: currentMonth });
+    upsertTask({ ...t, id: `t-${userId}-${Date.now()}`, month: currentMonth, editCount: 0 });
     toast.success("已沿用");
   };
 
@@ -135,7 +230,7 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
           </div>
           <div>
             <div className="font-display font-extrabold">{userId} 的任务</div>
-            <div className="text-[11px] text-muted-foreground">{currentMonth} · 1–3 个</div>
+            <div className="text-[11px] text-muted-foreground">{currentMonth} · 1–3 个 · 每任务每月仅可改动 1 次</div>
           </div>
         </div>
         <Button onClick={addTask} size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90">
@@ -193,7 +288,7 @@ const Setup = () => {
     <div className="space-y-5">
       <div>
         <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">任务设置</h1>
-        <p className="text-sm text-muted-foreground">每月初为自己设定 1–3 个本月专注任务</p>
+        <p className="text-sm text-muted-foreground">每月初为自己设定 1–3 个本月专注任务 · 每任务每月仅可改动 1 次</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">

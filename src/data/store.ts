@@ -9,11 +9,11 @@ const TODAY = "2026-04-21";
 const d = (day: number) => `2026-04-${String(day).padStart(2, "0")}`;
 
 const seedTasks: Task[] = [
-  { id: "t-cp-1", userId: "CP", month: CURRENT_MONTH, title: "早起 ≥6 天/周", type: "count", target: 6, unit: "天" },
-  { id: "t-cp-2", userId: "CP", month: CURRENT_MONTH, title: "阅读 ≥150 分钟/周", type: "timer", target: 150, unit: "分钟" },
-  { id: "t-cp-3", userId: "CP", month: CURRENT_MONTH, title: "运动 ≥4 天/周", type: "count", target: 4, unit: "天" },
-  { id: "t-jx-1", userId: "JX", month: CURRENT_MONTH, title: "画画 ≥120 分钟/周", type: "timer", target: 120, unit: "分钟" },
-  { id: "t-jx-2", userId: "JX", month: CURRENT_MONTH, title: "冥想 ≥5 天/周", type: "count", target: 5, unit: "天" },
+  { id: "t-cp-1", userId: "CP", month: CURRENT_MONTH, title: "Task A", type: "count", target: 6, unit: "天", editCount: 0 },
+  { id: "t-cp-2", userId: "CP", month: CURRENT_MONTH, title: "Task B", type: "timer", target: 150, unit: "分钟", editCount: 0 },
+  { id: "t-cp-3", userId: "CP", month: CURRENT_MONTH, title: "Task C", type: "count", target: 4, unit: "天", editCount: 0 },
+  { id: "t-jx-1", userId: "JX", month: CURRENT_MONTH, title: "Task A", type: "timer", target: 120, unit: "分钟", editCount: 0 },
+  { id: "t-jx-2", userId: "JX", month: CURRENT_MONTH, title: "Task B", type: "count", target: 5, unit: "天", editCount: 0 },
 ];
 
 // generate seed logs
@@ -42,26 +42,26 @@ Object.entries(jxDraw).forEach(([day, m]) => addLog({ taskId: "t-jx-1", date: d(
 [1, 2, 3, 5, 6, 8, 9, 10, 12, 14, 15, 17, 18, 20].forEach((day) => addLog({ taskId: "t-jx-2", date: d(day), done: true }));
 
 const seedPlans: RewardPlan[] = [
-  { id: "p1", userId: "CP", month: CURRENT_MONTH, scope: "W1", rewardText: "买一本想读的新书 📚", penaltyText: "请 JX 喝奶茶 🧋" },
-  { id: "p2", userId: "CP", month: CURRENT_MONTH, scope: "W2", rewardText: "看一场电影 🎬", penaltyText: "做一周晚餐 🍳" },
-  { id: "p3", userId: "CP", month: CURRENT_MONTH, scope: "W3", rewardText: "周末睡到自然醒 😴", penaltyText: "代洗一周碗 🍽️" },
-  { id: "p4", userId: "CP", month: CURRENT_MONTH, scope: "W4", rewardText: "新球鞋 👟", penaltyText: "禁奶茶一周 🚫" },
-  { id: "p5", userId: "CP", month: CURRENT_MONTH, scope: "MONTH", rewardText: "周末短途旅行 ✈️", penaltyText: "捐款 200 元 💸" },
-  { id: "p6", userId: "JX", month: CURRENT_MONTH, scope: "W1", rewardText: "新画材一份 🎨", penaltyText: "请 CP 喝咖啡 ☕" },
-  { id: "p7", userId: "JX", month: CURRENT_MONTH, scope: "W2", rewardText: "甜品自由 🍰", penaltyText: "做一周早餐 🥐" },
-  { id: "p8", userId: "JX", month: CURRENT_MONTH, scope: "W3", rewardText: "看展览 🖼️", penaltyText: "禁游戏三天 🎮" },
-  { id: "p9", userId: "JX", month: CURRENT_MONTH, scope: "W4", rewardText: "新香薰蜡烛 🕯️", penaltyText: "早起跑步三天 🏃" },
-  { id: "p10", userId: "JX", month: CURRENT_MONTH, scope: "MONTH", rewardText: "和 CP 周末旅行 ✈️", penaltyText: "捐款 200 元 💸" },
+  { id: "p1", userId: "CP", month: CURRENT_MONTH, scope: "W1", rewardText: "Reward: treat yourself", penaltyText: "Penalty: no social media" },
+  { id: "p2", userId: "CP", month: CURRENT_MONTH, scope: "W2", rewardText: "Reward: small gift", penaltyText: "Penalty: do extra chores" },
+  { id: "p3", userId: "CP", month: CURRENT_MONTH, scope: "W3", rewardText: "Reward: free time", penaltyText: "Penalty: skip dessert" },
+  { id: "p4", userId: "CP", month: CURRENT_MONTH, scope: "W4", rewardText: "Reward: new item", penaltyText: "Penalty: no take-out" },
+  { id: "p5", userId: "CP", month: CURRENT_MONTH, scope: "MONTH", rewardText: "Reward: weekend trip", penaltyText: "Penalty: donate 200" },
+  { id: "p6", userId: "JX", month: CURRENT_MONTH, scope: "W1", rewardText: "Reward: treat yourself", penaltyText: "Penalty: no social media" },
+  { id: "p7", userId: "JX", month: CURRENT_MONTH, scope: "W2", rewardText: "Reward: small gift", penaltyText: "Penalty: do extra chores" },
+  { id: "p8", userId: "JX", month: CURRENT_MONTH, scope: "W3", rewardText: "Reward: free time", penaltyText: "Penalty: skip dessert" },
+  { id: "p9", userId: "JX", month: CURRENT_MONTH, scope: "W4", rewardText: "Reward: new item", penaltyText: "Penalty: no take-out" },
+  { id: "p10", userId: "JX", month: CURRENT_MONTH, scope: "MONTH", rewardText: "Reward: weekend trip", penaltyText: "Penalty: donate 200" },
 ];
 
 const seedLedger: RewardEntry[] = [
-  { id: "r1", userId: "CP", type: "reward", content: "买一本想读的新书 📚", source: "2026-04 W1", status: "used", notes: "买了《项目管理》", remarks: "已到货" },
-  { id: "r2", userId: "JX", type: "reward", content: "新画材一份 🎨", source: "2026-04 W1", status: "pending", expiry: "2026-05-15" },
-  { id: "r3", userId: "CP", type: "penalty", content: "请 JX 喝奶茶 🧋", source: "2026-03 W4", status: "used", notes: "已请客" },
-  { id: "r4", userId: "JX", type: "reward", content: "甜品自由 🍰", source: "2026-04 W2", status: "pending", expiry: "2026-05-10" },
-  { id: "r5", userId: "CP", type: "reward", content: "看一场电影 🎬", source: "2026-04 W2", status: "pending", expiry: "2026-05-10" },
-  { id: "r6", userId: "JX", type: "penalty", content: "做一周早餐 🥐", source: "2026-03 W2", status: "forfeited", notes: "改为做晚餐补偿" },
-  { id: "r7", userId: "CP", type: "reward", content: "周末短途旅行 ✈️", source: "2026-03 月度", status: "used", notes: "杭州两日游" },
+  { id: "r1", userId: "CP", type: "reward", content: "Reward: treat yourself", source: "2026-04 W1", status: "used", notes: "Note A", remarks: "Remark A" },
+  { id: "r2", userId: "JX", type: "reward", content: "Reward: treat yourself", source: "2026-04 W1", status: "pending", expiry: "2026-05-15" },
+  { id: "r3", userId: "CP", type: "penalty", content: "Penalty: no social media", source: "2026-03 W4", status: "used", notes: "Note B" },
+  { id: "r4", userId: "JX", type: "reward", content: "Reward: small gift", source: "2026-04 W2", status: "pending", expiry: "2026-05-10" },
+  { id: "r5", userId: "CP", type: "reward", content: "Reward: small gift", source: "2026-04 W2", status: "pending", expiry: "2026-05-10" },
+  { id: "r6", userId: "JX", type: "penalty", content: "Penalty: do extra chores", source: "2026-03 W2", status: "forfeited", notes: "Note C" },
+  { id: "r7", userId: "CP", type: "reward", content: "Reward: weekend trip", source: "2026-03 月度", status: "used", notes: "Note D" },
 ];
 
 interface AppState {
@@ -77,6 +77,8 @@ interface AppState {
   logout: () => void;
 
   setLog: (taskId: string, date: string, patch: Partial<DailyLog>) => void;
+  addTimerLog: (taskId: string, date: string, minutes: number, backfilled: boolean) => void;
+  deleteLog: (logId: string) => void;
   upsertTask: (t: Task) => void;
   deleteTask: (id: string) => void;
   upsertPlan: (p: RewardPlan) => void;
@@ -111,6 +113,22 @@ export const useApp = create<AppState>()(
         else logs.push({ id: `l-${Date.now()}-${Math.random()}`, taskId, date, ...patch });
         set({ logs });
       },
+      addTimerLog: (taskId, date, minutes, backfilled) => {
+        set({
+          logs: [
+            ...get().logs,
+            {
+              id: `l-${Date.now()}-${Math.random()}`,
+              taskId,
+              date,
+              minutes,
+              backfilled,
+              createdAt: Date.now(),
+            },
+          ],
+        });
+      },
+      deleteLog: (logId) => set({ logs: get().logs.filter((l) => l.id !== logId) }),
       upsertTask: (t) => {
         const tasks = [...get().tasks];
         const i = tasks.findIndex((x) => x.id === t.id);

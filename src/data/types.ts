@@ -10,6 +10,7 @@ export interface Task {
   type: TaskType;
   target: number; // count: days/week  |  timer: minutes/week
   unit: string;   // "天" | "分钟"
+  editCount?: number; // edits used this month (carried-over / new tasks start at 0)
 }
 
 export interface DailyLog {
@@ -17,9 +18,10 @@ export interface DailyLog {
   taskId: string;
   date: string;     // YYYY-MM-DD
   done?: boolean;   // count
-  minutes?: number; // timer
+  minutes?: number; // timer (single entry's minutes)
   note?: string;
   backfilled?: boolean;
+  createdAt?: number; // epoch ms — for ordering timer entries
 }
 
 export type RewardStatus = "pending" | "used" | "forfeited";
