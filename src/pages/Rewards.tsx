@@ -34,7 +34,7 @@ const Rewards = () => {
   };
 
   return (
-    <div className="space-y-5 max-w-3xl mx-auto">
+    <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
       <div>
         <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">奖惩设置</h1>
         <p className="text-sm text-muted-foreground">每月初约定每周与月度的奖励 / 惩罚</p>
