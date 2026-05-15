@@ -177,7 +177,7 @@ const CheckIn = () => {
     logs.find((l) => l.taskId === taskId && l.date === date);
 
   return (
-    <div className="space-y-5 max-w-2xl mx-auto">
+    <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
       <div>
         <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">每日打卡</h1>
         <p className="text-sm text-muted-foreground">今日所有任务，记得按时打卡</p>

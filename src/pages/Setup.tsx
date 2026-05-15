@@ -285,7 +285,7 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
 
 const Setup = () => {
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
       <div>
         <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">任务设置</h1>
         <p className="text-sm text-muted-foreground">每月初为自己设定 1–3 个本月专注任务 · 每任务每月仅可改动 1 次</p>
