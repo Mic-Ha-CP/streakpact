@@ -133,7 +133,7 @@ const UserPanel = ({ userId }: { userId: UserId }) => {
 const Index = () => {
   const today = useApp((s) => s.today);
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">本月战况</h1>
