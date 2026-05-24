@@ -12,8 +12,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Plus Jakarta Sans", "Noto Sans SC", "system-ui", "sans-serif"],
-        display: ["Plus Jakarta Sans", "Noto Sans SC", "sans-serif"],
+        sans: ["Inter", "Noto Sans SC", "system-ui", "sans-serif"],
+        display: ["Inter", "Noto Sans SC", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
