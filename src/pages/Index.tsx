@@ -10,9 +10,19 @@ import {
   monthStatus,
   weeklyProgress,
   weekStatusForUser,
+  type MonthResult,
 } from "@/data/calc";
 import { Flame, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
+  if (!result) return <span className="pill border border-border text-muted-foreground">进行中</span>;
+  if (result === "success")
+    return <span className="pill bg-success text-success-foreground">成功</span>;
+  if (result === "fail")
+    return <span className="pill bg-danger text-danger-foreground">失败</span>;
+  return <span className="pill bg-muted text-muted-foreground">无事发生</span>;
+};
 
 const UserPanel = ({ userId }: { userId: UserId }) => {
   const { tasks, logs, currentMonth, today } = useApp();
@@ -52,12 +62,13 @@ const UserPanel = ({ userId }: { userId: UserId }) => {
             <div className="text-xs text-muted-foreground">{currentMonth} · 共 {weeks.length} 周</div>
           </div>
         </div>
-        <div className="text-right">
+        <div className="text-right space-y-1">
           <div className="text-xs text-muted-foreground">达标周</div>
-          <div className="font-display font-extrabold text-2xl tabular-nums">
+          <div className="font-display font-extrabold text-2xl tabular-nums leading-none">
             {month.successWeeks}
             <span className="text-base text-muted-foreground">/{month.totalWeeks}</span>
           </div>
+          <MonthResultBadge result={month.result} />
         </div>
       </div>
 

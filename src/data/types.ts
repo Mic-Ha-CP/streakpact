@@ -24,7 +24,7 @@ export interface DailyLog {
   createdAt?: number; // epoch ms — for ordering timer entries
 }
 
-export type RewardStatus = "pending" | "used" | "forfeited";
+export type RewardStatus = "pending" | "in_progress" | "used" | "completed" | "forfeited";
 export type RewardType = "reward" | "penalty";
 
 export interface RewardEntry {

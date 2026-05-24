@@ -15,9 +15,19 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 const STATUS_LABEL: Record<RewardStatus, string> = {
-  pending: "待兑现",
+  pending: "未使用",
+  in_progress: "使用中",
   used: "已使用",
-  forfeited: "已作废",
+  completed: "已完成",
+  forfeited: "已过期",
+};
+
+const STATUS_PILL: Record<RewardStatus, string> = {
+  pending: "border border-primary text-primary bg-transparent",
+  in_progress: "bg-primary text-primary-foreground",
+  used: "bg-success text-success-foreground",
+  completed: "bg-success text-success-foreground",
+  forfeited: "bg-muted text-muted-foreground",
 };
 
 const Ledger = () => {
@@ -65,9 +75,11 @@ const Ledger = () => {
           <SelectTrigger className="w-28 rounded-xl h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">全部状态</SelectItem>
-            <SelectItem value="pending">待兑现</SelectItem>
-            <SelectItem value="used">已使用</SelectItem>
-            <SelectItem value="forfeited">已作废</SelectItem>
+            <SelectItem value="pending">{STATUS_LABEL.pending}</SelectItem>
+            <SelectItem value="in_progress">{STATUS_LABEL.in_progress}</SelectItem>
+            <SelectItem value="used">{STATUS_LABEL.used}</SelectItem>
+            <SelectItem value="completed">{STATUS_LABEL.completed}</SelectItem>
+            <SelectItem value="forfeited">{STATUS_LABEL.forfeited}</SelectItem>
           </SelectContent>
         </Select>
         <div className="ml-auto text-xs text-muted-foreground tabular-nums">{rows.length} 条记录</div>
@@ -94,6 +106,7 @@ const Ledger = () => {
             </div>
             <div className="font-medium text-sm">{r.content}</div>
             <div className="flex items-center gap-2">
+              <span className={cn("pill", STATUS_PILL[r.status])}>{STATUS_LABEL[r.status]}</span>
               <Select
                 value={r.status}
                 onValueChange={(v) => {
@@ -103,9 +116,11 @@ const Ledger = () => {
               >
                 <SelectTrigger className="h-8 rounded-lg w-28 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pending">待兑现</SelectItem>
-                  <SelectItem value="used">已使用</SelectItem>
-                  <SelectItem value="forfeited">已作废</SelectItem>
+                  <SelectItem value="pending">{STATUS_LABEL.pending}</SelectItem>
+                  <SelectItem value="in_progress">{STATUS_LABEL.in_progress}</SelectItem>
+                  <SelectItem value="used">{STATUS_LABEL.used}</SelectItem>
+                  <SelectItem value="completed">{STATUS_LABEL.completed}</SelectItem>
+                  <SelectItem value="forfeited">{STATUS_LABEL.forfeited}</SelectItem>
                 </SelectContent>
               </Select>
               {r.expiry && <span className="text-[11px] text-muted-foreground">截止 {r.expiry}</span>}
@@ -147,20 +162,25 @@ const Ledger = () => {
                 <td className="px-4 py-3 font-medium">{r.content}</td>
                 <td className="px-4 py-3 text-muted-foreground tabular-nums text-xs">{r.source}</td>
                 <td className="px-4 py-3">
-                  <Select
-                    value={r.status}
-                    onValueChange={(v) => {
-                      updateLedger(r.id, { status: v as RewardStatus });
-                      toast.success("状态已更新");
-                    }}
-                  >
-                    <SelectTrigger className="h-8 rounded-lg w-28 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">{STATUS_LABEL.pending}</SelectItem>
-                      <SelectItem value="used">{STATUS_LABEL.used}</SelectItem>
-                      <SelectItem value="forfeited">{STATUS_LABEL.forfeited}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <span className={cn("pill", STATUS_PILL[r.status])}>{STATUS_LABEL[r.status]}</span>
+                    <Select
+                      value={r.status}
+                      onValueChange={(v) => {
+                        updateLedger(r.id, { status: v as RewardStatus });
+                        toast.success("状态已更新");
+                      }}
+                    >
+                      <SelectTrigger className="h-8 rounded-lg w-24 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">{STATUS_LABEL.pending}</SelectItem>
+                        <SelectItem value="in_progress">{STATUS_LABEL.in_progress}</SelectItem>
+                        <SelectItem value="used">{STATUS_LABEL.used}</SelectItem>
+                        <SelectItem value="completed">{STATUS_LABEL.completed}</SelectItem>
+                        <SelectItem value="forfeited">{STATUS_LABEL.forfeited}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">{r.expiry ?? "—"}</td>
                 <td className="px-4 py-3">
