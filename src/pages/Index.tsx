@@ -27,7 +27,7 @@ const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
 const UserPanel = ({ userId }: { userId: UserId }) => {
   const { tasks, logs, currentMonth, today } = useApp();
   const myTasks = tasks.filter((t) => t.userId === userId && t.month === currentMonth);
-  const currentWeek = today.startsWith(currentMonth) ? dayToWeek(currentMonth, +today.slice(-2)) : "W1";
+  const currentWeek = today.startsWith(currentMonth) ? (dayToWeek(currentMonth, today) ?? "W1") : "W1";
   const weeks = getWeeksInMonth(currentMonth);
   const month = monthStatus(myTasks, logs, currentMonth, today);
 

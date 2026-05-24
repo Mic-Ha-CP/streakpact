@@ -13,6 +13,7 @@ import {
   weeklyProgress,
   weekStatusForUser,
   logsForTaskInRange,
+  formatWeekLabel,
 } from "@/data/calc";
 import { cn } from "@/lib/utils";
 import { Check, X } from "lucide-react";
@@ -28,7 +29,7 @@ const Calendar = () => {
   const { tasks, logs, currentMonth, today } = useApp();
   const [active, setActive] = useState<UserId>("CP");
   const [openWeek, setOpenWeek] = useState<WeekLabel | null>(
-    today.startsWith(currentMonth) ? dayToWeek(currentMonth, +today.slice(-2)) : "W1",
+    today.startsWith(currentMonth) ? (dayToWeek(currentMonth, today) ?? "W1") : "W1",
   );
 
   const weeks = getWeeksInMonth(currentMonth);
@@ -88,9 +89,9 @@ const Calendar = () => {
               >
                 <WeekBadge label={w} status={status} size="md" />
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold">第 {w.slice(1)} 周</div>
+                  <div className="font-bold">{formatWeekLabel(currentMonth, w)}</div>
                   <div className="text-xs text-muted-foreground">
-                    {currentMonth}-{String(weekDef.start).padStart(2, "0")} ~ {currentMonth}-{String(weekDef.end).padStart(2, "0")}
+                    {weekDef.startDate} ~ {weekDef.endDate}
                   </div>
                 </div>
                 <div className="hidden sm:flex flex-col gap-1.5 w-1/2 max-w-xs">
@@ -116,10 +117,14 @@ const Calendar = () => {
                 <div className="p-4 bg-muted/20 space-y-3 animate-slide-up">
                   {myTasks.map((t) => {
                     const days: { day: number; date: string }[] = [];
-                    for (let day = openWeekDef.start; day <= openWeekDef.end; day++) {
-                      days.push({ day, date: `${currentMonth}-${String(day).padStart(2, "0")}` });
+                    const startD = new Date(openWeekDef.startDate);
+                    for (let i = 0; i < 7; i++) {
+                      const d = new Date(startD);
+                      d.setDate(startD.getDate() + i);
+                      const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                      days.push({ day: d.getDate(), date });
                     }
-                    const ls = logsForTaskInRange(logs, t.id, currentMonth, openWeekDef.start, openWeekDef.end);
+                    const ls = logsForTaskInRange(logs, t.id, openWeekDef.startDate, openWeekDef.endDate);
                     const v = weeklyProgress(t, logs, currentMonth, w);
                     return (
                       <div key={t.id} className="bg-card rounded-2xl p-3 border border-border/60">
