@@ -1,5 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { Calendar, CheckSquare, Home, ListChecks, LogOut, Sparkles, Wallet } from "lucide-react";
+import { NavLink, Outlet, Link } from "react-router-dom";
+import { Calendar, CheckSquare, Home, LogOut, Settings, Sparkles, Wallet } from "lucide-react";
 import { useApp } from "@/data/store";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +9,6 @@ const navItems = [
   { to: "/calendar", label: "周历", icon: Calendar },
   { to: "/rewards", label: "奖惩", icon: Sparkles },
   { to: "/ledger", label: "账本", icon: Wallet },
-  { to: "/setup", label: "任务", icon: ListChecks },
 ];
 
 export const AppShell = () => {
@@ -17,16 +16,16 @@ export const AppShell = () => {
   const logout = useApp((s) => s.logout);
 
   return (
-    <div className="min-h-screen bg-gradient-canvas pb-24 md:pb-0">
+    <div className="min-h-screen bg-background pb-24 md:pb-0">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-background/80 border-b border-border/60">
-        <div className="container flex items-center justify-between h-14">
+      <header className="sticky top-0 z-30 bg-background border-b border-border">
+        <div className="container flex items-center justify-between h-14 px-4 md:px-8">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-warm grid place-items-center text-primary-foreground font-black shadow-pop">
+            <div className="w-8 h-8 rounded-lg bg-primary grid place-items-center text-primary-foreground font-bold text-sm">
               S
             </div>
             <div className="leading-tight">
-              <div className="font-display font-extrabold tracking-tight">StreakPact</div>
+              <div className="font-semibold tracking-tight text-foreground">StreakPact</div>
               <div className="text-[10px] text-muted-foreground -mt-0.5">两人打卡契约</div>
             </div>
           </div>
@@ -40,9 +39,9 @@ export const AppShell = () => {
                 end={n.to === "/"}
                 className={({ isActive }) =>
                   cn(
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                    "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-primary text-primary-foreground shadow-soft"
+                      ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted",
                   )
                 }
@@ -52,20 +51,34 @@ export const AppShell = () => {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <span
               className={cn(
-                "pill",
+                "pill border",
                 user === "CP"
-                  ? "bg-cp-soft text-cp"
-                  : "bg-jx-soft text-jx",
+                  ? "bg-cp-soft text-cp border-cp/20"
+                  : "bg-jx-soft text-jx border-jx/20",
               )}
             >
               {user}
             </span>
+            <NavLink
+              to="/setup"
+              className={({ isActive }) =>
+                cn(
+                  "p-2 rounded-lg transition-colors",
+                  isActive
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                )
+              }
+              aria-label="任务设置"
+            >
+              <Settings className="w-4 h-4" />
+            </NavLink>
             <button
               onClick={logout}
-              className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="登出"
             >
               <LogOut className="w-4 h-4" />
@@ -74,13 +87,13 @@ export const AppShell = () => {
         </div>
       </header>
 
-      <main className="container py-4 md:py-8 animate-slide-up">
+      <main className="container px-4 md:px-8 py-4 md:py-8 animate-slide-up">
         <Outlet />
       </main>
 
       {/* Bottom nav (mobile) */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background/95 backdrop-blur-md border-t border-border">
-        <div className="grid grid-cols-6">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background border-t border-border">
+        <div className="grid grid-cols-5">
           {navItems.map((n) => (
             <NavLink
               key={n.to}
@@ -88,7 +101,7 @@ export const AppShell = () => {
               end={n.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors",
+                  "flex flex-col items-center justify-center py-2.5 gap-0.5 text-[10px] font-medium transition-colors",
                   isActive ? "text-primary" : "text-muted-foreground",
                 )
               }
