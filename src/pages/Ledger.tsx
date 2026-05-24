@@ -15,9 +15,19 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 const STATUS_LABEL: Record<RewardStatus, string> = {
-  pending: "待兑现",
+  pending: "未使用",
+  in_progress: "使用中",
   used: "已使用",
-  forfeited: "已作废",
+  completed: "已完成",
+  forfeited: "已过期",
+};
+
+const STATUS_PILL: Record<RewardStatus, string> = {
+  pending: "border border-primary text-primary bg-transparent",
+  in_progress: "bg-primary text-primary-foreground",
+  used: "bg-success text-success-foreground",
+  completed: "bg-success text-success-foreground",
+  forfeited: "bg-muted text-muted-foreground",
 };
 
 const Ledger = () => {
