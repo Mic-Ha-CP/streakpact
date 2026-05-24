@@ -151,7 +151,7 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "streakpact-store",
-      version: 2,
+      version: 3,
       partialize: (s) => ({
         currentUser: s.currentUser,
         tasks: s.tasks,

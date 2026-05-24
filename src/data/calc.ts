@@ -74,12 +74,14 @@ export function weekStatusForUser(
   return "fail";
 }
 
+export type MonthResult = "success" | "fail" | "neutral";
+
 export function monthStatus(
   tasks: Task[],
   logs: DailyLog[],
   month: string,
   today: string,
-): { successWeeks: number; totalWeeks: number; passed: boolean | null } {
+): { successWeeks: number; totalWeeks: number; result: MonthResult | null } {
   const weeks = getWeeksInMonth(month);
   let success = 0;
   let completed = 0;
@@ -90,9 +92,15 @@ export function monthStatus(
   }
   // month is decided once all weeks are complete
   const allDone = completed === weeks.length;
+  let result: MonthResult | null = null;
+  if (allDone) {
+    if (success >= 3) result = "success";
+    else if (success <= 1) result = "fail";
+    else result = "neutral";
+  }
   return {
     successWeeks: success,
     totalWeeks: weeks.length,
-    passed: allDone ? success >= 3 : null,
+    result,
   };
 }
