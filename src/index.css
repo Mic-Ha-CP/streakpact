@@ -1,132 +1,131 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* StreakPact — warm, playful accountability design system. All colors HSL. */
+/* StreakPact — clean minimal design system. All colors HSL. */
 
 @layer base {
   :root {
-    /* Warm cream canvas */
-    --background: 36 40% 97%;
-    --foreground: 24 25% 14%;
+    /* Surfaces */
+    --background: 0 0% 100%;             /* #FFFFFF */
+    --foreground: 217 33% 17%;           /* #1E293B */
 
-    --card: 0 0% 100%;
-    --card-foreground: 24 25% 14%;
+    --card: 210 20% 98%;                 /* #F8FAFB */
+    --card-foreground: 217 33% 17%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 24 25% 14%;
+    --popover-foreground: 217 33% 17%;
 
-    /* Terracotta primary */
-    --primary: 14 78% 56%;
-    --primary-foreground: 36 40% 98%;
-    --primary-soft: 14 80% 94%;
+    /* Teal primary */
+    --primary: 173 84% 32%;              /* #0D9488 */
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 173 70% 94%;
 
-    /* Mustard secondary */
-    --secondary: 38 90% 60%;
-    --secondary-foreground: 24 35% 14%;
-    --secondary-soft: 40 90% 94%;
+    /* Secondary neutral */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 217 33% 17%;
+    --secondary-soft: 210 20% 96%;
 
-    --muted: 30 20% 94%;
-    --muted-foreground: 24 12% 45%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;     /* #64748B */
 
-    --accent: 168 50% 45%;
+    --accent: 173 84% 32%;
     --accent-foreground: 0 0% 100%;
-    --accent-soft: 168 45% 92%;
+    --accent-soft: 173 70% 94%;
 
-    --success: 145 55% 42%;
+    --success: 160 84% 39%;              /* #10B981 */
     --success-foreground: 0 0% 100%;
-    --success-soft: 145 50% 92%;
+    --success-soft: 160 70% 94%;
 
-    --danger: 358 70% 56%;
+    --danger: 0 84% 60%;                 /* #EF4444 */
     --danger-foreground: 0 0% 100%;
-    --danger-soft: 358 70% 95%;
+    --danger-soft: 0 86% 96%;
 
-    --destructive: 358 70% 56%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 20% 88%;
-    --input: 30 20% 88%;
-    --ring: 14 78% 56%;
+    --border: 214 32% 91%;               /* #E2E8F0 */
+    --input: 214 32% 91%;
+    --ring: 173 84% 32%;
 
-    --radius: 1rem;
+    --radius: 0.5rem;                    /* 8px */
 
     /* Person accents */
-    --cp: 14 78% 56%;     /* terracotta */
-    --cp-soft: 14 80% 94%;
-    --jx: 220 70% 58%;    /* warm indigo */
-    --jx-soft: 220 70% 95%;
+    --cp: 173 84% 32%;                   /* teal */
+    --cp-soft: 173 70% 94%;
+    --jx: 215 25% 27%;                   /* slate */
+    --jx-soft: 214 32% 94%;
 
-    /* Gradients */
-    --gradient-warm: linear-gradient(135deg, hsl(14 78% 56%), hsl(38 90% 60%));
-    --gradient-cool: linear-gradient(135deg, hsl(220 70% 58%), hsl(168 50% 55%));
-    --gradient-canvas: linear-gradient(180deg, hsl(36 50% 97%), hsl(36 40% 95%));
+    /* Gradients (kept subtle / flat for minimal theme) */
+    --gradient-warm: linear-gradient(135deg, hsl(173 84% 32%), hsl(173 70% 42%));
+    --gradient-cool: linear-gradient(135deg, hsl(215 25% 27%), hsl(215 16% 47%));
+    --gradient-canvas: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 20% 99%));
 
-    /* Shadows */
-    --shadow-soft: 0 4px 20px -8px hsl(24 30% 30% / 0.12);
-    --shadow-pop: 0 8px 30px -10px hsl(14 60% 40% / 0.25);
-    --shadow-card: 0 1px 3px hsl(24 20% 20% / 0.04), 0 4px 16px -4px hsl(24 20% 20% / 0.06);
+    /* Shadows — minimal */
+    --shadow-soft: 0 1px 2px hsl(217 33% 17% / 0.04);
+    --shadow-pop: 0 2px 8px hsl(217 33% 17% / 0.06);
+    --shadow-card: 0 1px 2px hsl(217 33% 17% / 0.04);
 
-    --sidebar-background: 36 40% 97%;
-    --sidebar-foreground: 24 25% 14%;
-    --sidebar-primary: 14 78% 56%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 217 33% 17%;
+    --sidebar-primary: 173 84% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 30 20% 94%;
-    --sidebar-accent-foreground: 24 25% 14%;
-    --sidebar-border: 30 20% 88%;
-    --sidebar-ring: 14 78% 56%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 217 33% 17%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 173 84% 32%;
   }
 
   .dark {
-    --background: 24 18% 10%;
-    --foreground: 36 30% 94%;
-    --card: 24 18% 13%;
-    --card-foreground: 36 30% 94%;
-    --popover: 24 18% 13%;
-    --popover-foreground: 36 30% 94%;
-    --primary: 14 78% 60%;
-    --primary-foreground: 24 25% 10%;
-    --primary-soft: 14 40% 22%;
-    --secondary: 38 80% 58%;
-    --secondary-foreground: 24 25% 10%;
-    --muted: 24 12% 18%;
-    --muted-foreground: 30 15% 65%;
-    --accent: 168 50% 50%;
-    --accent-foreground: 24 25% 10%;
-    --success: 145 50% 50%;
-    --danger: 358 70% 60%;
-    --destructive: 358 70% 60%;
+    --background: 217 33% 10%;
+    --foreground: 210 20% 96%;
+    --card: 217 33% 13%;
+    --card-foreground: 210 20% 96%;
+    --popover: 217 33% 13%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 173 84% 42%;
+    --primary-foreground: 217 33% 10%;
+    --primary-soft: 173 40% 22%;
+    --secondary: 217 20% 18%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 217 20% 18%;
+    --muted-foreground: 215 16% 65%;
+    --accent: 173 84% 42%;
+    --accent-foreground: 217 33% 10%;
+    --success: 160 70% 45%;
+    --danger: 0 80% 60%;
+    --destructive: 0 80% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 24 12% 22%;
-    --input: 24 12% 22%;
-    --ring: 14 78% 60%;
-    --cp: 14 78% 60%;
-    --cp-soft: 14 40% 22%;
-    --jx: 220 70% 65%;
-    --jx-soft: 220 40% 22%;
+    --border: 217 20% 22%;
+    --input: 217 20% 22%;
+    --ring: 173 84% 42%;
+    --cp: 173 84% 42%;
+    --cp-soft: 173 40% 22%;
+    --jx: 215 16% 65%;
+    --jx-soft: 215 20% 22%;
   }
 }
 
 @layer base {
   * { @apply border-border; }
-  html { font-family: 'Plus Jakarta Sans', 'Noto Sans SC', system-ui, -apple-system, sans-serif; }
+  html { font-family: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif; }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "ss01", "cv11";
   }
-  h1, h2, h3, h4 { font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif; letter-spacing: -0.02em; }
+  h1, h2, h3, h4 { font-family: 'Inter', 'Noto Sans SC', sans-serif; letter-spacing: -0.01em; }
 }
 
 @layer components {
   .badge-week-success {
-    @apply inline-flex items-center justify-center rounded-xl bg-[hsl(var(--success-soft))] text-[hsl(var(--success))] font-bold;
+    @apply inline-flex items-center justify-center rounded-lg bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] font-semibold;
   }
   .badge-week-fail {
-    @apply inline-flex items-center justify-center rounded-xl bg-[hsl(var(--danger-soft))] text-[hsl(var(--danger))] font-bold;
+    @apply inline-flex items-center justify-center rounded-lg bg-[hsl(var(--danger))] text-[hsl(var(--danger-foreground))] font-semibold;
   }
   .badge-week-pending {
-    @apply inline-flex items-center justify-center rounded-xl bg-muted text-muted-foreground font-bold;
+    @apply inline-flex items-center justify-center rounded-lg border border-border text-muted-foreground font-semibold;
   }
   .pill {
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
