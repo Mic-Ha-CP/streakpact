@@ -6,14 +6,23 @@ import { ProgressBar } from "@/components/ProgressBar";
 import {
   WEEK_LABELS,
   type WeekLabel,
+  type MonthResult,
   dayToWeek,
   getWeeksInMonth,
+  monthStatus,
   weeklyProgress,
   weekStatusForUser,
   logsForTaskInRange,
 } from "@/data/calc";
 import { cn } from "@/lib/utils";
 import { Check, X } from "lucide-react";
+
+const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
+  if (!result) return <span className="pill border border-border text-muted-foreground">进行中</span>;
+  if (result === "success") return <span className="pill bg-success text-success-foreground">成功</span>;
+  if (result === "fail") return <span className="pill bg-danger text-danger-foreground">失败</span>;
+  return <span className="pill bg-muted text-muted-foreground">无事发生</span>;
+};
 
 const Calendar = () => {
   const { tasks, logs, currentMonth, today } = useApp();
@@ -32,9 +41,15 @@ const Calendar = () => {
 
   return (
     <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
-      <div>
-        <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">月度周历</h1>
-        <p className="text-sm text-muted-foreground">{currentMonth} · 点击某周查看每日明细</p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">月度周历</h1>
+          <p className="text-sm text-muted-foreground">{currentMonth} · 点击某周查看每日明细</p>
+        </div>
+        <div className="text-right space-y-1">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">{active} 本月结算</div>
+          <MonthResultBadge result={monthStatus(myTasks, logs, currentMonth, today).result} />
+        </div>
       </div>
 
       <div className="flex gap-2">
