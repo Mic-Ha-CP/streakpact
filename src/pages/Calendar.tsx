@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import { useApp } from "@/data/store";
-import type { UserId } from "@/data/types";
+import { unitLabel, type UserId } from "@/data/models";
+import { useTasks } from "@/hooks/useTasks";
+import { useLogs } from "@/hooks/useLogs";
+import { currentMonthISO, todayISO } from "@/lib/dates";
 import { WeekBadge } from "@/components/WeekBadge";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
@@ -21,12 +23,15 @@ import { Check, X } from "lucide-react";
 const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
   if (!result) return <span className="pill border border-border text-muted-foreground">进行中</span>;
   if (result === "success") return <span className="pill bg-success text-success-foreground">成功</span>;
-  if (result === "fail") return <span className="pill bg-danger text-danger-foreground">失败</span>;
+  if (result === "failure") return <span className="pill bg-danger text-danger-foreground">失败</span>;
   return <span className="pill bg-muted text-muted-foreground">无事发生</span>;
 };
 
 const Calendar = () => {
-  const { tasks, logs, currentMonth, today } = useApp();
+  const currentMonth = currentMonthISO();
+  const today = todayISO();
+  const { tasks } = useTasks(currentMonth);
+  const { logs } = useLogs(currentMonth);
   const [active, setActive] = useState<UserId>("CP");
   const [openWeek, setOpenWeek] = useState<WeekLabel | null>(
     today.startsWith(currentMonth) ? (dayToWeek(currentMonth, today) ?? "W1") : "W1",
@@ -131,15 +136,15 @@ const Calendar = () => {
                         <div className="flex items-center justify-between mb-2">
                           <div className="font-medium text-sm">{t.title}</div>
                           <span className={cn("pill", v >= t.target ? "bg-success-soft text-success" : "bg-muted text-muted-foreground")}>
-                            {v}/{t.target} {t.unit}
+                            {v}/{t.target} {unitLabel(t.unit)}
                           </span>
                         </div>
                         <div className="grid grid-cols-7 gap-1.5">
                           {days.map((d) => {
-                            const log = ls.find((x) => x.date === d.date);
+                            const dayLogs = ls.filter((x) => x.date === d.date);
                             const isFuture = d.date > today;
                             if (t.type === "count") {
-                              const done = !!log?.done;
+                              const done = dayLogs.length > 0;
                               return (
                                 <div
                                   key={d.date}
@@ -158,7 +163,7 @@ const Calendar = () => {
                                 </div>
                               );
                             }
-                            const m = log?.minutes ?? 0;
+                            const m = dayLogs.reduce((s, x) => s + (x.value ?? 0), 0);
                             return (
                               <div
                                 key={d.date}

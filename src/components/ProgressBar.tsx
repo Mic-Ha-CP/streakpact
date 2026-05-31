@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { UserId } from "@/data/types";
+import type { UserId } from "@/data/models";
 
 export const ProgressBar = ({
   value,

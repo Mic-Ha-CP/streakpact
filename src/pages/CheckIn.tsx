@@ -1,66 +1,54 @@
 import { useMemo, useState } from "react";
-import { useApp } from "@/data/store";
-import type { UserId } from "@/data/types";
+import { useAuth } from "@/hooks/useAuth";
+import { useTasks } from "@/hooks/useTasks";
+import { useLogs } from "@/hooks/useLogs";
+import { todayISO, shiftDate } from "@/lib/dates";
+import type { DailyLog, UserId } from "@/data/models";
 import { PersonChip } from "@/components/PersonChip";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Check, ChevronLeft, ChevronRight, History, Timer, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const shiftDate = (date: string, days: number) => {
-  const [y, m, d] = date.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + days);
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-};
-
-const formatTime = (ms?: number) => {
-  if (!ms) return "";
-  const dt = new Date(ms);
+const formatTime = (iso?: string) => {
+  if (!iso) return "";
+  const dt = new Date(iso);
   return `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
 };
 
 const TimerTaskCard = ({
-  taskId,
   title,
   active,
-  date,
+  editable,
+  entries,
   isPast,
+  onAdd,
+  onDelete,
+  onSetNote,
 }: {
-  taskId: string;
   title: string;
   active: UserId;
-  date: string;
+  editable: boolean;
+  entries: DailyLog[];
   isPast: boolean;
+  onAdd: (minutes: number) => void;
+  onDelete: (id: string) => void;
+  onSetNote: (log: DailyLog, note: string) => void;
 }) => {
-  const { logs, addTimerLog, deleteLog, setLog } = useApp();
   const [pending, setPending] = useState<string>("");
-
-  const entries = useMemo(
-    () =>
-      logs
-        .filter((l) => l.taskId === taskId && l.date === date && typeof l.minutes === "number")
-        .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0)),
-    [logs, taskId, date],
-  );
-  const total = entries.reduce((sum, l) => sum + (l.minutes ?? 0), 0);
-
-  // Note row uses a separate log keyed by (taskId,date) with no minutes.
-  const noteLog = logs.find(
-    (l) => l.taskId === taskId && l.date === date && typeof l.minutes !== "number",
-  );
+  const total = entries.reduce((sum, l) => sum + (l.value ?? 0), 0);
+  const firstEntry = entries[0];
 
   const parsed = Math.max(0, Math.floor(+pending || 0));
-  const canConfirm = pending.trim() !== "" && parsed > 0;
+  const canConfirm = editable && pending.trim() !== "" && parsed > 0;
 
   const confirm = () => {
     if (!canConfirm) return;
-    addTimerLog(taskId, date, parsed, isPast);
+    onAdd(parsed);
     toast.success(`已添加 ${parsed} 分钟`);
     setPending("");
   };
-
   const cancel = () => setPending("");
 
   return (
@@ -76,48 +64,49 @@ const TimerTaskCard = ({
       </div>
       <div className="font-bold mb-3">{title}</div>
 
-      <div className="flex items-center gap-2">
-        <Input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          value={pending}
-          placeholder="本次时长"
-          className="rounded-xl h-12 text-lg font-bold tabular-nums"
-          onChange={(e) => setPending(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") confirm();
-            if (e.key === "Escape") cancel();
-          }}
-        />
-        <span className="text-sm text-muted-foreground font-medium">分钟</span>
-        {pending !== "" && (
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={confirm}
-              disabled={!canConfirm}
-              aria-label="确认"
-              className={cn(
-                "w-10 h-10 rounded-xl grid place-items-center border-2 transition-all",
-                canConfirm
-                  ? "bg-success border-success text-success-foreground hover:scale-105 active:scale-95 shadow-pop"
-                  : "bg-muted border-border text-muted-foreground cursor-not-allowed",
-              )}
-            >
-              <Check className="w-5 h-5" strokeWidth={3} />
-            </button>
-            <button
-              onClick={cancel}
-              aria-label="取消"
-              className="w-10 h-10 rounded-xl grid place-items-center border-2 border-border bg-background text-muted-foreground hover:text-danger hover:border-danger transition-all active:scale-95"
-            >
-              <X className="w-5 h-5" strokeWidth={3} />
-            </button>
-          </div>
-        )}
-      </div>
+      {editable && (
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={pending}
+            placeholder="本次时长"
+            className="rounded-xl h-12 text-lg font-bold tabular-nums"
+            onChange={(e) => setPending(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") confirm();
+              if (e.key === "Escape") cancel();
+            }}
+          />
+          <span className="text-sm text-muted-foreground font-medium">分钟</span>
+          {pending !== "" && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={confirm}
+                disabled={!canConfirm}
+                aria-label="确认"
+                className={cn(
+                  "w-10 h-10 rounded-xl grid place-items-center border-2 transition-all",
+                  canConfirm
+                    ? "bg-success border-success text-success-foreground hover:scale-105 active:scale-95 shadow-pop"
+                    : "bg-muted border-border text-muted-foreground cursor-not-allowed",
+                )}
+              >
+                <Check className="w-5 h-5" strokeWidth={3} />
+              </button>
+              <button
+                onClick={cancel}
+                aria-label="取消"
+                className="w-10 h-10 rounded-xl grid place-items-center border-2 border-border bg-background text-muted-foreground hover:text-danger hover:border-danger transition-all active:scale-95"
+              >
+                <X className="w-5 h-5" strokeWidth={3} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Entry list */}
       {entries.length > 0 && (
         <ul className="mt-3 space-y-1.5">
           {entries.map((l) => (
@@ -125,7 +114,7 @@ const TimerTaskCard = ({
               key={l.id}
               className="flex items-center gap-2 bg-muted/40 rounded-xl px-3 py-2 text-sm"
             >
-              <span className="font-bold tabular-nums">{l.minutes}</span>
+              <span className="font-bold tabular-nums">{l.value}</span>
               <span className="text-muted-foreground">分钟</span>
               {l.createdAt && (
                 <span className="text-xs text-muted-foreground tabular-nums">
@@ -133,48 +122,61 @@ const TimerTaskCard = ({
                 </span>
               )}
               {l.backfilled && (
-                <span className="pill bg-secondary-soft text-secondary-foreground text-[10px]">
-                  补
-                </span>
+                <span className="pill bg-secondary-soft text-secondary-foreground text-[10px]">补</span>
               )}
-              <button
-                onClick={() => {
-                  deleteLog(l.id);
-                  toast.success("已删除");
-                }}
-                aria-label="删除"
-                className="ml-auto p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-soft"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {editable && (
+                <button
+                  onClick={() => {
+                    onDelete(l.id);
+                    toast.success("已删除");
+                  }}
+                  aria-label="删除"
+                  className="ml-auto p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-soft"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </li>
           ))}
         </ul>
       )}
 
+      {/* Per-day note rides on the first entry; only editable when an entry exists. */}
       <Textarea
-        defaultValue={noteLog?.note ?? ""}
-        placeholder="备注…"
+        key={firstEntry?.id ?? "no-entry"}
+        defaultValue={firstEntry?.note ?? ""}
+        disabled={!editable || !firstEntry}
+        placeholder={firstEntry ? "备注…" : "添加时长后可备注"}
         className="mt-3 rounded-xl text-sm min-h-[44px]"
-        onBlur={(e) => setLog(taskId, date, { note: e.target.value, backfilled: isPast })}
+        onBlur={(e) => {
+          if (firstEntry && e.target.value !== (firstEntry.note ?? "")) {
+            onSetNote(firstEntry, e.target.value);
+          }
+        }}
       />
     </div>
   );
 };
 
 const CheckIn = () => {
-  const { tasks, logs, today, currentUser, setLog } = useApp();
-  const [active, setActive] = useState<UserId>(currentUser ?? "CP");
+  const today = todayISO();
+  const { userId: me } = useAuth();
+  const [active, setActive] = useState<UserId>(me ?? "CP");
   const [date, setDate] = useState(today);
   const isPast = date < today;
+  const editable = active === me;
+  const viewMonth = date.slice(0, 7);
+
+  const { tasks } = useTasks(viewMonth);
+  const { logs, toggleCount, insertLog, deleteLog, setNote } = useLogs(viewMonth);
 
   const myTasks = useMemo(
-    () => tasks.filter((t) => t.userId === active && date.startsWith(t.month)),
-    [tasks, active, date],
+    () => tasks.filter((t) => t.userId === active && t.month === viewMonth),
+    [tasks, active, viewMonth],
   );
 
-  const getLog = (taskId: string) =>
-    logs.find((l) => l.taskId === taskId && l.date === date);
+  const logsFor = (taskId: string) =>
+    logs.filter((l) => l.taskId === taskId && l.date === date);
 
   return (
     <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
@@ -202,6 +204,12 @@ const CheckIn = () => {
           </button>
         ))}
       </div>
+
+      {!editable && (
+        <div className="text-xs text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
+          正在查看 {active} 的打卡（只读）。只能为自己打卡。
+        </div>
+      )}
 
       {/* Date selector */}
       <div className="bg-card rounded-2xl border border-border/60 p-3 flex items-center justify-between shadow-card">
@@ -240,8 +248,9 @@ const CheckIn = () => {
         )}
         {myTasks.map((t) => {
           if (t.type === "count") {
-            const log = getLog(t.id);
-            const done = !!log?.done;
+            const rows = logsFor(t.id);
+            const countRow = rows[0];
+            const done = !!countRow;
             return (
               <div key={t.id} className="bg-card rounded-2xl p-4 border border-border/60 shadow-card">
                 <div className="flex items-start justify-between gap-3">
@@ -253,12 +262,17 @@ const CheckIn = () => {
                     <div className="font-bold">{t.title}</div>
                   </div>
                   <button
+                    disabled={!editable}
                     onClick={() => {
-                      setLog(t.id, date, { done: !done, backfilled: isPast });
-                      toast.success(done ? "已取消" : "打卡成功！");
+                      toggleCount.mutate(
+                        { taskId: t.id, date, backfilled: isPast },
+                        { onSuccess: () => toast.success(done ? "已取消" : "打卡成功！") },
+                      );
                     }}
                     className={cn(
-                      "shrink-0 w-14 h-14 rounded-2xl grid place-items-center transition-all border-2 hover:scale-105 active:scale-95",
+                      "shrink-0 w-14 h-14 rounded-2xl grid place-items-center transition-all border-2",
+                      editable && "hover:scale-105 active:scale-95",
+                      !editable && "opacity-60 cursor-not-allowed",
                       done
                         ? "bg-success border-success text-success-foreground shadow-pop"
                         : "bg-background border-border text-muted-foreground",
@@ -268,10 +282,16 @@ const CheckIn = () => {
                   </button>
                 </div>
                 <Textarea
-                  defaultValue={log?.note ?? ""}
-                  placeholder="备注（生病 / 补签说明…）"
+                  key={countRow?.id ?? "no-row"}
+                  defaultValue={countRow?.note ?? ""}
+                  disabled={!editable || !done}
+                  placeholder={done ? "备注（生病 / 补签说明…）" : "打卡后可备注"}
                   className="mt-3 rounded-xl text-sm min-h-[44px]"
-                  onBlur={(e) => setLog(t.id, date, { note: e.target.value, backfilled: isPast })}
+                  onBlur={(e) => {
+                    if (countRow && e.target.value !== (countRow.note ?? "")) {
+                      setNote.mutate({ log: countRow, note: e.target.value });
+                    }
+                  }}
                 />
               </div>
             );
@@ -280,11 +300,16 @@ const CheckIn = () => {
           return (
             <TimerTaskCard
               key={t.id}
-              taskId={t.id}
               title={t.title}
               active={active}
-              date={date}
+              editable={editable}
+              entries={logsFor(t.id)}
               isPast={isPast}
+              onAdd={(minutes) =>
+                insertLog.mutate({ taskId: t.id, date, value: minutes, backfilled: isPast })
+              }
+              onDelete={(id) => deleteLog.mutate(id)}
+              onSetNote={(log, note) => setNote.mutate({ log, note })}
             />
           );
         })}

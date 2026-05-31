@@ -1,36 +1,43 @@
 import { useState } from "react";
-import { useApp } from "@/data/store";
-import type { RewardPlan, UserId } from "@/data/types";
+import { useRewardPlans } from "@/hooks/useRewardPlans";
+import { useAuth } from "@/hooks/useAuth";
+import type { UserId } from "@/data/models";
 import { Input } from "@/components/ui/input";
 import { Sparkles, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getWeeksInMonth, WEEK_LABELS, type WeekLabel } from "@/data/calc";
+import { currentMonthISO } from "@/lib/dates";
 import { toast } from "sonner";
 
-const SCOPES: ("MONTH" | WeekLabel)[] = ["W1", "W2", "W3", "W4", "W5", "MONTH"];
+type Scope = "MONTH" | WeekLabel;
+const SCOPES: Scope[] = ["W1", "W2", "W3", "W4", "W5", "MONTH"];
+
+/** "W3" -> 3, "MONTH" -> null (monthly plan). */
+const scopeToWeek = (scope: Scope): number | null =>
+  scope === "MONTH" ? null : Number(scope.slice(1));
 
 const Rewards = () => {
-  const { plans, currentMonth, upsertPlan } = useApp();
-  const [active, setActive] = useState<UserId>("CP");
+  const currentMonth = currentMonthISO();
+  const { userId: me } = useAuth();
+  const { plans, upsertPlan } = useRewardPlans(currentMonth);
+  const [active, setActive] = useState<UserId>(me ?? "CP");
+  const editable = active === me;
+
   const weeks = getWeeksInMonth(currentMonth);
   const validScopes = SCOPES.filter((s) => s === "MONTH" || weeks.find((w) => w.label === s));
 
-  const findPlan = (scope: "MONTH" | WeekLabel): RewardPlan => {
-    const existing = plans.find((p) => p.userId === active && p.month === currentMonth && p.scope === scope);
-    return (
-      existing ?? {
-        id: `${active}-${currentMonth}-${scope}`,
-        userId: active,
-        month: currentMonth,
-        scope,
-        rewardText: "",
-        penaltyText: "",
-      }
-    );
+  const planFor = (scope: Scope) => {
+    const wn = scopeToWeek(scope);
+    return plans.find((p) => p.userId === active && p.weekNumber === wn);
   };
 
-  const save = (p: RewardPlan, patch: Partial<RewardPlan>) => {
-    upsertPlan({ ...p, ...patch });
+  const save = (scope: Scope, patch: { successReward?: string; failurePenalty?: string }) => {
+    const existing = planFor(scope);
+    upsertPlan.mutate({
+      weekNumber: scopeToWeek(scope),
+      successReward: patch.successReward ?? existing?.successReward ?? "",
+      failurePenalty: patch.failurePenalty ?? existing?.failurePenalty ?? "",
+    });
   };
 
   return (
@@ -59,9 +66,15 @@ const Rewards = () => {
         ))}
       </div>
 
+      {!editable && (
+        <div className="text-xs text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
+          正在查看 {active} 的奖惩设置（只读）。只能编辑自己的设置。
+        </div>
+      )}
+
       <div className="space-y-3">
         {validScopes.map((scope) => {
-          const plan = findPlan(scope);
+          const plan = planFor(scope);
           const isMonth = scope === "MONTH";
           return (
             <div
@@ -88,12 +101,14 @@ const Rewards = () => {
                     <Sparkles className="w-3.5 h-3.5" /> 成功奖励
                   </div>
                   <Input
-                    defaultValue={plan.rewardText}
+                    key={`${scope}-reward-${plan?.successReward ?? ""}`}
+                    defaultValue={plan?.successReward ?? ""}
+                    disabled={!editable}
                     placeholder="例如：新书 / 一顿大餐 / 周末旅行…"
                     className="rounded-xl"
                     onBlur={(e) => {
-                      if (e.target.value !== plan.rewardText) {
-                        save(plan, { rewardText: e.target.value });
+                      if (e.target.value !== (plan?.successReward ?? "")) {
+                        save(scope, { successReward: e.target.value });
                         toast.success("奖励已保存");
                       }
                     }}
@@ -104,12 +119,14 @@ const Rewards = () => {
                     <Skull className="w-3.5 h-3.5" /> 失败惩罚
                   </div>
                   <Input
-                    defaultValue={plan.penaltyText}
+                    key={`${scope}-penalty-${plan?.failurePenalty ?? ""}`}
+                    defaultValue={plan?.failurePenalty ?? ""}
+                    disabled={!editable}
                     placeholder="例如：请喝奶茶 / 做一周饭…"
                     className="rounded-xl"
                     onBlur={(e) => {
-                      if (e.target.value !== plan.penaltyText) {
-                        save(plan, { penaltyText: e.target.value });
+                      if (e.target.value !== (plan?.failurePenalty ?? "")) {
+                        save(scope, { failurePenalty: e.target.value });
                         toast.success("惩罚已保存");
                       }
                     }}

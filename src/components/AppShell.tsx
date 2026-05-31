@@ -1,6 +1,6 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
 import { Calendar, CheckSquare, Home, LogOut, Settings, Sparkles, Wallet } from "lucide-react";
-import { useApp } from "@/data/store";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -12,8 +12,7 @@ const navItems = [
 ];
 
 export const AppShell = () => {
-  const user = useApp((s) => s.currentUser);
-  const logout = useApp((s) => s.logout);
+  const { userId: user, signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
@@ -77,7 +76,7 @@ export const AppShell = () => {
               <Settings className="w-4 h-4" />
             </NavLink>
             <button
-              onClick={logout}
+              onClick={() => void signOut()}
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               aria-label="登出"
             >

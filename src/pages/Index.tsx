@@ -1,5 +1,7 @@
-import { useApp } from "@/data/store";
-import type { UserId } from "@/data/types";
+import { unitLabel, type DailyLog, type Task, type UserId } from "@/data/models";
+import { useTasks } from "@/hooks/useTasks";
+import { useLogs } from "@/hooks/useLogs";
+import { currentMonthISO, todayISO } from "@/lib/dates";
 import { PersonChip } from "@/components/PersonChip";
 import { ProgressBar } from "@/components/ProgressBar";
 import { WeekBadge } from "@/components/WeekBadge";
@@ -19,13 +21,24 @@ const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
   if (!result) return <span className="pill border border-border text-muted-foreground">进行中</span>;
   if (result === "success")
     return <span className="pill bg-success text-success-foreground">成功</span>;
-  if (result === "fail")
+  if (result === "failure")
     return <span className="pill bg-danger text-danger-foreground">失败</span>;
   return <span className="pill bg-muted text-muted-foreground">无事发生</span>;
 };
 
-const UserPanel = ({ userId }: { userId: UserId }) => {
-  const { tasks, logs, currentMonth, today } = useApp();
+const UserPanel = ({
+  userId,
+  tasks,
+  logs,
+  currentMonth,
+  today,
+}: {
+  userId: UserId;
+  tasks: Task[];
+  logs: DailyLog[];
+  currentMonth: string;
+  today: string;
+}) => {
   const myTasks = tasks.filter((t) => t.userId === userId && t.month === currentMonth);
   const currentWeek = today.startsWith(currentMonth) ? (dayToWeek(currentMonth, today) ?? "W1") : "W1";
   const weeks = getWeeksInMonth(currentMonth);
@@ -33,10 +46,9 @@ const UserPanel = ({ userId }: { userId: UserId }) => {
 
   // today's check-in status
   const todayDone = myTasks.every((t) => {
-    const log = logs.find((l) => l.taskId === t.id && l.date === today);
-    if (!log) return false;
-    if (t.type === "count") return !!log.done;
-    return (log.minutes ?? 0) > 0;
+    const dayLogs = logs.filter((l) => l.taskId === t.id && l.date === today);
+    if (t.type === "count") return dayLogs.length > 0;
+    return dayLogs.reduce((s, l) => s + (l.value ?? 0), 0) > 0;
   });
 
   return (
@@ -129,7 +141,7 @@ const UserPanel = ({ userId }: { userId: UserId }) => {
                     passed ? "text-success" : "text-muted-foreground",
                   )}
                 >
-                  {v}/{t.target} {t.unit}
+                  {v}/{t.target} {unitLabel(t.unit)}
                 </span>
               </div>
               <ProgressBar value={v} max={t.target} user={userId} />
@@ -142,7 +154,10 @@ const UserPanel = ({ userId }: { userId: UserId }) => {
 };
 
 const Index = () => {
-  const today = useApp((s) => s.today);
+  const today = todayISO();
+  const currentMonth = currentMonthISO();
+  const { tasks } = useTasks(currentMonth);
+  const { logs } = useLogs(currentMonth);
   return (
     <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
       <div className="flex items-end justify-between gap-4">
@@ -161,8 +176,8 @@ const Index = () => {
           <PersonChip user="CP" />
           <PersonChip user="JX" />
         </div>
-        <UserPanel userId="CP" />
-        <UserPanel userId="JX" />
+        <UserPanel userId="CP" tasks={tasks} logs={logs} currentMonth={currentMonth} today={today} />
+        <UserPanel userId="JX" tasks={tasks} logs={logs} currentMonth={currentMonth} today={today} />
       </div>
 
       <div className="md:hidden bg-card rounded-2xl p-4 border border-border/60 text-xs text-muted-foreground flex items-start gap-2">

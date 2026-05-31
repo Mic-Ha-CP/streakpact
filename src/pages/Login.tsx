@@ -1,27 +1,32 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useApp } from "@/data/store";
-import type { UserId } from "@/data/types";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 const Login = () => {
-  const [user, setUser] = useState<UserId>("CP");
+  const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
-  const login = useApp((s) => s.login);
+  const [busy, setBusy] = useState(false);
+  const { signIn } = useAuth();
   const nav = useNavigate();
+  const loc = useLocation();
+  const from = (loc.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/";
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login(user, pw)) {
-      toast.success(`欢迎回来，${user}`);
-      nav("/");
-    } else {
-      toast.error("密码不能为空");
+    if (busy) return;
+    setBusy(true);
+    const { error } = await signIn(email.trim(), pw);
+    setBusy(false);
+    if (error) {
+      toast.error("登录失败：邮箱或密码错误");
+      return;
     }
+    toast.success("欢迎回来");
+    nav(from, { replace: true });
   };
 
   return (
@@ -40,26 +45,17 @@ const Login = () => {
           className="bg-card rounded-3xl p-6 shadow-card border border-border/60 space-y-5 animate-slide-up"
         >
           <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">选择身份</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["CP", "JX"] as UserId[]).map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => setUser(u)}
-                  className={cn(
-                    "py-3 rounded-2xl font-bold text-lg transition-all border-2",
-                    user === u
-                      ? u === "CP"
-                        ? "bg-cp-soft text-cp border-cp"
-                        : "bg-jx-soft text-jx border-jx"
-                      : "bg-background text-muted-foreground border-border hover:border-foreground/30",
-                  )}
-                >
-                  {u}
-                </button>
-              ))}
-            </div>
+            <Label htmlFor="email" className="text-xs uppercase tracking-wider text-muted-foreground">邮箱</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="h-12 rounded-2xl"
+              required
+            />
           </div>
 
           <div className="space-y-2">
@@ -67,19 +63,25 @@ const Login = () => {
             <Input
               id="pw"
               type="password"
+              autoComplete="current-password"
               value={pw}
               onChange={(e) => setPw(e.target.value)}
-              placeholder="任意密码即可登录（演示）"
+              placeholder="••••••••"
               className="h-12 rounded-2xl"
+              required
             />
           </div>
 
-          <Button type="submit" className="w-full h-12 rounded-2xl bg-gradient-warm text-primary-foreground font-bold text-base shadow-pop hover:opacity-95">
-            登 录
+          <Button
+            type="submit"
+            disabled={busy}
+            className="w-full h-12 rounded-2xl bg-gradient-warm text-primary-foreground font-bold text-base shadow-pop hover:opacity-95 disabled:opacity-60"
+          >
+            {busy ? "登录中…" : "登 录"}
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">
-            演示账号 · 仅 CP 与 JX 两位
+            仅 CP 与 JX 两位 · 使用 Supabase 账号登录
           </p>
         </form>
       </div>

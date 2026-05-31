@@ -1,4 +1,4 @@
-import type { DailyLog, Task } from "./types";
+import type { DailyLog, Task } from "./models";
 
 export const WEEK_LABELS = ["W1", "W2", "W3", "W4", "W5"] as const;
 export type WeekLabel = (typeof WEEK_LABELS)[number];
@@ -63,8 +63,10 @@ export function weeklyProgress(task: Task, logs: DailyLog[], month: string, week
   const w = getWeeksInMonth(month).find((x) => x.label === week);
   if (!w) return 0;
   const ls = logsForTaskInRange(logs, task.id, w.startDate, w.endDate);
-  if (task.type === "count") return ls.filter((l) => l.done).length;
-  return ls.reduce((sum, l) => sum + (l.minutes ?? 0), 0);
+  // Count: one row per checked-in day (value 1) — count distinct days defensively.
+  if (task.type === "count") return new Set(ls.map((l) => l.date)).size;
+  // Timer: sum of all entries' minutes (value).
+  return ls.reduce((sum, l) => sum + (l.value ?? 0), 0);
 }
 
 /** Has the week completed (Sunday has passed)? */
@@ -96,7 +98,7 @@ export function weekStatusForUser(
   return "fail";
 }
 
-export type MonthResult = "success" | "fail" | "neutral";
+export type MonthResult = "success" | "failure" | "neutral";
 
 export function monthStatus(
   tasks: Task[],
@@ -116,7 +118,7 @@ export function monthStatus(
   let result: MonthResult | null = null;
   if (allDone) {
     if (success >= 3) result = "success";
-    else if (success <= 1) result = "fail";
+    else if (success <= 1) result = "failure";
     else result = "neutral";
   }
   return { successWeeks: success, totalWeeks: weeks.length, result };

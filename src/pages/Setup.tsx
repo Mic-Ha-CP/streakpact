@@ -1,17 +1,12 @@
 import { useState } from "react";
-import { useApp } from "@/data/store";
-import type { Task, UserId } from "@/data/types";
+import { useAuth } from "@/hooks/useAuth";
+import { useTasks } from "@/hooks/useTasks";
+import { currentMonthISO, prevMonthISO } from "@/lib/dates";
+import { unitForType, unitLabel, type Task, type TaskType, type UserId } from "@/data/models";
 import { PersonChip } from "@/components/PersonChip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
@@ -22,41 +17,119 @@ import { ArrowRight, Plus, Trash2, Timer, CheckSquare, Pencil, Lock, Check } fro
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const prevMonth = (m: string) => {
-  const [y, mo] = m.split("-").map(Number);
-  const dt = new Date(y, mo - 2, 1);
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-};
+interface Draft {
+  tempId: string;
+  title: string;
+  type: TaskType;
+  target: number;
+}
 
-const TaskRow = ({
+/** Shared editable fields. Unit is derived from type (count -> times, timer -> minutes). */
+const TaskFields = ({
+  title,
+  type,
+  target,
+  onChange,
+}: {
+  title: string;
+  type: TaskType;
+  target: number;
+  onChange: (patch: Partial<{ title: string; type: TaskType; target: number }>) => void;
+}) => (
+  <>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => onChange({ type: "count" })}
+        className={cn(
+          "pill border transition-opacity",
+          type === "count"
+            ? "bg-primary text-primary-foreground border-primary"
+            : "bg-card text-muted-foreground border-border",
+        )}
+      >
+        <CheckSquare className="w-3 h-3" /> 勾选
+      </button>
+      <button
+        onClick={() => onChange({ type: "timer" })}
+        className={cn(
+          "pill border transition-opacity",
+          type === "timer"
+            ? "bg-secondary text-secondary-foreground border-secondary"
+            : "bg-card text-muted-foreground border-border",
+        )}
+      >
+        <Timer className="w-3 h-3" /> 计时
+      </button>
+    </div>
+
+    <Input
+      value={title}
+      onChange={(e) => onChange({ title: e.target.value })}
+      placeholder="任务名 (例：早起 ≥6 次/周)"
+      className="rounded-xl"
+    />
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground tracking-wider">每周目标</Label>
+        <Input
+          type="number"
+          min={1}
+          value={target}
+          onChange={(e) => onChange({ target: Math.max(1, +e.target.value || 1) })}
+          className="rounded-xl tabular-nums font-bold"
+        />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground tracking-wider">单位</Label>
+        <div className="h-10 flex items-center px-3 rounded-xl border border-border bg-muted/40 text-sm text-muted-foreground">
+          {unitLabel(unitForType(type))} / 周
+        </div>
+      </div>
+    </div>
+  </>
+);
+
+const TaskSummary = ({ task }: { task: Task }) => (
+  <>
+    <div className="text-sm font-medium">{task.title || "（未命名）"}</div>
+    <div className="text-[11px] text-muted-foreground">
+      {task.type === "count" ? "勾选" : "计时"} · ≥{task.target} {unitLabel(task.unit)}/周
+    </div>
+  </>
+);
+
+const PersistedTaskRow = ({
   task,
+  editable,
   onSave,
   onDelete,
 }: {
   task: Task;
+  editable: boolean;
   onSave: (t: Task) => void;
   onDelete: () => void;
 }) => {
-  const lockedFromStart = (task.editCount ?? 0) >= 1;
-  // Draft holds in-flight edits; only persisted on "Done editing".
+  const locked = task.editCount >= 1;
+  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Task>(task);
-  const [editing, setEditing] = useState<boolean>(!lockedFromStart);
 
-  const locked = !editing;
-
-  const update = (patch: Partial<Task>) => {
-    setDraft((d) => ({ ...d, ...patch }));
-  };
+  if (!editable) {
+    return (
+      <div className="bg-background rounded-2xl p-3 border border-border/60 space-y-1">
+        <TaskSummary task={task} />
+      </div>
+    );
+  }
 
   const startEdit = () => {
-    if ((task.editCount ?? 0) >= 1) return;
+    if (locked) return;
     setDraft(task);
     setEditing(true);
   };
 
   const finishEdit = () => {
-    // Consume the single monthly edit chance.
-    onSave({ ...draft, editCount: (task.editCount ?? 0) + 1 });
+    // The single post-creation edit is consumed here.
+    onSave({ ...draft, unit: unitForType(draft.type), editCount: 1 });
     setEditing(false);
     toast.success("已保存 · 本月改动机会已用完");
   };
@@ -65,160 +138,159 @@ const TaskRow = ({
     <div
       className={cn(
         "bg-background rounded-2xl p-3 border space-y-2 transition-colors",
-        locked ? "border-border/60" : "border-primary/40 ring-1 ring-primary/20",
+        editing ? "border-primary/40 ring-1 ring-primary/20" : "border-border/60",
       )}
     >
-      <div className="flex items-center gap-2">
-        <button
-          disabled={locked}
-          onClick={() => update({ type: "count" })}
-          className={cn(
-            "pill border transition-opacity",
-            draft.type === "count"
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-card text-muted-foreground border-border",
-            locked && "opacity-60 cursor-not-allowed",
-          )}
-        >
-          <CheckSquare className="w-3 h-3" /> 勾选
-        </button>
-        <button
-          disabled={locked}
-          onClick={() => update({ type: "timer" })}
-          className={cn(
-            "pill border transition-opacity",
-            draft.type === "timer"
-              ? "bg-secondary text-secondary-foreground border-secondary"
-              : "bg-card text-muted-foreground border-border",
-            locked && "opacity-60 cursor-not-allowed",
-          )}
-        >
-          <Timer className="w-3 h-3" /> 计时
-        </button>
-
-        <div className="ml-auto flex items-center gap-1">
-          {editing ? (
-            <button
-              onClick={finishEdit}
-              className="pill bg-success text-success-foreground border border-success"
-            >
-              <Check className="w-3 h-3" /> 完成
-            </button>
-          ) : (
-            <TooltipProvider delayDuration={150}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <button
-                      onClick={startEdit}
-                      disabled={(task.editCount ?? 0) >= 1}
-                      className={cn(
-                        "pill border",
-                        (task.editCount ?? 0) >= 1
-                          ? "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"
-                          : "bg-card text-foreground border-border hover:border-primary hover:text-primary",
-                      )}
-                    >
-                      {(task.editCount ?? 0) >= 1 ? (
-                        <>
-                          <Lock className="w-3 h-3" /> 已锁定
-                        </>
-                      ) : (
-                        <>
-                          <Pencil className="w-3 h-3" /> 修改
-                        </>
-                      )}
-                    </button>
-                  </span>
-                </TooltipTrigger>
-                {(task.editCount ?? 0) >= 1 && (
-                  <TooltipContent>已用本月改动机会</TooltipContent>
-                )}
-              </Tooltip>
-            </TooltipProvider>
-          )}
-
+      <div className="flex items-center justify-end gap-1">
+        {editing ? (
           <button
-            onClick={onDelete}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-soft"
+            onClick={finishEdit}
+            className="pill bg-success text-success-foreground border border-success"
           >
-            <Trash2 className="w-4 h-4" />
+            <Check className="w-3 h-3" /> 完成
           </button>
-        </div>
+        ) : (
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <button
+                    onClick={startEdit}
+                    disabled={locked}
+                    className={cn(
+                      "pill border",
+                      locked
+                        ? "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed"
+                        : "bg-card text-foreground border-border hover:border-primary hover:text-primary",
+                    )}
+                  >
+                    {locked ? (
+                      <>
+                        <Lock className="w-3 h-3" /> 已锁定
+                      </>
+                    ) : (
+                      <>
+                        <Pencil className="w-3 h-3" /> 修改
+                      </>
+                    )}
+                  </button>
+                </span>
+              </TooltipTrigger>
+              {locked && <TooltipContent>已用本月改动机会</TooltipContent>}
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        <button
+          onClick={onDelete}
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-soft"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
-      <Input
-        value={draft.title}
-        disabled={locked}
-        onChange={(e) => update({ title: e.target.value })}
-        placeholder="任务名 (例：早起 ≥6 天/周)"
-        className="rounded-xl"
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <Label className="text-[10px] uppercase text-muted-foreground tracking-wider">每周目标</Label>
-          <Input
-            type="number"
-            min={1}
-            disabled={locked}
-            value={draft.target}
-            onChange={(e) => update({ target: Math.max(1, +e.target.value || 1) })}
-            className="rounded-xl tabular-nums font-bold"
-          />
-        </div>
-        <div>
-          <Label className="text-[10px] uppercase text-muted-foreground tracking-wider">单位</Label>
-          <Select value={draft.unit} disabled={locked} onValueChange={(v) => update({ unit: v })}>
-            <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="天">天 / 周</SelectItem>
-              <SelectItem value="次">次 / 周</SelectItem>
-              <SelectItem value="分钟">分钟 / 周</SelectItem>
-              <SelectItem value="小时">小时 / 周</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {(task.editCount ?? 0) >= 1 && !editing && (
-        <div className="text-[11px] text-muted-foreground flex items-center gap-1 pt-1">
-          <Lock className="w-3 h-3" /> 已用本月改动机会
-        </div>
+      {editing ? (
+        <TaskFields
+          title={draft.title}
+          type={draft.type}
+          target={draft.target}
+          onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
+        />
+      ) : (
+        <>
+          <TaskSummary task={task} />
+          {locked && (
+            <div className="text-[11px] text-muted-foreground flex items-center gap-1 pt-1">
+              <Lock className="w-3 h-3" /> 已用本月改动机会
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 };
 
-const UserSetupCard = ({ userId }: { userId: UserId }) => {
-  const { tasks, currentMonth, upsertTask, deleteTask } = useApp();
-  const last = prevMonth(currentMonth);
-  const myCurrent = tasks.filter((t) => t.userId === userId && t.month === currentMonth);
-  const myLast = tasks.filter((t) => t.userId === userId && t.month === last);
+const DraftTaskRow = ({
+  draft,
+  onChange,
+  onSave,
+  onCancel,
+}: {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) => (
+  <div className="bg-background rounded-2xl p-3 border border-primary/40 ring-1 ring-primary/20 space-y-2">
+    <div className="flex items-center justify-end gap-1">
+      <button
+        onClick={onSave}
+        className="pill bg-success text-success-foreground border border-success"
+      >
+        <Check className="w-3 h-3" /> 完成
+      </button>
+      <button
+        onClick={onCancel}
+        className="p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-soft"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+    <TaskFields
+      title={draft.title}
+      type={draft.type}
+      target={draft.target}
+      onChange={onChange}
+    />
+  </div>
+);
 
-  const addTask = () => {
-    if (myCurrent.length >= 3) {
+const UserSetupCard = ({ userId }: { userId: UserId }) => {
+  const { userId: me } = useAuth();
+  const editable = userId === me;
+  const currentMonth = currentMonthISO();
+  const last = prevMonthISO(currentMonth);
+
+  const { tasks: curAll, addTask, updateTask, deleteTask } = useTasks(currentMonth);
+  const { tasks: lastAll } = useTasks(last);
+  const myCurrent = curAll.filter((t) => t.userId === userId);
+  const myLast = lastAll.filter((t) => t.userId === userId);
+
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const total = myCurrent.length + drafts.length;
+
+  const addDraft = () => {
+    if (total >= 3) {
       toast.error("每月最多 3 个任务");
       return;
     }
-    upsertTask({
-      id: `t-${userId}-${Date.now()}`,
-      userId,
-      month: currentMonth,
-      title: "",
-      type: "count",
-      target: 5,
-      unit: "天",
-      editCount: 0,
-    });
+    setDrafts((d) => [
+      ...d,
+      { tempId: `draft-${Date.now()}-${d.length}`, title: "", type: "count", target: 5 },
+    ]);
+  };
+
+  const saveDraft = (draft: Draft) => {
+    addTask.mutate(
+      { title: draft.title, type: draft.type, target: draft.target, unit: unitForType(draft.type) },
+      {
+        onSuccess: () => {
+          setDrafts((ds) => ds.filter((d) => d.tempId !== draft.tempId));
+          toast.success("已添加");
+        },
+        onError: () => toast.error("添加失败"),
+      },
+    );
   };
 
   const carryOver = (t: Task) => {
-    if (myCurrent.length >= 3) {
+    if (total >= 3) {
       toast.error("每月最多 3 个任务");
       return;
     }
-    upsertTask({ ...t, id: `t-${userId}-${Date.now()}`, month: currentMonth, editCount: 0 });
-    toast.success("已沿用");
+    addTask.mutate(
+      { title: t.title, type: t.type, target: t.target, unit: t.unit, carriedOver: true },
+      { onSuccess: () => toast.success("已沿用") },
+    );
   };
 
   return (
@@ -233,31 +305,47 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
             <div className="text-[11px] text-muted-foreground">{currentMonth} · 1–3 个 · 每任务每月仅可改动 1 次</div>
           </div>
         </div>
-        <Button onClick={addTask} size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90">
-          <Plus className="w-4 h-4 mr-1" /> 新增
-        </Button>
+        {editable && (
+          <Button onClick={addDraft} size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90">
+            <Plus className="w-4 h-4 mr-1" /> 新增
+          </Button>
+        )}
       </div>
 
       <div className="p-4 space-y-3">
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">本月任务</div>
-        {myCurrent.length === 0 && (
+        {total === 0 && (
           <div className="text-sm text-muted-foreground py-4 text-center bg-muted/40 rounded-2xl">
-            还没有任务，点 “新增” 或从下方沿用
+            {editable ? "还没有任务，点 “新增” 或从下方沿用" : "对方本月还没有任务"}
           </div>
         )}
+
         {myCurrent.map((t) => (
-          <TaskRow
+          <PersistedTaskRow
             key={t.id}
             task={t}
-            onSave={(next) => upsertTask(next)}
+            editable={editable}
+            onSave={(next) => updateTask.mutate(next)}
             onDelete={() => {
-              deleteTask(t.id);
-              toast.success("已删除");
+              deleteTask.mutate(t.id, { onSuccess: () => toast.success("已删除") });
             }}
           />
         ))}
 
-        {myLast.length > 0 && (
+        {editable &&
+          drafts.map((d) => (
+            <DraftTaskRow
+              key={d.tempId}
+              draft={d}
+              onChange={(patch) =>
+                setDrafts((ds) => ds.map((x) => (x.tempId === d.tempId ? { ...x, ...patch } : x)))
+              }
+              onSave={() => saveDraft(d)}
+              onCancel={() => setDrafts((ds) => ds.filter((x) => x.tempId !== d.tempId))}
+            />
+          ))}
+
+        {editable && myLast.length > 0 && (
           <div className="pt-3 border-t border-border/60 mt-3 space-y-2">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">上月任务 · 可沿用</div>
             {myLast.map((t) => (
@@ -265,7 +353,7 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
                 <div className="flex-1 text-sm">
                   <div className="font-medium">{t.title}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    {t.type === "count" ? "勾选" : "计时"} · ≥{t.target} {t.unit}/周
+                    {t.type === "count" ? "勾选" : "计时"} · ≥{t.target} {unitLabel(t.unit)}/周
                   </div>
                 </div>
                 <button
