@@ -46,11 +46,12 @@
 - [x] Test full flow: login → set tasks → check in → view progress  *(smoke-tested 2026-06-02; UX feedback addressed in follow-up pass — see NOTES.md Resolved)*
 
 ## Phase 4: PWA
-- [ ] Install vite-plugin-pwa
-- [ ] Configure manifest.json (name, icons, theme-color: teal)
-- [ ] Configure service worker (precache static assets)
-- [ ] Create app icons (192x192, 512x512)
-- [ ] Test add-to-home-screen on mobile
+- [x] Install vite-plugin-pwa (+ @vite-pwa/assets-generator)
+- [x] Configure manifest (name, icons, theme-color: teal #0D9488, standalone)
+- [x] Configure service worker (autoUpdate, precache app shell; Supabase stays network-only)
+- [x] Create app icons (192/512 + maskable + apple-touch + favicon) — placeholder from public/logo.svg
+- [ ] Test add-to-home-screen on mobile (needs HTTPS — verify on Vercel/preview)
+- [ ] Replace placeholder logo.svg with real branding (optional)
 
 ## Phase 5: Deploy
 - [ ] Connect repo to Vercel

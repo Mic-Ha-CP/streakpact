@@ -139,15 +139,19 @@
 [data-sonner-toast][data-type="info"] {
   border-color: hsl(var(--muted-foreground) / 0.4) !important;
 }
-/* Move the close (X) from the default top-left to the toast's own right edge. */
+/* Close (X): inside the card at the top-right, plain (no dark circle). */
 [data-sonner-toast] [data-close-button] {
-  left: auto;
-  right: 0;
-  top: 50%;
-  transform: translate(35%, -50%);
-  width: 18px;
-  height: 18px;
-  background: hsl(var(--background));
-  border-color: hsl(var(--border));
-  color: hsl(var(--muted-foreground));
+  left: auto !important;
+  right: 8px !important;
+  top: 8px !important;
+  transform: none !important;
+  width: 20px !important;
+  height: 20px !important;
+  background: transparent !important;
+  border: none !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+[data-sonner-toast] [data-close-button]:hover {
+  background: hsl(var(--muted)) !important;
+  color: hsl(var(--foreground)) !important;
 }

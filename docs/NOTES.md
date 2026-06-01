@@ -61,8 +61,11 @@ Fixed items move to "Resolved" below.
   `EditableText` component — display mode by default, tap to edit, Save/Cancel; used for
   CheckIn notes and Rewards reward/penalty fields.
 - 2026-06-02 — Toast UX: black circle X sat in the top-left. Fixed: removed the unused
-  shadcn `<Toaster/>`; Sonner now shows a plain green ✓ for success, a small close X on
-  each toast's right edge, thin red border on errors and gray on info (sonner.tsx + index.css).
+  shadcn `<Toaster/>`; Sonner now shows a plain green ✓ for success, thin red border on
+  errors and gray on info (sonner.tsx + index.css).
+- 2026-06-02 — Toast close X was floating half-outside the card on the right (looked like
+  a stray black circle). Fixed: moved it inside the card at the top-right, transparent
+  background, subtle hover (index.css).
 - 2026-06-02 — New-month Setup started blank. Fixed: when the current month has no tasks,
   Setup auto-fills editable drafts from last month's tasks (carried_over), modifiable/removable.
 - 2026-06-02 — Confirmed task deletion is allowed even after the edit lock (delete button
