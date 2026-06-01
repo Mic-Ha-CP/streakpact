@@ -50,13 +50,15 @@
 - [x] Configure manifest (name, icons, theme-color: teal #0D9488, standalone)
 - [x] Configure service worker (autoUpdate, precache app shell; Supabase stays network-only)
 - [x] Create app icons (192/512 + maskable + apple-touch + favicon) — placeholder from public/logo.svg
-- [ ] Test add-to-home-screen on mobile (needs HTTPS — verify on Vercel/preview)
+- [x] Test add-to-home-screen on mobile (live over HTTPS at streakpact.vercel.app; manifest + SW verified — do a final tap-to-install on a phone)
 - [ ] Replace placeholder logo.svg with real branding (optional)
 
-## Phase 5: Deploy
-- [ ] Connect repo to Vercel
-- [ ] Set environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
-- [ ] Deploy and verify
+## Phase 5: Deploy ✅ LIVE — https://streakpact.vercel.app
+- [x] Connect repo to Vercel (auto-deploys on push to main)
+- [x] Set environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
+- [x] vercel.json: SPA rewrite + sw.js no-cache
+- [x] Deploy and verify (200s, manifest, SW, SPA deep-link rewrite, RLS blocks anon reads)
+- [ ] Set Supabase Auth Site URL to the Vercel domain (needed once password reset lands)
 - [ ] Connect custom domain (optional)
 
 ## Phase 6: Data migration (optional)

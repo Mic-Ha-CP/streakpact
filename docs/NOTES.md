@@ -1,22 +1,33 @@
 # Dev notes
 
-## Where we are (auto-generated 2026-06-01)
+## Where we are (auto-generated 2026-06-02)
+
+Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
 
 ### Done
 - Phase 1: Lovable UI prototype
 - Phase 2: Supabase setup (tables, RLS, auth, profiles)
-- Phase 3: Zustand → Supabase migration (committed + pushed)
+- Phase 3: Zustand → Supabase migration
+- UX pass: independent notes, EditableText, toasts, new-month carry-over, session
+- Phase 4: PWA (vite-plugin-pwa, placeholder icons from public/logo.svg)
+- Phase 5: Deployed to Vercel (HTTPS verified; RLS blocks anon reads)
 
 ### Ready to do next
-- Smoke test the full auth flow locally (npm run dev)
 - Log UI/UX issues into ### Open section below
-- Phase 4: PWA (vite-plugin-pwa)
-- Phase 5: Deploy to Vercel
+- Wire useSettlements + auto-generate reward_ledger entries on settlement (biggest gap)
+- Phase 7: profile features (display name, avatar, in-app password reset)
+- Phase 8: migrate historical Google Sheet check-ins
+- Optional: real PWA branding (replace public/logo.svg); custom domain
 
-### Open decisions
-- useSettlements is built but not wired — no auto-settle trigger or auto-ledger generation yet
+### Open decisions / known gaps
+- Settlements/ledger are NOT automated: weekly/monthly status is computed live for
+  display, but nothing persists settlements or creates reward_ledger entries, and there
+  is no "add ledger entry" UI. The 奖惩账本 won't populate on its own yet.
+- "today"/week boundaries use the device's local timezone — both users should be in the
+  same TZ for consistent day/week cutoffs.
+- No in-app password reset yet — reset via the Supabase dashboard if needed.
 - Count unit label: currently 次/周, flag if 天/周 is preferred
-- Notes on unchecked count days: not supported (by design, matches Sheet behavior)
+- Notes are independent of check-in (value=0 rows); supported on any day.
 
 ### Smoke test checklist
 1. npm run dev
