@@ -54,3 +54,18 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-06-02 — Notes were tied to check-in status. Fixed: notes are now an independent
+  daily_logs row (value=0), so they survive un-checking a count task and can exist on
+  any day (incl. failed/empty). (useLogs setNote/toggleCount, calc, CheckIn)
+- 2026-06-02 — Notes/rewards saved on blur with no clear edit boundary. Fixed: new
+  `EditableText` component — display mode by default, tap to edit, Save/Cancel; used for
+  CheckIn notes and Rewards reward/penalty fields.
+- 2026-06-02 — Toast UX: black circle X sat in the top-left. Fixed: removed the unused
+  shadcn `<Toaster/>`; Sonner now shows a plain green ✓ for success, a small close X on
+  each toast's right edge, thin red border on errors and gray on info (sonner.tsx + index.css).
+- 2026-06-02 — New-month Setup started blank. Fixed: when the current month has no tasks,
+  Setup auto-fills editable drafts from last month's tasks (carried_over), modifiable/removable.
+- 2026-06-02 — Confirmed task deletion is allowed even after the edit lock (delete button
+  is not gated by editCount); documented in DECISIONS.md.
+- 2026-06-02 — Verified session persistence (Supabase persistSession + autoRefreshToken
+  are enabled in src/lib/supabase.ts).

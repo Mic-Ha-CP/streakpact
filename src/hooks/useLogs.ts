@@ -29,15 +29,16 @@ function monthSpan(month: string): { start: string; end: string } {
 export interface NewLog {
   taskId: string;
   date: string;
-  value: number; // 1 for count, minutes for timer
-  note?: string | null;
+  value: number; // minutes for a timer entry
   backfilled?: boolean;
 }
 
 /**
  * Daily logs across the month's week span (both users). daily_logs has no UPDATE
- * policy: a count check-in is a row (deleted to undo); timer entries are rows
- * (deleted to remove). Editing a note = delete + re-insert.
+ * policy, so every change is an insert or delete. A given (task, date) can hold:
+ *   - one check-in row (count only), value = 1
+ *   - timer entry rows, value = minutes
+ *   - one note row, value = 0  (independent of check-in; see DECISIONS.md)
  */
 export function useLogs(month: string) {
   const qc = useQueryClient();
@@ -63,6 +64,7 @@ export function useLogs(month: string) {
   // Backfilled logs can land outside this month's span, so invalidate all log queries.
   const invalidate = () => qc.invalidateQueries({ queryKey: ["logs"] });
 
+  /** Add a timer entry (value = minutes). */
   const insertLog = useMutation({
     mutationFn: async (input: NewLog) => {
       if (!profileId) throw new Error("Not signed in");
@@ -71,7 +73,6 @@ export function useLogs(month: string) {
         user_id: profileId,
         log_date: input.date,
         value: input.value,
-        notes: input.note ?? null,
         backfilled: input.backfilled ?? false,
       };
       const { error } = await supabase.from("daily_logs").insert(row);
@@ -88,23 +89,28 @@ export function useLogs(month: string) {
     onSuccess: invalidate,
   });
 
-  /** Count tasks: insert a value=1 row if none exists for the day, else delete it. */
+  /**
+   * Count check-in toggle. Operates only on the value>0 row, leaving any note row
+   * (value=0) untouched: insert value=1 if not checked, delete it if checked.
+   */
   const toggleCount = useMutation({
     mutationFn: async (input: { taskId: string; date: string; backfilled?: boolean }) => {
       if (!profileId) throw new Error("Not signed in");
-      const { data: existing, error: selErr } = await supabase
+      const { data: checked, error: selErr } = await supabase
         .from("daily_logs")
         .select("id")
         .eq("task_id", input.taskId)
-        .eq("log_date", input.date);
+        .eq("log_date", input.date)
+        .gt("value", 0);
       if (selErr) throw selErr;
 
-      if (existing && existing.length > 0) {
+      if (checked && checked.length > 0) {
         const { error } = await supabase
           .from("daily_logs")
           .delete()
           .eq("task_id", input.taskId)
-          .eq("log_date", input.date);
+          .eq("log_date", input.date)
+          .gt("value", 0);
         if (error) throw error;
         return { done: false };
       }
@@ -123,24 +129,38 @@ export function useLogs(month: string) {
   });
 
   /**
-   * Set/replace the note on an existing log row. daily_logs has no UPDATE policy,
-   * so this deletes the row and re-inserts it with the same value + the new note.
+   * Set/replace the per-day note (the value=0 row), independent of check-in status.
+   * Replaces the existing note row (delete + re-insert, since there's no UPDATE);
+   * an empty note deletes the row.
    */
   const setNote = useMutation({
-    mutationFn: async ({ log, note }: { log: DailyLog; note: string }) => {
+    mutationFn: async (input: {
+      taskId: string;
+      date: string;
+      note: string;
+      backfilled?: boolean;
+    }) => {
       if (!profileId) throw new Error("Not signed in");
-      const { error: delErr } = await supabase.from("daily_logs").delete().eq("id", log.id);
+      const { error: delErr } = await supabase
+        .from("daily_logs")
+        .delete()
+        .eq("task_id", input.taskId)
+        .eq("log_date", input.date)
+        .eq("value", 0);
       if (delErr) throw delErr;
-      const row: TablesInsert<"daily_logs"> = {
-        task_id: log.taskId,
-        user_id: profileId,
-        log_date: log.date,
-        value: log.value,
-        notes: note.trim() === "" ? null : note,
-        backfilled: log.backfilled,
-      };
-      const { error } = await supabase.from("daily_logs").insert(row);
-      if (error) throw error;
+
+      if (input.note.trim() !== "") {
+        const row: TablesInsert<"daily_logs"> = {
+          task_id: input.taskId,
+          user_id: profileId,
+          log_date: input.date,
+          value: 0,
+          notes: input.note,
+          backfilled: input.backfilled ?? false,
+        };
+        const { error } = await supabase.from("daily_logs").insert(row);
+        if (error) throw error;
+      }
     },
     onSuccess: invalidate,
   });

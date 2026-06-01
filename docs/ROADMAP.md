@@ -43,7 +43,7 @@
       buttons that would fail RLS); reads of both users stay allowed.
 - [x] Fix editCount: creating a task must NOT consume the edit; only subsequent
       modifications increment editCount (matches DECISIONS "one edit after setup")
-- [ ] Test full flow: login → set tasks → check in → view progress  *(manual smoke test)*
+- [x] Test full flow: login → set tasks → check in → view progress  *(smoke-tested 2026-06-02; UX feedback addressed in follow-up pass — see NOTES.md Resolved)*
 
 ## Phase 4: PWA
 - [ ] Install vite-plugin-pwa

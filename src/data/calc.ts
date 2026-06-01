@@ -63,9 +63,10 @@ export function weeklyProgress(task: Task, logs: DailyLog[], month: string, week
   const w = getWeeksInMonth(month).find((x) => x.label === week);
   if (!w) return 0;
   const ls = logsForTaskInRange(logs, task.id, w.startDate, w.endDate);
-  // Count: one row per checked-in day (value 1) — count distinct days defensively.
-  if (task.type === "count") return new Set(ls.map((l) => l.date)).size;
-  // Timer: sum of all entries' minutes (value).
+  // Count: distinct checked-in days (value >= 1). Note rows (value 0) are ignored.
+  if (task.type === "count")
+    return new Set(ls.filter((l) => l.value > 0).map((l) => l.date)).size;
+  // Timer: sum of all entries' minutes (value); note rows contribute 0.
   return ls.reduce((sum, l) => sum + (l.value ?? 0), 0);
 }
 

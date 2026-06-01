@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { currentMonthISO, prevMonthISO } from "@/lib/dates";
@@ -22,6 +22,7 @@ interface Draft {
   title: string;
   type: TaskType;
   target: number;
+  carriedOver?: boolean;
 }
 
 /** Shared editable fields. Unit is derived from type (count -> times, timer -> minutes). */
@@ -250,13 +251,41 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
   const currentMonth = currentMonthISO();
   const last = prevMonthISO(currentMonth);
 
-  const { tasks: curAll, addTask, updateTask, deleteTask } = useTasks(currentMonth);
-  const { tasks: lastAll } = useTasks(last);
+  const { tasks: curAll, isLoading: curLoading, addTask, updateTask, deleteTask } =
+    useTasks(currentMonth);
+  const { tasks: lastAll, isLoading: lastLoading } = useTasks(last);
   const myCurrent = curAll.filter((t) => t.userId === userId);
   const myLast = lastAll.filter((t) => t.userId === userId);
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const total = myCurrent.length + drafts.length;
+
+  // New-month default: when this month is empty, pre-fill drafts from last month's
+  // tasks (carried_over). Runs once after data loads; user can edit/remove/add.
+  const autoFilled = useRef(false);
+  useEffect(() => {
+    if (autoFilled.current) return;
+    if (!editable || curLoading || lastLoading) return;
+    if (myCurrent.length > 0) {
+      autoFilled.current = true; // already has tasks — never auto-fill
+      return;
+    }
+    if (myLast.length > 0) {
+      autoFilled.current = true;
+      setDrafts(
+        myLast.slice(0, 3).map((t, i) => ({
+          tempId: `carry-${t.id}-${i}`,
+          title: t.title,
+          type: t.type,
+          target: t.target,
+          carriedOver: true,
+        })),
+      );
+    }
+    // Intentionally keyed on lengths/flags, not the array identities (guarded by the
+    // autoFilled ref so it runs at most once).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editable, curLoading, lastLoading, myCurrent.length, myLast.length]);
 
   const addDraft = () => {
     if (total >= 3) {
@@ -271,7 +300,13 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
 
   const saveDraft = (draft: Draft) => {
     addTask.mutate(
-      { title: draft.title, type: draft.type, target: draft.target, unit: unitForType(draft.type) },
+      {
+        title: draft.title,
+        type: draft.type,
+        target: draft.target,
+        unit: unitForType(draft.type),
+        carriedOver: draft.carriedOver,
+      },
       {
         onSuccess: () => {
           setDrafts((ds) => ds.filter((d) => d.tempId !== draft.tempId));
@@ -345,7 +380,7 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
             />
           ))}
 
-        {editable && myLast.length > 0 && (
+        {editable && myLast.length > 0 && (myCurrent.length > 0 || drafts.length === 0) && (
           <div className="pt-3 border-t border-border/60 mt-3 space-y-2">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">上月任务 · 可沿用</div>
             {myLast.map((t) => (

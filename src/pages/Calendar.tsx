@@ -144,7 +144,7 @@ const Calendar = () => {
                             const dayLogs = ls.filter((x) => x.date === d.date);
                             const isFuture = d.date > today;
                             if (t.type === "count") {
-                              const done = dayLogs.length > 0;
+                              const done = dayLogs.some((x) => x.value > 0);
                               return (
                                 <div
                                   key={d.date}

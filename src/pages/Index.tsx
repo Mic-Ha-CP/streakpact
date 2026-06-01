@@ -47,7 +47,7 @@ const UserPanel = ({
   // today's check-in status
   const todayDone = myTasks.every((t) => {
     const dayLogs = logs.filter((l) => l.taskId === t.id && l.date === today);
-    if (t.type === "count") return dayLogs.length > 0;
+    if (t.type === "count") return dayLogs.some((l) => l.value > 0);
     return dayLogs.reduce((s, l) => s + (l.value ?? 0), 0) > 0;
   });
 

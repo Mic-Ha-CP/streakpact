@@ -47,24 +47,31 @@ minutes, so an hours-based target would mismatch the logged minutes.
 | task_id | uuid FK → tasks(id) | on delete cascade |
 | user_id | uuid FK → profiles(id) | not null |
 | log_date | date not null | |
-| value | numeric not null | 1 for a count check-in, minutes for a timer entry |
-| notes | text | nullable; the optional per-day note lives on the check-in row |
+| value | numeric not null | 1 = count check-in, minutes = timer entry, 0 = note-only row |
+| notes | text | nullable; per-day note lives in its own value=0 row |
 | backfilled | boolean | default false; true when logged for a past date (补签) |
 | created_at | timestamptz | default now() | doubles as the ordering key for multiple same-day timer entries |
 
-Data model (decided): **one row per check-in event, deleted to undo** — no in-place
-UPDATEs on `daily_logs` (consistent with the RLS rule below).
-- Count: at most one row per (task, date) with `value = 1`. Tapping to undo **deletes**
-  the row (and its note). There is no `done` boolean.
-- Timer: multiple rows per (task, date), each with `value = minutes`. Each entry is
-  deletable; editing = delete + re-enter. The per-day note is stored on one of the rows.
+Data model (decided): **one row per event, deleted to undo** — no in-place UPDATEs on
+`daily_logs` (consistent with the RLS rule below). A given (task, date) may have:
+- **Check-in row** (count only): `value = 1`. Tapping to undo **deletes** this row.
+  At most one per (task, date). There is no `done` boolean.
+- **Timer entry rows**: `value = minutes`, one per entry, multiple allowed. Each is
+  deletable; editing = delete + re-enter.
+- **Note row**: `value = 0`, `notes` set. At most one per (task, date). Independent of
+  check-in/entries (notes can exist on un-checked or empty days). Editing the note =
+  delete + re-insert; clearing the text deletes the row. Un-checking a count task does
+  **not** touch the note row.
+
+Progress math ignores note rows: count progress = distinct dates with `value >= 1`;
+timer progress = SUM(value) (note rows add 0).
 
 Constraints:
-- Count tasks: one check-in per day — **enforced in application code**, not by a DB
-  constraint. A plain `UNIQUE (task_id, log_date)` cannot be used because timer tasks
-  legitimately have multiple rows per day, and a partial unique index predicate cannot
-  reference another table (`tasks.type`) in PostgreSQL, so the subquery form is invalid.
-- Timer tasks: no unique constraint — multiple entries per day allowed.
+- Count check-in: one per day, and one note row per day — **enforced in application
+  code**, not by a DB constraint. A plain `UNIQUE (task_id, log_date)` cannot be used
+  because timer tasks legitimately have multiple rows per day, and a partial unique
+  index predicate cannot reference another table (`tasks.type`) in PostgreSQL.
+- Timer entries: no unique constraint — multiple per day allowed.
 
 ### weekly_settlements
 | Column | Type | Notes |

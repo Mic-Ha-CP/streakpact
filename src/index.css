@@ -131,3 +131,23 @@
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
 }
+
+/* Sonner toast tweaks: per-type accent borders + small close button on the right. */
+[data-sonner-toast][data-type="error"] {
+  border-color: hsl(var(--danger)) !important;
+}
+[data-sonner-toast][data-type="info"] {
+  border-color: hsl(var(--muted-foreground) / 0.4) !important;
+}
+/* Move the close (X) from the default top-left to the toast's own right edge. */
+[data-sonner-toast] [data-close-button] {
+  left: auto;
+  right: 0;
+  top: 50%;
+  transform: translate(35%, -50%);
+  width: 18px;
+  height: 18px;
+  background: hsl(var(--background));
+  border-color: hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}

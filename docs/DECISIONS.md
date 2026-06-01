@@ -8,8 +8,13 @@ All decisions below are LOCKED. Do not change without explicit user approval.
 - Count: weekly target = number of days (e.g. early rise >= 6 days)
 - Timer: weekly target = total minutes (e.g. coding >= 120 min)
 - No daily targets, only weekly totals
-- Tasks can be carried over or reset each month
+- New-month setup defaults to the previous month's tasks, pre-filled as editable
+  drafts (title/type/target/unit); user can modify, remove, or add. If the previous
+  month had no tasks, start blank. Tasks saved unchanged are marked carried_over.
 - One edit allowed per month after initial setup (editCount tracks this)
+- Task deletion is always allowed, even after the edit lock. The edit lock only
+  limits modifying task *properties*; deleting a task (and accepting the loss of its
+  logged data) is always the user's choice.
 - ±5% tolerance: DEFERRED (not in MVP)
 
 ## Weekly settlement
@@ -37,7 +42,12 @@ All decisions below are LOCKED. Do not change without explicit user approval.
 - Count tasks: tap to mark done, tap again to undo
 - Timer tasks: enter minutes → Confirm/Cancel buttons → appended to per-entry log list → each entry is deletable (no editing — delete and re-enter)
 - Multiple timer entries per task per day allowed (e.g. 30min morning + 60min evening)
-- Optional notes field per day
+- Notes are independent of check-in status: a user can write a note on any day,
+  whether or not they checked in (failed/empty days may also need a memo).
+  - Stored as a dedicated daily_logs row with value=0 (one per task+date), separate
+    from the check-in row (value=1) and timer-entry rows (value=minutes).
+  - Un-checking a count task must NOT delete the note — the note row is independent
+    and is left untouched. Clearing the note text deletes the note row.
 
 ## Calendar
 - Week starts Monday
@@ -48,6 +58,8 @@ All decisions below are LOCKED. Do not change without explicit user approval.
 - Supabase Auth with email/password
 - 2 fixed accounts created manually in Supabase dashboard
 - No registration flow, no invite system
+- Session persistence: stay logged in across browser sessions
+  (Supabase client `persistSession: true` + `autoRefreshToken: true`)
 
 ## Deployment
 - Vercel (frontend) + Supabase (auth + DB)

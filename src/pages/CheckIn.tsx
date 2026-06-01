@@ -5,7 +5,7 @@ import { useLogs } from "@/hooks/useLogs";
 import { todayISO, shiftDate } from "@/lib/dates";
 import type { DailyLog, UserId } from "@/data/models";
 import { PersonChip } from "@/components/PersonChip";
-import { Textarea } from "@/components/ui/textarea";
+import { EditableText } from "@/components/EditableText";
 import { Input } from "@/components/ui/input";
 import { Check, ChevronLeft, ChevronRight, History, Timer, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,7 +22,7 @@ const TimerTaskCard = ({
   active,
   editable,
   entries,
-  isPast,
+  note,
   onAdd,
   onDelete,
   onSetNote,
@@ -31,14 +31,13 @@ const TimerTaskCard = ({
   active: UserId;
   editable: boolean;
   entries: DailyLog[];
-  isPast: boolean;
+  note: string;
   onAdd: (minutes: number) => void;
   onDelete: (id: string) => void;
-  onSetNote: (log: DailyLog, note: string) => void;
+  onSetNote: (note: string) => void;
 }) => {
   const [pending, setPending] = useState<string>("");
   const total = entries.reduce((sum, l) => sum + (l.value ?? 0), 0);
-  const firstEntry = entries[0];
 
   const parsed = Math.max(0, Math.floor(+pending || 0));
   const canConfirm = editable && pending.trim() !== "" && parsed > 0;
@@ -141,18 +140,15 @@ const TimerTaskCard = ({
         </ul>
       )}
 
-      {/* Per-day note rides on the first entry; only editable when an entry exists. */}
-      <Textarea
-        key={firstEntry?.id ?? "no-entry"}
-        defaultValue={firstEntry?.note ?? ""}
-        disabled={!editable || !firstEntry}
-        placeholder={firstEntry ? "备注…" : "添加时长后可备注"}
-        className="mt-3 rounded-xl text-sm min-h-[44px]"
-        onBlur={(e) => {
-          if (firstEntry && e.target.value !== (firstEntry.note ?? "")) {
-            onSetNote(firstEntry, e.target.value);
-          }
-        }}
+      {/* Per-day note — independent of whether any time was logged. */}
+      <EditableText
+        className="mt-3"
+        value={note}
+        disabled={!editable}
+        emptyLabel="添加备注…"
+        placeholder="备注…"
+        multiline
+        onSave={onSetNote}
       />
     </div>
   );
@@ -247,10 +243,13 @@ const CheckIn = () => {
           </div>
         )}
         {myTasks.map((t) => {
+          const rows = logsFor(t.id);
+          const noteText = rows.find((r) => r.value === 0)?.note ?? "";
+          const setNoteFor = (note: string) =>
+            setNote.mutate({ taskId: t.id, date, note, backfilled: isPast });
+
           if (t.type === "count") {
-            const rows = logsFor(t.id);
-            const countRow = rows[0];
-            const done = !!countRow;
+            const checked = rows.some((r) => r.value > 0);
             return (
               <div key={t.id} className="bg-card rounded-2xl p-4 border border-border/60 shadow-card">
                 <div className="flex items-start justify-between gap-3">
@@ -266,32 +265,29 @@ const CheckIn = () => {
                     onClick={() => {
                       toggleCount.mutate(
                         { taskId: t.id, date, backfilled: isPast },
-                        { onSuccess: () => toast.success(done ? "已取消" : "打卡成功！") },
+                        { onSuccess: () => toast.success(checked ? "已取消" : "打卡成功！") },
                       );
                     }}
                     className={cn(
                       "shrink-0 w-14 h-14 rounded-2xl grid place-items-center transition-all border-2",
                       editable && "hover:scale-105 active:scale-95",
                       !editable && "opacity-60 cursor-not-allowed",
-                      done
+                      checked
                         ? "bg-success border-success text-success-foreground shadow-pop"
                         : "bg-background border-border text-muted-foreground",
                     )}
                   >
-                    <Check className={cn("w-6 h-6", done ? "" : "opacity-40")} strokeWidth={3} />
+                    <Check className={cn("w-6 h-6", checked ? "" : "opacity-40")} strokeWidth={3} />
                   </button>
                 </div>
-                <Textarea
-                  key={countRow?.id ?? "no-row"}
-                  defaultValue={countRow?.note ?? ""}
-                  disabled={!editable || !done}
-                  placeholder={done ? "备注（生病 / 补签说明…）" : "打卡后可备注"}
-                  className="mt-3 rounded-xl text-sm min-h-[44px]"
-                  onBlur={(e) => {
-                    if (countRow && e.target.value !== (countRow.note ?? "")) {
-                      setNote.mutate({ log: countRow, note: e.target.value });
-                    }
-                  }}
+                <EditableText
+                  className="mt-3"
+                  value={noteText}
+                  disabled={!editable}
+                  emptyLabel="添加备注（生病 / 补签说明…）"
+                  placeholder="备注…"
+                  multiline
+                  onSave={setNoteFor}
                 />
               </div>
             );
@@ -303,13 +299,13 @@ const CheckIn = () => {
               title={t.title}
               active={active}
               editable={editable}
-              entries={logsFor(t.id)}
-              isPast={isPast}
+              entries={rows.filter((r) => r.value > 0)}
+              note={noteText}
               onAdd={(minutes) =>
                 insertLog.mutate({ taskId: t.id, date, value: minutes, backfilled: isPast })
               }
               onDelete={(id) => deleteLog.mutate(id)}
-              onSetNote={(log, note) => setNote.mutate({ log, note })}
+              onSetNote={setNoteFor}
             />
           );
         })}

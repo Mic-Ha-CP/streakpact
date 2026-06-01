@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useRewardPlans } from "@/hooks/useRewardPlans";
 import { useAuth } from "@/hooks/useAuth";
 import type { UserId } from "@/data/models";
-import { Input } from "@/components/ui/input";
+import { EditableText } from "@/components/EditableText";
 import { Sparkles, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getWeeksInMonth, WEEK_LABELS, type WeekLabel } from "@/data/calc";
@@ -100,17 +100,14 @@ const Rewards = () => {
                   <div className="flex items-center gap-1.5 text-success text-xs font-bold uppercase tracking-wider">
                     <Sparkles className="w-3.5 h-3.5" /> 成功奖励
                   </div>
-                  <Input
-                    key={`${scope}-reward-${plan?.successReward ?? ""}`}
-                    defaultValue={plan?.successReward ?? ""}
+                  <EditableText
+                    value={plan?.successReward ?? ""}
                     disabled={!editable}
+                    emptyLabel="设置奖励…"
                     placeholder="例如：新书 / 一顿大餐 / 周末旅行…"
-                    className="rounded-xl"
-                    onBlur={(e) => {
-                      if (e.target.value !== (plan?.successReward ?? "")) {
-                        save(scope, { successReward: e.target.value });
-                        toast.success("奖励已保存");
-                      }
+                    onSave={(v) => {
+                      save(scope, { successReward: v });
+                      toast.success("奖励已保存");
                     }}
                   />
                 </div>
@@ -118,17 +115,14 @@ const Rewards = () => {
                   <div className="flex items-center gap-1.5 text-danger text-xs font-bold uppercase tracking-wider">
                     <Skull className="w-3.5 h-3.5" /> 失败惩罚
                   </div>
-                  <Input
-                    key={`${scope}-penalty-${plan?.failurePenalty ?? ""}`}
-                    defaultValue={plan?.failurePenalty ?? ""}
+                  <EditableText
+                    value={plan?.failurePenalty ?? ""}
                     disabled={!editable}
+                    emptyLabel="设置惩罚…"
                     placeholder="例如：请喝奶茶 / 做一周饭…"
-                    className="rounded-xl"
-                    onBlur={(e) => {
-                      if (e.target.value !== (plan?.failurePenalty ?? "")) {
-                        save(scope, { failurePenalty: e.target.value });
-                        toast.success("惩罚已保存");
-                      }
+                    onSave={(v) => {
+                      save(scope, { failurePenalty: v });
+                      toast.success("惩罚已保存");
                     }}
                   />
                 </div>
