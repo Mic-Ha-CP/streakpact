@@ -21,21 +21,22 @@ RLS policies enforce access control at the database level.
 2. User taps checkbox (count) or enters minutes (timer) → insert row into `daily_logs`
 3. UI updates optimistically, then confirms with Supabase response
 
-### Weekly settlement flow (client-side computed)
-1. User opens Calendar/Progress page
-2. Client fetches `daily_logs` for the current month
-3. Client groups logs by week (Monday start) and calculates:
-   - Count tasks: COUNT(logs for that week) >= task.target_value
-   - Timer tasks: SUM(logs.value for that week) >= task.target_value
-4. All tasks pass → week success
-5. Result written to `weekly_settlements` table (upsert)
+### Weekly settlement flow (one-click, client-side computed)
+Status is computed live for display anytime (calc.ts `weekStatusForUser`). *Settling* is an
+explicit action that snapshots the result + writes the ledger (see DECISIONS "Settlement execution").
+1. A week ends (Sunday passed) → 本月战况 shows "结算 Wn" on the current user's panel
+2. Client computes pass/fail for that user (count: distinct check-in days; timer: SUM minutes)
+3. On click (`useSettlements.settleWeek`): if a weekly `reward_plans` entry exists, insert a
+   `reward_ledger` row (success→reward / fail→penalty); then upsert the `weekly_settlements` snapshot
+4. Idempotent: snapshot guard + (user_id, source) existence check before the ledger insert
 
-### Monthly settlement flow
-1. After all weeks in a month are settled
-2. Client counts weeks_success from `weekly_settlements`
-3. Result: >= 3 → "success", <= 1 → "failure", else → "neutral"
-4. Written to `monthly_settlements` table
-5. Corresponding reward/penalty from `reward_plans` → inserted into `reward_ledger`
+### Monthly settlement flow (team-combined)
+1. After all weeks in the month have ended → "结算本月" appears on the current user's panel
+2. Client computes each member's individual result (calc.ts `monthStatus`: ≥3 success / ≤1 failure / else neutral)
+3. `combineTeamMonth`: both success → team success; either failure → team failure; else neutral
+4. On click (`useSettlements.settleMonth`): writes the current user's `monthly_settlements` row
+   (`result` = team result, `weeks_success` = own count) + a `reward_ledger` entry from the user's
+   own monthly `reward_plans`. Each user settles their own side; both compute the same team result.
 
 ### Reward ledger flow
 1. Settlement creates ledger entries with status "pending"

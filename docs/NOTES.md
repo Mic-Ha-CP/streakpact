@@ -11,18 +11,26 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
 - UX pass: independent notes, EditableText, toasts, new-month carry-over, session
 - Phase 4: PWA (vite-plugin-pwa, placeholder icons from public/logo.svg)
 - Phase 5: Deployed to Vercel (HTTPS verified; RLS blocks anon reads)
+- Phase 6: Settlement + ledger automation (one-click settle → ledger; team-combined month)
 
-### Ready to do next
+### Ready to do next (re-ranked 2026-06-03 — see ROADMAP)
 - Log UI/UX issues into ### Open section below
-- Wire useSettlements + auto-generate reward_ledger entries on settlement (biggest gap)
-- Phase 7: profile features (display name, avatar, in-app password reset)
-- Phase 8: migrate historical Google Sheet check-ins
+- Phase 7: in-app password reset (most useful profile piece; needs Auth Site URL set)
+- Phase 8: migrate historical Google Sheet check-ins (later, maybe)
+- Phase 9: profile features (display name, avatar)
+- Phase 10 (exploratory): multi-tenant / groups
 - Optional: real PWA branding (replace public/logo.svg); custom domain
 
+### How settlement works (Phase 6)
+- 本月战况 page shows a "待结算" section on your *own* panel once a week ends (Sunday passed)
+  or the whole month ends. Click to settle: it reads your reward/penalty plan and writes a
+  reward_ledger entry, then locks a settlement snapshot (🔒 已结算 marker).
+- Weekly = judged individually. Monthly = team: both succeed → shared reward; either fails →
+  both get the penalty; else nothing. Each person settles their own side.
+- Settling is a snapshot — backfilling a past date after settling won't change it.
+- Optional: run `supabase/migrations/002_ledger_unique.sql` in the SQL Editor for DB-level dedup.
+
 ### Open decisions / known gaps
-- Settlements/ledger are NOT automated: weekly/monthly status is computed live for
-  display, but nothing persists settlements or creates reward_ledger entries, and there
-  is no "add ledger entry" UI. The 奖惩账本 won't populate on its own yet.
 - "today"/week boundaries use the device's local timezone — both users should be in the
   same TZ for consistent day/week cutoffs.
 - No in-app password reset yet — reset via the Supabase dashboard if needed.
@@ -65,6 +73,10 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-06-03 — Settlements/ledger were NOT automated (账本 never populated). Fixed: Phase 6 —
+  one-click settle on 本月战况 generates reward_ledger entries from the reward plan and persists
+  weekly/monthly snapshots. Monthly uses the team-combined result (combineTeamMonth). Idempotent
+  via snapshot guard + (user_id, source) check. (calc.ts, useSettlements.ts, Index.tsx)
 - 2026-06-02 — Notes were tied to check-in status. Fixed: notes are now an independent
   daily_logs row (value=0), so they survive un-checking a count task and can exist on
   any day (incl. failed/empty). (useLogs setNote/toggleCount, calc, CheckIn)

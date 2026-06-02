@@ -140,7 +140,11 @@ create table public.reward_ledger (
   created_at    timestamptz not null default now(),
   constraint reward_ledger_type_chk check (type in ('reward', 'penalty')),
   constraint reward_ledger_status_chk
-    check (status in ('pending', 'in_progress', 'used', 'completed', 'forfeited'))
+    check (status in ('pending', 'in_progress', 'used', 'completed', 'forfeited')),
+  -- A settlement scope yields at most one ledger entry per user (success→reward or
+  -- fail→penalty). This makes settle actions idempotent and dedupes historical imports.
+  -- App code also guards on (user_id, source) before inserting, so this is hardening.
+  constraint reward_ledger_user_source_uniq unique (user_id, source)
 );
 
 -- =====================================================================

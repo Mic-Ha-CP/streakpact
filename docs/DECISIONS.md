@@ -29,6 +29,27 @@ All decisions below are LOCKED. Do not change without explicit user approval.
 - 失败 (failure): <= 1 week passed → triggers monthly penalty
 - 无事发生 (neutral): 2 weeks passed → nothing happens
 
+## Settlement execution (added 2026-06-03)
+- **Trigger: one-click "结算" button** on the 本月战况 page — not fully automatic, not a
+  confirm dialog. Has a ritual feel, is controllable, and never writes silently on page load.
+- A week is settleable only after it ends (Sunday passed); a month only after all its weeks end.
+- Each user settles **their own** side (RLS allows writing only own rows). Weekly results are
+  individual; the monthly result is the **team-combined** value (see below) but each user writes
+  their own monthly snapshot + a ledger entry from their own monthly plan.
+- **Monthly team rule (three states):** combine each member's individual month result —
+  - team **success** ⟺ BOTH succeed → shared monthly reward
+  - team **failure** ⟺ EITHER fails → shared monthly penalty (a partner's failure drags both down)
+  - team **neutral** otherwise → nothing
+  (implemented as `combineTeamMonth` in calc.ts; null if a member has no tasks = not settleable.)
+- On settle: if a matching reward/penalty plan exists, a `reward_ledger` entry is created
+  (success→reward, fail→penalty); if no plan text is set, the settlement is still recorded but
+  no ledger entry is made.
+- **Idempotent:** the settlement-snapshot row is the guard (a settled week/month leaves the
+  pending list); the ledger insert also checks (user_id, source) first, so re-settling never
+  duplicates. Optional DB hardening: `unique (user_id, source)` on reward_ledger.
+- **Snapshot, not live:** once settled, the result is locked. Backfilling (补签) a past date in
+  an already-settled week/month does NOT retroactively change the snapshot or ledger (MVP choice).
+
 ## Rewards & penalties
 - Set per month: weekly (individual) + monthly (team) plans
 - Weekly: each person has own reward/penalty, judged individually

@@ -1,5 +1,13 @@
 # Roadmap
 
+## Priority (re-ranked 2026-06-03)
+Phases 1–5 are done (app is live). Remaining work, in priority order:
+1. **Phase 6 — Settlement + ledger automation** (closes the core motivation loop)
+2. **Phase 7 — In-app password reset** (pulled out of the old "profile features"; most useful piece)
+3. **Phase 8 — Historical data import** (later, maybe; merges the old duplicate Phase 6)
+4. **Phase 9 — Profile features** (display name, avatar — nice-to-have)
+5. **Phase 10 — Multi-tenant / groups** (exploratory, may never land; would be a v2)
+
 ## Phase 1: Lovable UI polish ✅ COMPLETE
 - [x] Initial Lovable prototype
 - [x] Generic mock data (no personal info in code)
@@ -61,21 +69,49 @@
 - [ ] Set Supabase Auth Site URL to the Vercel domain (needed once password reset lands)
 - [ ] Connect custom domain (optional)
 
-## Phase 6: Data migration (optional)
-- [ ] Script to import Google Sheet history into Supabase
-- [ ] Import daily_logs (Dec 2025 – present)
-- [ ] Import weekly/monthly settlements
-- [ ] Import reward_ledger entries
+## Phase 6: Settlement + ledger automation
+Closes the core loop — until now weekly/monthly status was computed live for display only,
+never persisted, and the reward ledger never populated on its own.
+- [x] `combineTeamMonth` team-result rule (calc.ts) + unit tests
+- [x] Extend `useSettlements`: pending weeks, month settleable, one-click `settleWeek`/`settleMonth`
+- [x] One-click settle UI on the 本月战况 page (own panel only; 已结算 markers; team preview)
+- [x] Weekly = individual; monthly = team-combined (both succeed → reward; either fails → both penalty)
+- [x] Idempotent: settlement-snapshot guard + (user_id, source) existence check before ledger insert
+- [ ] **Manual:** run `supabase/migrations/002_ledger_unique.sql` in the SQL Editor (optional hardening)
+- Settling after a week/month is over is a snapshot; backfilling a settled period does NOT re-settle.
 
-## Phase 7: User profile features
+## Phase 7: In-app password reset
+- [ ] Set Supabase Auth Site URL to the Vercel domain (prerequisite)
+- [ ] "Forgot password" → email reset link flow
+- [ ] Change-password form for a signed-in user
+
+## Phase 8: Historical data import (later — maybe)
+(Merges the old duplicate "data migration" phase.) See memory: import only dates *before*
+the live-usage cutover (2026-06-02), additive, no month overlap.
+- [ ] Script to import Google Sheet history into Supabase (bulk via DATABASE_URL / service role)
+- [ ] Import daily_logs (Dec 2025 – cutover) using the value=1 / minutes / value=0 row model
+- [ ] Import weekly/monthly settlements + reward_ledger entries (dedupe on user_id, source)
+- [ ] Verify imported data integrity
+
+## Phase 9: User profile features (nice-to-have)
 - [ ] Settings page
 - [ ] Change display name
 - [ ] Upload avatar (Supabase Storage)
-- [ ] In-app password reset
 
-## Phase 8: Data polish
-- [ ] Import Google Sheet history into Supabase
-- [ ] Verify imported data integrity
+## Phase 10: Multi-tenant / groups (exploratory — may never land; a v2)
+Goal: open the app to more users in isolated groups (different groups can't see each other).
+**Feasible on Supabase; capacity/cost is NOT the blocker** (free tier: 500 MB DB + 50k MAU
+comfortably holds dozens–hundreds of low-activity users; Pro $25/mo scales further). The cost
+is engineering, not infra:
+- [ ] `groups` + `group_members(group_id, user_id, role)`; add `group_id` to the business tables
+- [ ] **RLS rewrite (the big one):** SELECT is currently `using (true)` (everyone sees everything).
+      Group isolation = every policy checks `group_id ∈ my groups` (via an `is_group_member()` helper).
+      Supabase RLS supports this cleanly — this is what makes groups invisible to each other.
+- [ ] Registration + invite flow (currently *none* — DECISIONS locks "no registration/invite"; revisit)
+- [ ] De-hardcode the 2-user assumption (`UserId = "CP"|"JX"`, PersonChip, cp/jx theme, fixed panels)
+- [ ] Redefine team/monthly settlement for N members (all? majority?)
+- Note: open-sourcing the *code* for others to self-host their own 2-person instance is already safe
+  today (no real data in the repo). A single shared multi-tenant deployment is this whole phase.
 
 ## Future (not scheduled)
 - ±5% tolerance on timer tasks

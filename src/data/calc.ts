@@ -101,6 +101,26 @@ export function weekStatusForUser(
 
 export type MonthResult = "success" | "failure" | "neutral";
 
+/**
+ * Combine two members' individual month results into the shared team result that
+ * drives the monthly reward/penalty (monthly settlement is team-based — see
+ * DECISIONS.md). Three-state rule:
+ *   - success  ⟺ BOTH members succeeded (shared win)
+ *   - failure  ⟺ EITHER member failed   (a partner's failure drags both down)
+ *   - neutral  otherwise (e.g. one success + one neutral)
+ * Returns null if either side is null (a member with no tasks can't be judged yet),
+ * meaning "not settleable".
+ */
+export function combineTeamMonth(
+  a: MonthResult | null,
+  b: MonthResult | null,
+): MonthResult | null {
+  if (a === null || b === null) return null;
+  if (a === "failure" || b === "failure") return "failure";
+  if (a === "success" && b === "success") return "success";
+  return "neutral";
+}
+
 export function monthStatus(
   tasks: Task[],
   logs: DailyLog[],

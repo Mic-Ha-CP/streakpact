@@ -1,6 +1,8 @@
 import { unitLabel, type DailyLog, type Task, type UserId } from "@/data/models";
 import { useTasks } from "@/hooks/useTasks";
 import { useLogs } from "@/hooks/useLogs";
+import { useAuth } from "@/hooks/useAuth";
+import { useSettlements, type MonthlySettlement } from "@/hooks/useSettlements";
 import { currentMonthISO, todayISO } from "@/lib/dates";
 import { PersonChip } from "@/components/PersonChip";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -13,9 +15,11 @@ import {
   weeklyProgress,
   weekStatusForUser,
   type MonthResult,
+  type WeekLabel,
 } from "@/data/calc";
-import { Flame, Sparkles } from "lucide-react";
+import { Flame, Sparkles, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
   if (!result) return <span className="pill border border-border text-muted-foreground">进行中</span>;
@@ -26,18 +30,42 @@ const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
   return <span className="pill bg-muted text-muted-foreground">无事发生</span>;
 };
 
+/** Button label describing what settling the month will trigger. */
+const teamMonthLabel = (r: MonthResult | null) =>
+  r === "success"
+    ? "团队成功 → 月度奖励"
+    : r === "failure"
+      ? "团队失败 → 月度惩罚"
+      : "团队无事发生";
+
+interface SettleProps {
+  pendingWeeks: WeekLabel[];
+  monthSettleable: boolean;
+  teamMonthPreview: MonthResult | null;
+  onSettleWeek: (w: WeekLabel) => void;
+  onSettleMonth: () => void;
+  settling: boolean;
+}
+
 const UserPanel = ({
   userId,
   tasks,
   logs,
   currentMonth,
   today,
+  settledWeekly,
+  settledMonthly,
+  settle,
 }: {
   userId: UserId;
   tasks: Task[];
   logs: DailyLog[];
   currentMonth: string;
   today: string;
+  settledWeekly: Set<number>;
+  settledMonthly: MonthlySettlement | null;
+  /** Settle actions for the current user only; null on the other user's panel. */
+  settle: SettleProps | null;
 }) => {
   const myTasks = tasks.filter((t) => t.userId === userId && t.month === currentMonth);
   const currentWeek = today.startsWith(currentMonth) ? (dayToWeek(currentMonth, today) ?? "W1") : "W1";
@@ -80,7 +108,18 @@ const UserPanel = ({
             {month.successWeeks}
             <span className="text-base text-muted-foreground">/{month.totalWeeks}</span>
           </div>
-          <MonthResultBadge result={month.result} />
+          <div className="flex items-center justify-end gap-1.5">
+            {settledMonthly ? (
+              <MonthResultBadge result={settledMonthly.result} />
+            ) : (
+              <MonthResultBadge result={month.result} />
+            )}
+            {settledMonthly && (
+              <span className="pill bg-primary/10 text-primary text-[10px] gap-1">
+                <Lock className="w-2.5 h-2.5" /> 已结算
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -105,18 +144,57 @@ const UserPanel = ({
         <div className="flex gap-2 justify-between">
           {WEEK_LABELS.filter((w) => weeks.find((x) => x.label === w)).map((w) => {
             const status = weekStatusForUser(myTasks, logs, currentMonth, w, today);
+            const settled = settledWeekly.has(Number(w.slice(1)));
             return (
-              <WeekBadge
-                key={w}
-                label={w}
-                status={status}
-                size="md"
-                active={w === currentWeek}
-              />
+              <div key={w} className="relative">
+                <WeekBadge label={w} status={status} size="md" active={w === currentWeek} />
+                {settled && (
+                  <span
+                    className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-primary ring-2 ring-card grid place-items-center"
+                    title="已结算"
+                  >
+                    <Lock className="w-2 h-2 text-primary-foreground" />
+                  </span>
+                )}
+              </div>
             );
           })}
         </div>
       </div>
+
+      {/* Settle (current user only) */}
+      {settle && (settle.pendingWeeks.length > 0 || settle.monthSettleable) && (
+        <div className="px-5 pb-4">
+          <div className="rounded-2xl border border-secondary/40 bg-secondary-soft/40 p-3 space-y-2">
+            <div className="text-[11px] uppercase tracking-wider text-secondary-foreground font-bold flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" /> 待结算
+            </div>
+            {settle.pendingWeeks.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {settle.pendingWeeks.map((w) => (
+                  <button
+                    key={w}
+                    disabled={settle.settling}
+                    onClick={() => settle.onSettleWeek(w)}
+                    className="px-3 py-1.5 rounded-xl bg-card border border-border text-xs font-bold hover:bg-muted transition-colors disabled:opacity-50"
+                  >
+                    结算 {w}
+                  </button>
+                ))}
+              </div>
+            )}
+            {settle.monthSettleable && (
+              <button
+                disabled={settle.settling}
+                onClick={settle.onSettleMonth}
+                className="w-full px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                结算本月 · {teamMonthLabel(settle.teamMonthPreview)}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Tasks */}
       <div className="px-5 pb-5 space-y-3">
@@ -158,6 +236,50 @@ const Index = () => {
   const currentMonth = currentMonthISO();
   const { tasks } = useTasks(currentMonth);
   const { logs } = useLogs(currentMonth);
+  const { userId: me } = useAuth();
+  const s = useSettlements(currentMonth);
+
+  const settledWeeklyFor = (u: UserId) =>
+    new Set(s.weekly.filter((x) => x.userId === u).map((x) => x.weekNumber));
+  const settledMonthlyFor = (u: UserId) => s.monthly.find((x) => x.userId === u) ?? null;
+
+  const onSettleWeek = (w: WeekLabel) =>
+    s.settleWeek.mutate(w, {
+      onSuccess: (r) =>
+        toast.success(
+          r.ledgered
+            ? `${r.week} 已结算 ✓ ${r.isSuccess ? "奖励" : "惩罚"}已入账本`
+            : `${r.week} 已结算（${r.isSuccess ? "成功" : "失败"}，未设置${r.isSuccess ? "奖励" : "惩罚"}）`,
+        ),
+      onError: (e) => toast.error(`结算失败：${(e as Error).message}`),
+    });
+
+  const onSettleMonth = () =>
+    s.settleMonth.mutate(undefined, {
+      onSuccess: (r) => {
+        const label =
+          r.team === "success" ? "团队通关 🏆" : r.team === "failure" ? "团队失败 ⚠" : "无事发生";
+        toast.success(
+          r.ledgered
+            ? `本月已结算：${label}，${r.team === "success" ? "奖励" : "惩罚"}已入账本`
+            : `本月已结算：${label}`,
+        );
+      },
+      onError: (e) => toast.error(`结算失败：${(e as Error).message}`),
+    });
+
+  const settleFor = (u: UserId): SettleProps | null =>
+    u === me
+      ? {
+          pendingWeeks: s.pendingWeeks,
+          monthSettleable: s.monthSettleable,
+          teamMonthPreview: s.teamMonthPreview,
+          onSettleWeek,
+          onSettleMonth,
+          settling: s.settleWeek.isPending || s.settleMonth.isPending,
+        }
+      : null;
+
   return (
     <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
       <div className="flex items-end justify-between gap-4">
@@ -176,8 +298,26 @@ const Index = () => {
           <PersonChip user="CP" />
           <PersonChip user="JX" />
         </div>
-        <UserPanel userId="CP" tasks={tasks} logs={logs} currentMonth={currentMonth} today={today} />
-        <UserPanel userId="JX" tasks={tasks} logs={logs} currentMonth={currentMonth} today={today} />
+        <UserPanel
+          userId="CP"
+          tasks={tasks}
+          logs={logs}
+          currentMonth={currentMonth}
+          today={today}
+          settledWeekly={settledWeeklyFor("CP")}
+          settledMonthly={settledMonthlyFor("CP")}
+          settle={settleFor("CP")}
+        />
+        <UserPanel
+          userId="JX"
+          tasks={tasks}
+          logs={logs}
+          currentMonth={currentMonth}
+          today={today}
+          settledWeekly={settledWeeklyFor("JX")}
+          settledMonthly={settledMonthlyFor("JX")}
+          settle={settleFor("JX")}
+        />
       </div>
 
       <div className="md:hidden bg-card rounded-2xl p-4 border border-border/60 text-xs text-muted-foreground flex items-start gap-2">
