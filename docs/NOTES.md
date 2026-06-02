@@ -25,10 +25,12 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
 - 本月战况 page shows a "待结算" section on your *own* panel once a week ends (Sunday passed)
   or the whole month ends. Click to settle: it reads your reward/penalty plan and writes a
   reward_ledger entry, then locks a settlement snapshot (🔒 已结算 marker).
+- Undo ("撤销结算") is on the 打卡 (CheckIn) page (own data, viewed month) — not the dashboard.
 - Weekly = judged individually. Monthly = team: both succeed → shared reward; either fails →
   both get the penalty; else nothing. Each person settles their own side.
 - Settling is a snapshot — backfilling a past date after settling won't change it. To fix a
-  wrong settlement, use "撤销结算" (undo) on your own panel, then settle again.
+  wrong settlement, use "撤销结算" (undo) — it lives on the **打卡 (CheckIn)** page (for the
+  viewed month), deliberately off the dashboard — then settle again on 本月战况.
 - Deleting a task asks for confirmation and shows how many check-in records will be lost
   (the FK cascade-deletes its daily_logs).
 - **Migrations to run in the SQL Editor:** `002_ledger_unique.sql` (optional, dedup) and

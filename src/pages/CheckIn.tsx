@@ -2,14 +2,28 @@ import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useLogs } from "@/hooks/useLogs";
+import { useSettlements } from "@/hooks/useSettlements";
 import { todayISO, shiftDate } from "@/lib/dates";
 import type { DailyLog, UserId } from "@/data/models";
+import type { WeekLabel } from "@/data/calc";
 import { PersonChip } from "@/components/PersonChip";
 import { EditableText } from "@/components/EditableText";
 import { Input } from "@/components/ui/input";
-import { Check, ChevronLeft, ChevronRight, History, Timer, X, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, History, Timer, X, Trash2, RotateCcw, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+type UndoTarget = { kind: "week"; week: WeekLabel } | { kind: "month" };
 
 const formatTime = (iso?: string) => {
   if (!iso) return "";
@@ -165,6 +179,9 @@ const CheckIn = () => {
 
   const { tasks } = useTasks(viewMonth);
   const { logs, toggleCount, insertLog, deleteLog, setNote } = useLogs(viewMonth);
+  const settlement = useSettlements(viewMonth);
+  const [undoTarget, setUndoTarget] = useState<UndoTarget | null>(null);
+  const unsettling = settlement.unsettleWeek.isPending || settlement.unsettleMonth.isPending;
 
   const myTasks = useMemo(
     () => tasks.filter((t) => t.userId === active && t.month === viewMonth),
@@ -173,6 +190,22 @@ const CheckIn = () => {
 
   const logsFor = (taskId: string) =>
     logs.filter((l) => l.taskId === taskId && l.date === date);
+
+  const confirmUndo = () => {
+    if (undoTarget?.kind === "week") {
+      const w = undoTarget.week;
+      settlement.unsettleWeek.mutate(w, {
+        onSuccess: () => toast.success(`已撤销 ${w} 结算`),
+        onError: (e) => toast.error(`撤销失败：${(e as Error).message}`),
+      });
+    } else if (undoTarget?.kind === "month") {
+      settlement.unsettleMonth.mutate(undefined, {
+        onSuccess: () => toast.success("已撤销本月结算"),
+        onError: (e) => toast.error(`撤销失败：${(e as Error).message}`),
+      });
+    }
+    setUndoTarget(null);
+  };
 
   return (
     <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
@@ -310,6 +343,56 @@ const CheckIn = () => {
           );
         })}
       </div>
+
+      {/* Un-settle (own settlements for the viewed month). Kept here — away from the
+          本月战况 dashboard — so this destructive action is deliberate, not a glance away. */}
+      {editable && (settlement.mySettledWeeks.length > 0 || settlement.mySettledMonthly) && (
+        <div className="rounded-2xl border border-border/60 bg-muted/30 p-3 space-y-2">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5" /> {viewMonth} 已结算（可撤销）
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            撤销会删除该周/月的结算快照及其生成的账本条目，回到待结算可重新结算。
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {settlement.mySettledWeeks.map((n) => (
+              <button
+                key={n}
+                disabled={unsettling}
+                onClick={() => setUndoTarget({ kind: "week", week: `W${n}` as WeekLabel })}
+                className="px-2.5 py-1 rounded-lg bg-card border border-border text-xs font-bold inline-flex items-center gap-1 hover:border-danger hover:text-danger transition-colors disabled:opacity-50"
+              >
+                W{n} <RotateCcw className="w-3 h-3" />
+              </button>
+            ))}
+            {settlement.mySettledMonthly && (
+              <button
+                disabled={unsettling}
+                onClick={() => setUndoTarget({ kind: "month" })}
+                className="px-2.5 py-1 rounded-lg bg-card border border-border text-xs font-bold inline-flex items-center gap-1 hover:border-danger hover:text-danger transition-colors disabled:opacity-50"
+              >
+                本月 <RotateCcw className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <AlertDialog open={undoTarget !== null} onOpenChange={(o) => !o && setUndoTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>撤销结算？</AlertDialogTitle>
+            <AlertDialogDescription>
+              将删除 {viewMonth} {undoTarget?.kind === "month" ? "本月" : (undoTarget?.week ?? "")}
+              的结算快照，以及它生成的奖惩账本条目（若有）。撤销后回到待结算，可重新结算。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmUndo}>确认撤销</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

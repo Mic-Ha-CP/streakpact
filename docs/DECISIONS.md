@@ -57,6 +57,9 @@ All decisions below are LOCKED. Do not change without explicit user approval.
   "撤销结算" — deletes the settlement snapshot AND the ledger entry it generated, returning the
   period to 待结算 so it can be re-settled (e.g. after a backfill or a wrong reward plan). This
   is the escape hatch for settlement mistakes. Requires DELETE RLS policies (migrations/003).
+  - **Placement:** the undo lives on the **打卡 (CheckIn)** page (for the viewed month), NOT on the
+    本月战况 dashboard — keeping a destructive action deliberate and off the glance-at overview.
+    Settling (constructive) stays on the dashboard. Always behind a confirmation dialog.
 
 ## Rewards & penalties
 - Set per month: weekly (individual) + monthly (team) plans
