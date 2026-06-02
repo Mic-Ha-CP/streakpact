@@ -202,6 +202,9 @@ create policy weekly_settlements_insert_own on public.weekly_settlements
 create policy weekly_settlements_update_own on public.weekly_settlements
   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+create policy weekly_settlements_delete_own on public.weekly_settlements
+  for delete to authenticated using (auth.uid() = user_id);
+
 -- monthly_settlements -------------------------------------------------
 alter table public.monthly_settlements enable row level security;
 
@@ -213,6 +216,9 @@ create policy monthly_settlements_insert_own on public.monthly_settlements
 
 create policy monthly_settlements_update_own on public.monthly_settlements
   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy monthly_settlements_delete_own on public.monthly_settlements
+  for delete to authenticated using (auth.uid() = user_id);
 
 -- reward_plans --------------------------------------------------------
 alter table public.reward_plans enable row level security;
@@ -237,6 +243,9 @@ create policy reward_ledger_insert_own on public.reward_ledger
 
 create policy reward_ledger_update_own on public.reward_ledger
   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy reward_ledger_delete_own on public.reward_ledger
+  for delete to authenticated using (auth.uid() = user_id);
 
 -- =====================================================================
 -- Indexes (cheap, helpful even at 2 users)

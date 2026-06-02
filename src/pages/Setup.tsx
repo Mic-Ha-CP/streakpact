@@ -1,12 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
+import { useLogs } from "@/hooks/useLogs";
 import { currentMonthISO, prevMonthISO } from "@/lib/dates";
 import { unitForType, unitLabel, type Task, type TaskType, type UserId } from "@/data/models";
 import { PersonChip } from "@/components/PersonChip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -102,11 +114,13 @@ const TaskSummary = ({ task }: { task: Task }) => (
 const PersistedTaskRow = ({
   task,
   editable,
+  logCount,
   onSave,
   onDelete,
 }: {
   task: Task;
   editable: boolean;
+  logCount: number;
   onSave: (t: Task) => void;
   onDelete: () => void;
 }) => {
@@ -181,12 +195,32 @@ const PersistedTaskRow = ({
             </Tooltip>
           </TooltipProvider>
         )}
-        <button
-          onClick={onDelete}
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-soft"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button className="p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-soft">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>删除「{task.title || "未命名任务"}」？</AlertDialogTitle>
+              <AlertDialogDescription>
+                {logCount > 0
+                  ? `将同时删除该任务的 ${logCount} 条打卡记录，不可恢复。`
+                  : "该任务暂无打卡记录，可安全删除。"}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={onDelete}
+                className="bg-danger text-danger-foreground hover:bg-danger/90"
+              >
+                确认删除
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {editing ? (
@@ -254,6 +288,7 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
   const { tasks: curAll, isLoading: curLoading, addTask, updateTask, deleteTask } =
     useTasks(currentMonth);
   const { tasks: lastAll, isLoading: lastLoading } = useTasks(last);
+  const { logs } = useLogs(currentMonth);
   const myCurrent = curAll.filter((t) => t.userId === userId);
   const myLast = lastAll.filter((t) => t.userId === userId);
 
@@ -360,6 +395,7 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
             key={t.id}
             task={t}
             editable={editable}
+            logCount={logs.filter((l) => l.taskId === t.id).length}
             onSave={(next) => updateTask.mutate(next)}
             onDelete={() => {
               deleteTask.mutate(t.id, { onSuccess: () => toast.success("已删除") });

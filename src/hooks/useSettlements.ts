@@ -240,6 +240,53 @@ export function useSettlements(month: string) {
     },
   });
 
+  // ---- Un-settle (撤your own settlement back to pending) ---------------------
+  // Deletes the snapshot AND the ledger entry it generated, so the period can be
+  // re-settled. Requires the DELETE policies from migrations/003.
+  const deleteLedgerBySource = async (source: string) => {
+    const { error } = await supabase
+      .from("reward_ledger")
+      .delete()
+      .eq("user_id", profileId!)
+      .eq("source", source);
+    if (error) throw error;
+  };
+
+  const unsettleWeek = useMutation({
+    mutationFn: async (week: WeekLabel) => {
+      if (!profileId) throw new Error("Not signed in");
+      await deleteLedgerBySource(`${month} ${week}`);
+      const { error } = await supabase
+        .from("weekly_settlements")
+        .delete()
+        .eq("user_id", profileId)
+        .eq("year_month", month)
+        .eq("week_number", Number(week.slice(1)));
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["weekly_settlements", month] });
+      qc.invalidateQueries({ queryKey: ["reward_ledger"] });
+    },
+  });
+
+  const unsettleMonth = useMutation({
+    mutationFn: async () => {
+      if (!profileId) throw new Error("Not signed in");
+      await deleteLedgerBySource(`${month} 月`);
+      const { error } = await supabase
+        .from("monthly_settlements")
+        .delete()
+        .eq("user_id", profileId)
+        .eq("year_month", month);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["monthly_settlements", month] });
+      qc.invalidateQueries({ queryKey: ["reward_ledger"] });
+    },
+  });
+
   return {
     weekly: weeklyRows,
     monthly: monthlyRows,
@@ -248,8 +295,11 @@ export function useSettlements(month: string) {
     pendingWeeks,
     monthSettleable,
     teamMonthPreview,
+    mySettledWeeks: [...mySettledWeekNumbers].sort((a, b) => a - b),
     mySettledMonthly,
     settleWeek,
     settleMonth,
+    unsettleWeek,
+    unsettleMonth,
   };
 }

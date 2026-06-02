@@ -77,8 +77,13 @@ never persisted, and the reward ledger never populated on its own.
 - [x] One-click settle UI on the 本月战况 page (own panel only; 已结算 markers; team preview)
 - [x] Weekly = individual; monthly = team-combined (both succeed → reward; either fails → both penalty)
 - [x] Idempotent: settlement-snapshot guard + (user_id, source) existence check before ledger insert
-- [ ] **Manual:** run `supabase/migrations/002_ledger_unique.sql` in the SQL Editor (optional hardening)
-- Settling after a week/month is over is a snapshot; backfilling a settled period does NOT re-settle.
+- [x] Un-settle ("撤销结算"): delete snapshot + generated ledger entry → re-settleable (fault tolerance)
+- [x] Task-delete safety: confirm dialog showing how many logs will be cascade-deleted
+- [x] Comprehensive unit tests: combineTeamMonth, weekStatusForUser, monthStatus (4-week & 5-week months)
+- [ ] **Manual:** run `supabase/migrations/002_ledger_unique.sql` (optional) and
+      `supabase/migrations/003_settlement_delete_policies.sql` (**required** for un-settle) in the SQL Editor
+- Settling after a week/month is over is a snapshot; backfilling a settled period does NOT auto re-settle
+  (use 撤销结算 then settle again).
 
 ## Phase 7: In-app password reset
 - [ ] Set Supabase Auth Site URL to the Vercel domain (prerequisite)

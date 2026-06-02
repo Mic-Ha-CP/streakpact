@@ -27,8 +27,12 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
   reward_ledger entry, then locks a settlement snapshot (🔒 已结算 marker).
 - Weekly = judged individually. Monthly = team: both succeed → shared reward; either fails →
   both get the penalty; else nothing. Each person settles their own side.
-- Settling is a snapshot — backfilling a past date after settling won't change it.
-- Optional: run `supabase/migrations/002_ledger_unique.sql` in the SQL Editor for DB-level dedup.
+- Settling is a snapshot — backfilling a past date after settling won't change it. To fix a
+  wrong settlement, use "撤销结算" (undo) on your own panel, then settle again.
+- Deleting a task asks for confirmation and shows how many check-in records will be lost
+  (the FK cascade-deletes its daily_logs).
+- **Migrations to run in the SQL Editor:** `002_ledger_unique.sql` (optional, dedup) and
+  `003_settlement_delete_policies.sql` (**required for 撤销结算** — adds DELETE policies).
 
 ### Open decisions / known gaps
 - "today"/week boundaries use the device's local timezone — both users should be in the
@@ -73,6 +77,12 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-06-03 — Deleting a task silently cascade-deleted all its check-ins with no confirm.
+  Fixed: delete now opens a confirmation dialog showing the record count that will be lost
+  (Setup.tsx). Deletion stays freely allowed (DECISIONS unchanged) — just guarded.
+- 2026-06-03 — A wrong/premature settlement couldn't be fixed in-app (snapshot was locked).
+  Fixed: "撤销结算" deletes the snapshot + its generated ledger entry so the week/month can be
+  re-settled (useSettlements unsettleWeek/unsettleMonth, Index.tsx; needs migrations/003).
 - 2026-06-03 — Settlements/ledger were NOT automated (账本 never populated). Fixed: Phase 6 —
   one-click settle on 本月战况 generates reward_ledger entries from the reward plan and persists
   weekly/monthly snapshots. Monthly uses the team-combined result (combineTeamMonth). Idempotent

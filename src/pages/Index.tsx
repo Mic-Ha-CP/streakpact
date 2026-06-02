@@ -17,9 +17,20 @@ import {
   type MonthResult,
   type WeekLabel,
 } from "@/data/calc";
-import { Flame, Sparkles, Lock } from "lucide-react";
+import { useState } from "react";
+import { Flame, Sparkles, Lock, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
   if (!result) return <span className="pill border border-border text-muted-foreground">进行中</span>;
@@ -42,10 +53,16 @@ interface SettleProps {
   pendingWeeks: WeekLabel[];
   monthSettleable: boolean;
   teamMonthPreview: MonthResult | null;
+  mySettledWeeks: number[];
+  monthSettled: boolean;
   onSettleWeek: (w: WeekLabel) => void;
   onSettleMonth: () => void;
+  onUnsettleWeek: (w: WeekLabel) => void;
+  onUnsettleMonth: () => void;
   settling: boolean;
 }
+
+type UndoTarget = { kind: "week"; week: WeekLabel } | { kind: "month" };
 
 const UserPanel = ({
   userId,
@@ -67,6 +84,7 @@ const UserPanel = ({
   /** Settle actions for the current user only; null on the other user's panel. */
   settle: SettleProps | null;
 }) => {
+  const [undoTarget, setUndoTarget] = useState<UndoTarget | null>(null);
   const myTasks = tasks.filter((t) => t.userId === userId && t.month === currentMonth);
   const currentWeek = today.startsWith(currentMonth) ? (dayToWeek(currentMonth, today) ?? "W1") : "W1";
   const weeks = getWeeksInMonth(currentMonth);
@@ -196,6 +214,64 @@ const UserPanel = ({
         </div>
       )}
 
+      {/* Undo settlement (current user only) */}
+      {settle && (settle.mySettledWeeks.length > 0 || settle.monthSettled) && (
+        <div className="px-5 pb-4">
+          <div className="rounded-2xl border border-border/60 bg-muted/30 p-3 space-y-2">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" /> 已结算（可撤销）
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {settle.mySettledWeeks.map((n) => (
+                <button
+                  key={n}
+                  disabled={settle.settling}
+                  onClick={() => setUndoTarget({ kind: "week", week: `W${n}` as WeekLabel })}
+                  className="px-2.5 py-1 rounded-lg bg-card border border-border text-xs font-bold inline-flex items-center gap-1 hover:border-danger hover:text-danger transition-colors disabled:opacity-50"
+                >
+                  W{n} <RotateCcw className="w-3 h-3" />
+                </button>
+              ))}
+              {settle.monthSettled && (
+                <button
+                  disabled={settle.settling}
+                  onClick={() => setUndoTarget({ kind: "month" })}
+                  className="px-2.5 py-1 rounded-lg bg-card border border-border text-xs font-bold inline-flex items-center gap-1 hover:border-danger hover:text-danger transition-colors disabled:opacity-50"
+                >
+                  本月 <RotateCcw className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {settle && (
+        <AlertDialog open={undoTarget !== null} onOpenChange={(o) => !o && setUndoTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>撤销结算？</AlertDialogTitle>
+              <AlertDialogDescription>
+                将删除{undoTarget?.kind === "month" ? "本月" : (undoTarget?.week ?? "")}
+                的结算快照，以及它生成的奖惩账本条目（若有）。撤销后回到待结算，可重新结算。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (undoTarget?.kind === "week") settle.onUnsettleWeek(undoTarget.week);
+                  else if (undoTarget?.kind === "month") settle.onUnsettleMonth();
+                  setUndoTarget(null);
+                }}
+              >
+                确认撤销
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
       {/* Tasks */}
       <div className="px-5 pb-5 space-y-3">
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
@@ -268,15 +344,34 @@ const Index = () => {
       onError: (e) => toast.error(`结算失败：${(e as Error).message}`),
     });
 
+  const onUnsettleWeek = (w: WeekLabel) =>
+    s.unsettleWeek.mutate(w, {
+      onSuccess: () => toast.success(`已撤销 ${w} 结算`),
+      onError: (e) => toast.error(`撤销失败：${(e as Error).message}`),
+    });
+  const onUnsettleMonth = () =>
+    s.unsettleMonth.mutate(undefined, {
+      onSuccess: () => toast.success("已撤销本月结算"),
+      onError: (e) => toast.error(`撤销失败：${(e as Error).message}`),
+    });
+
   const settleFor = (u: UserId): SettleProps | null =>
     u === me
       ? {
           pendingWeeks: s.pendingWeeks,
           monthSettleable: s.monthSettleable,
           teamMonthPreview: s.teamMonthPreview,
+          mySettledWeeks: s.mySettledWeeks,
+          monthSettled: s.mySettledMonthly !== null,
           onSettleWeek,
           onSettleMonth,
-          settling: s.settleWeek.isPending || s.settleMonth.isPending,
+          onUnsettleWeek,
+          onUnsettleMonth,
+          settling:
+            s.settleWeek.isPending ||
+            s.settleMonth.isPending ||
+            s.unsettleWeek.isPending ||
+            s.unsettleMonth.isPending,
         }
       : null;
 

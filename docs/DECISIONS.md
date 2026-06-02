@@ -15,6 +15,10 @@ All decisions below are LOCKED. Do not change without explicit user approval.
 - Task deletion is always allowed, even after the edit lock. The edit lock only
   limits modifying task *properties*; deleting a task (and accepting the loss of its
   logged data) is always the user's choice.
+  - **Safety (added 2026-06-03):** deleting requires a confirmation dialog that states
+    how many check-in records will be cascade-deleted (`daily_logs` FK is
+    `on delete cascade`). Prevents a misclick from silently wiping a month of logs while
+    keeping deletion freely available.
 - ±5% tolerance: DEFERRED (not in MVP)
 
 ## Weekly settlement
@@ -49,6 +53,10 @@ All decisions below are LOCKED. Do not change without explicit user approval.
   duplicates. Optional DB hardening: `unique (user_id, source)` on reward_ledger.
 - **Snapshot, not live:** once settled, the result is locked. Backfilling (补签) a past date in
   an already-settled week/month does NOT retroactively change the snapshot or ledger (MVP choice).
+- **Un-settle (fault tolerance, added 2026-06-03):** a settled week/month can be undone via
+  "撤销结算" — deletes the settlement snapshot AND the ledger entry it generated, returning the
+  period to 待结算 so it can be re-settled (e.g. after a backfill or a wrong reward plan). This
+  is the escape hatch for settlement mistakes. Requires DELETE RLS policies (migrations/003).
 
 ## Rewards & penalties
 - Set per month: weekly (individual) + monthly (team) plans
