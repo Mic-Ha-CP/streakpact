@@ -1,12 +1,31 @@
 # Roadmap
 
-## Priority (re-ranked 2026-06-03)
-Phases 1–5 are done (app is live). Remaining work, in priority order:
-1. **Phase 6 — Settlement + ledger automation** (closes the core motivation loop)
-2. **Phase 7 — In-app password reset** (pulled out of the old "profile features"; most useful piece)
-3. **Phase 8 — Historical data import** (later, maybe; merges the old duplicate Phase 6)
-4. **Phase 9 — Profile features** (display name, avatar — nice-to-have)
-5. **Phase 10 — Multi-tenant / groups** (exploratory, may never land; would be a v2)
+## Priority (re-ranked 2026-06-04)
+Phase 6 is done & pushed (app is live with settlement). Re-ranked to pull the personal-use
+UX + open-source housekeeping items ahead of password reset:
+1. ✅ **Git/repo safety audit** — done 2026-06-04: history is clean (no real emails, names, keys,
+   or Supabase URL in any tracked file or commit; authors are all noreply). Safe to open-source;
+   no history rewrite needed. See "Repo hardening" below.
+2. **README + repo tidy** — real README written; dead scaffold removed (App.css, example.test.ts,
+   placeholder.svg). Remaining tidy items tracked below.
+3. **Dark mode** — night use. The `.dark` palette already exists in index.css and
+   `darkMode: ["class"]` is set; only needs a toggle + system-preference + persisted choice.
+4. **PWA polish** — already shipped (Phase 4); only real branding icons + a final phone install left.
+5. **Phase 7 — In-app password reset** (moved down; still the next *feature*).
+6. **Phase 8 — Historical data import** (later, maybe).
+7. **Phase 9 — Profile features** (display name, avatar — nice-to-have).
+8. **Phase 10 — Multi-tenant / groups** (exploratory, may never land; would be a v2).
+
+## Repo hardening / open-source readiness
+- [x] **Git history audited (2026-06-04):** scanned all commits + tracked files. No real emails
+      (authors are `*.users.noreply.github.com` / bot accounts), only CP/JX initials (intentional),
+      no secrets / anon key / Supabase URL / connection string (`.env` is git-ignored). Clean.
+- [x] Replace the Lovable stub README with a real one (features, stack, local setup, deploy).
+- [x] Remove dead scaffold files: `src/App.css`, `src/test/example.test.ts`, `public/placeholder.svg`.
+- [ ] Optional tidy (low value, flagged not done): dual bun lockfiles (`bun.lock` + `bun.lockb`)
+      alongside `package-lock.json` — pick one package manager; the dead shadcn toast chain
+      (`hooks/use-toast.ts`, `ui/toaster.tsx`, `ui/use-toast.ts`) is unused now that only Sonner is mounted.
+- [ ] Add a LICENSE file before publishing (choice is the owner's — e.g. MIT).
 
 ## Phase 1: Lovable UI polish ✅ COMPLETE
 - [x] Initial Lovable prototype
