@@ -11,11 +11,15 @@ UX + open-source housekeeping items ahead of password reset:
 3. ✅ **Dark mode** — done 2026-06-04: next-themes ThemeProvider (`attribute="class"`,
    default = system, persisted), a header toggle (`ThemeToggle.tsx`), a no-FOUC inline
    script in index.html, and the missing dark `-soft`/canvas-gradient tokens filled in.
-4. **PWA polish** — already shipped (Phase 4); only real branding icons + a final phone install left.
-5. **Phase 7 — In-app password reset** (moved down; still the next *feature*).
-6. **Phase 8 — Historical data import** (later, maybe).
-7. **Phase 9 — Profile features** (display name, avatar — nice-to-have).
-8. **Phase 10 — Multi-tenant / groups** (exploratory, may never land; would be a v2).
+4. **PWA polish** — real "S" logo in place (public/logo.svg → icons regenerate at build),
+   stale Lovable og/twitter image links fixed, dark mobile theme-color added. Only a final
+   on-device "add to home screen" check remains (manual).
+5. **Login: remember email** — done 2026-06-04: a "记住邮箱" checkbox pre-fills + offers
+   previously-used emails (localStorage, never passwords). Session itself was already persisted.
+6. **Phase 7 — In-app password reset** (still the next *feature*).
+7. **Phase 8 — Historical data import** (later, maybe).
+8. **Phase 9 — Profile features** (display name, avatar — nice-to-have).
+9. **Phase 10 — Multi-tenant / groups** (exploratory, may never land; would be a v2).
 
 ## Repo hardening / open-source readiness
 - [x] **Git history audited (2026-06-04):** scanned all commits + tracked files. No real emails
@@ -79,7 +83,8 @@ UX + open-source housekeeping items ahead of password reset:
 - [x] Configure service worker (autoUpdate, precache app shell; Supabase stays network-only)
 - [x] Create app icons (192/512 + maskable + apple-touch + favicon) — placeholder from public/logo.svg
 - [x] Test add-to-home-screen on mobile (live over HTTPS at streakpact.vercel.app; manifest + SW verified — do a final tap-to-install on a phone)
-- [ ] Replace placeholder logo.svg with real branding (optional)
+- [x] Replace placeholder logo.svg with real branding — teal "S" mark (2026-06-04);
+      icons regenerate from it at build. Stale Lovable og/twitter image links fixed in index.html.
 
 ## Phase 5: Deploy ✅ LIVE — https://streakpact.vercel.app
 - [x] Connect repo to Vercel (auto-deploys on push to main)

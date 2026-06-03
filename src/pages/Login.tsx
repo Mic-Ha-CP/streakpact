@@ -4,11 +4,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { forgetEmail, getRememberedEmails, rememberEmail } from "@/lib/rememberedEmails";
 import { toast } from "sonner";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
+  // Pre-fill the most recent email; offer the rest as a datalist dropdown.
+  const [knownEmails] = useState(getRememberedEmails);
+  const [email, setEmail] = useState(knownEmails[0] ?? "");
   const [pw, setPw] = useState("");
+  const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
   const { signIn } = useAuth();
   const nav = useNavigate();
@@ -25,6 +30,9 @@ const Login = () => {
       toast.error("登录失败：邮箱或密码错误");
       return;
     }
+    // Remember the email (never the password) per the checkbox.
+    if (remember) rememberEmail(email);
+    else forgetEmail(email);
     toast.success("欢迎回来");
     nav(from, { replace: true });
   };
@@ -50,12 +58,20 @@ const Login = () => {
               id="email"
               type="email"
               autoComplete="email"
+              list={knownEmails.length > 0 ? "known-emails" : undefined}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="h-12 rounded-2xl"
               required
             />
+            {knownEmails.length > 0 && (
+              <datalist id="known-emails">
+                {knownEmails.map((e) => (
+                  <option key={e} value={e} />
+                ))}
+              </datalist>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -70,6 +86,17 @@ const Login = () => {
               className="h-12 rounded-2xl"
               required
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="remember"
+              checked={remember}
+              onCheckedChange={(v) => setRemember(v === true)}
+            />
+            <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer select-none">
+              记住邮箱
+            </Label>
           </div>
 
           <Button

@@ -79,6 +79,14 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-06-04 — Login: added a "记住邮箱" checkbox that pre-fills the most-recent email and
+  offers previously-used ones via a `<datalist>` dropdown (src/lib/rememberedEmails.ts,
+  Login.tsx). Stores emails only, never passwords; guarded for private mode. The session was
+  already persisted (Supabase persistSession), so this is purely email convenience.
+- 2026-06-04 — PWA branding: replaced the placeholder logo with a teal "S" mark
+  (public/logo.svg — icons regenerate at build), fixed the stale lovable.dev og/twitter image
+  links in index.html, and added a dark mobile theme-color. Also added `dev-dist` to eslint's
+  ignore list (generated PWA dev output was inflating the lint count).
 - 2026-06-04 — Dark mode added (night/mobile use). next-themes ThemeProvider (default =
   system, choice persisted in localStorage under `theme`); a Sun/Moon toggle in the AppShell
   header (ThemeToggle.tsx); an inline no-FOUC script in index.html applies the theme before
