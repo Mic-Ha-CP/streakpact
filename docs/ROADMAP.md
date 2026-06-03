@@ -8,8 +8,9 @@ UX + open-source housekeeping items ahead of password reset:
    no history rewrite needed. See "Repo hardening" below.
 2. **README + repo tidy** — real README written; dead scaffold removed (App.css, example.test.ts,
    placeholder.svg). Remaining tidy items tracked below.
-3. **Dark mode** — night use. The `.dark` palette already exists in index.css and
-   `darkMode: ["class"]` is set; only needs a toggle + system-preference + persisted choice.
+3. ✅ **Dark mode** — done 2026-06-04: next-themes ThemeProvider (`attribute="class"`,
+   default = system, persisted), a header toggle (`ThemeToggle.tsx`), a no-FOUC inline
+   script in index.html, and the missing dark `-soft`/canvas-gradient tokens filled in.
 4. **PWA polish** — already shipped (Phase 4); only real branding icons + a final phone install left.
 5. **Phase 7 — In-app password reset** (moved down; still the next *feature*).
 6. **Phase 8 — Historical data import** (later, maybe).
@@ -142,4 +143,3 @@ is engineering, not infra:
 - 补签券 automation (redeem → auto-pass a failed task)
 - Push notifications (PWA web push)
 - Monthly task template library
-- Dark mode toggle

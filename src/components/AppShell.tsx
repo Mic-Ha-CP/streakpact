@@ -1,6 +1,7 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
 import { Calendar, CheckSquare, Home, LogOut, Settings, Sparkles, Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -61,6 +62,7 @@ export const AppShell = () => {
             >
               {user}
             </span>
+            <ThemeToggle />
             <NavLink
               to="/setup"
               className={({ isActive }) =>

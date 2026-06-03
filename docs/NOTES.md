@@ -79,6 +79,15 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-06-04 — Dark mode added (night/mobile use). next-themes ThemeProvider (default =
+  system, choice persisted in localStorage under `theme`); a Sun/Moon toggle in the AppShell
+  header (ThemeToggle.tsx); an inline no-FOUC script in index.html applies the theme before
+  first paint. The `.dark` palette already existed in index.css — filled the gaps it was
+  missing (`--success-soft`/`--danger-soft`/`--secondary-soft`/`--accent-soft` dark tints +
+  a dark `--gradient-canvas` for the Login background). All page/component colors are
+  token-based, so they flip automatically.
+- 2026-06-04 — Repo open-source tidy: real README, git history audited clean, dead scaffold
+  removed (App.css, example.test.ts, placeholder.svg). See ROADMAP "Repo hardening".
 - 2026-06-03 — Deleting a task silently cascade-deleted all its check-ins with no confirm.
   Fixed: delete now opens a confirmation dialog showing the record count that will be lost
   (Setup.tsx). Deletion stays freely allowed (DECISIONS unchanged) — just guarded.

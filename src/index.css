@@ -105,6 +105,15 @@
     --cp-soft: 173 40% 22%;
     --jx: 215 16% 65%;
     --jx-soft: 215 20% 22%;
+
+    /* Soft tints — dark-tinted so colored text stays readable on them. */
+    --secondary-soft: 217 20% 18%;
+    --accent-soft: 173 40% 22%;
+    --success-soft: 160 45% 15%;
+    --danger-soft: 0 45% 18%;
+
+    /* Canvas gradient (Login bg): dark, not the light→white default. */
+    --gradient-canvas: linear-gradient(180deg, hsl(217 33% 10%), hsl(217 33% 12%));
   }
 }
 
