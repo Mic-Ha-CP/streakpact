@@ -15,7 +15,8 @@ const Login = () => {
   const [pw, setPw] = useState("");
   const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
-  const { signIn } = useAuth();
+  const [resetting, setResetting] = useState(false);
+  const { signIn, resetPassword } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
   const from = (loc.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/";
@@ -35,6 +36,20 @@ const Login = () => {
     else forgetEmail(email);
     toast.success("欢迎回来");
     nav(from, { replace: true });
+  };
+
+  const sendReset = async () => {
+    const target = email.trim();
+    if (!target) {
+      toast.error("请先填写邮箱");
+      return;
+    }
+    if (resetting) return;
+    setResetting(true);
+    await resetPassword(target);
+    setResetting(false);
+    // Don't reveal whether the email exists — always show the same message.
+    toast.success("若该邮箱存在，重置链接已发送，请查收邮件");
   };
 
   return (
@@ -88,15 +103,25 @@ const Login = () => {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="remember"
-              checked={remember}
-              onCheckedChange={(v) => setRemember(v === true)}
-            />
-            <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer select-none">
-              记住邮箱
-            </Label>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="remember"
+                checked={remember}
+                onCheckedChange={(v) => setRemember(v === true)}
+              />
+              <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer select-none">
+                记住邮箱
+              </Label>
+            </div>
+            <button
+              type="button"
+              onClick={sendReset}
+              disabled={resetting}
+              className="text-sm text-muted-foreground hover:text-primary transition-colors disabled:opacity-60"
+            >
+              {resetting ? "发送中…" : "忘记密码？"}
+            </button>
           </div>
 
           <Button

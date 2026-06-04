@@ -8,6 +8,8 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
+import Account from "./pages/Account.tsx";
 import CheckIn from "./pages/CheckIn.tsx";
 import Calendar from "./pages/Calendar.tsx";
 import Rewards from "./pages/Rewards.tsx";
@@ -26,6 +28,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             element={
               <RequireAuth>
@@ -39,6 +42,7 @@ const App = () => (
             <Route path="/rewards" element={<Rewards />} />
             <Route path="/ledger" element={<Ledger />} />
             <Route path="/setup" element={<Setup />} />
+            <Route path="/account" element={<Account />} />
           </Route>
           <Route path="*" element={<NotFound />} />
           </Routes>

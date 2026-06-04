@@ -52,16 +52,18 @@ export const AppShell = () => {
           </nav>
 
           <div className="flex items-center gap-1">
-            <span
+            <NavLink
+              to="/account"
+              aria-label="账户"
               className={cn(
-                "pill border",
+                "pill border transition-opacity hover:opacity-80",
                 user === "CP"
                   ? "bg-cp-soft text-cp border-cp/20"
                   : "bg-jx-soft text-jx border-jx/20",
               )}
             >
               {user}
-            </span>
+            </NavLink>
             <ThemeToggle />
             <NavLink
               to="/setup"

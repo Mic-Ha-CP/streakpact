@@ -39,7 +39,8 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
 ### Open decisions / known gaps
 - "today"/week boundaries use the device's local timezone — both users should be in the
   same TZ for consistent day/week cutoffs.
-- No in-app password reset yet — reset via the Supabase dashboard if needed.
+- In-app password reset shipped 2026-06-05 (Phase 7) but needs the Supabase dashboard config
+  (Auth Site URL + Redirect URLs) to actually work — see ROADMAP Phase 7 "MANUAL".
 - No in-app way to configure a task for a **past** month (Setup is current-month only). Backfilling
   check-ins works, but only against tasks that existed that month. See ROADMAP "Known limitation:
   past-month task config". Settlements are manual + un-settle-able, so no auto-lock risk.
@@ -82,6 +83,10 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-06-05 — Phase 7 in-app password reset: Login「忘记密码？」→ reset email; public
+  `/reset-password` page sets a new password from the recovery link; `/account` page (tap the
+  header user pill) lets a signed-in user change their password. Branded email template at
+  `supabase/templates/recovery.html`. ⚠ Needs Supabase dashboard Site URL + Redirect URLs to work.
 - 2026-06-05 — Repo tidy: removed the bun lockfiles (standardize on npm/package-lock.json) and the
   dead shadcn toast chain (hooks/use-toast.ts, ui/toaster.tsx, ui/use-toast.ts — only Sonner is
   mounted). LICENSE deferred (repo staying private). See ROADMAP "Repo hardening" + public/private note.

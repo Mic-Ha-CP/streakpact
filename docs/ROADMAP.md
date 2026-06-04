@@ -16,7 +16,9 @@ UX + open-source housekeeping items ahead of password reset:
    on-device "add to home screen" check remains (manual).
 5. **Login: remember email** — done 2026-06-04: a "记住邮箱" checkbox pre-fills + offers
    previously-used emails (localStorage, never passwords). Session itself was already persisted.
-6. **Phase 7 — In-app password reset** (still the next *feature*).
+6. ✅ **Phase 7 — In-app password reset** — done 2026-06-05 (forgot-password email flow,
+   `/reset-password` page, `/account` change-password, branded email template). **Pending the
+   manual Supabase dashboard config** (Site URL + Redirect URLs) before it works end-to-end.
 7. **Phase 8 — Historical data import** (later, maybe).
 8. **Phase 9 — Profile features** (display name, avatar — nice-to-have).
 9. **Phase 10 — Multi-tenant / groups** (exploratory, may never land; would be a v2).
@@ -120,9 +122,19 @@ never persisted, and the reward ledger never populated on its own.
   (use 撤销结算 then settle again).
 
 ## Phase 7: In-app password reset
-- [ ] Set Supabase Auth Site URL to the Vercel domain (prerequisite)
-- [ ] "Forgot password" → email reset link flow
-- [ ] Change-password form for a signed-in user
+- [x] "Forgot password" → email reset link flow (2026-06-05): "忘记密码？" on Login sends
+      `resetPasswordForEmail` (redirectTo `/reset-password`); the public `ResetPassword` page
+      consumes the recovery session (detectSessionInUrl) and sets a new password via `updateUser`.
+- [x] Change-password form for a signed-in user (2026-06-05): new `/account` page (reached by
+      tapping the user pill in the header) — shows email + a 修改密码 form.
+- [x] Branded reset email template (teal) — `supabase/templates/recovery.html` (repo source copy).
+- [ ] **MANUAL (user, in Supabase dashboard) — required before the flow works:**
+      Authentication → URL Configuration → set **Site URL** = `https://streakpact.vercel.app`,
+      and add `https://streakpact.vercel.app/reset-password` (+ `http://localhost:8080/reset-password`
+      for local) to **Redirect URLs**. Optionally paste `supabase/templates/recovery.html` into
+      Authentication → Email Templates → Reset Password.
+      Note: Supabase's built-in email sender is rate-limited (fine for 2 users); configure custom
+      SMTP only if that ever becomes a problem.
 
 ## Known limitation: past-month task config (the "task 4" item — deferred)
 Setup is hardwired to the **current** month (`currentMonthISO()`), so you can backfill *check-ins*
