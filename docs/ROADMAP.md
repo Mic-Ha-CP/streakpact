@@ -27,10 +27,19 @@ UX + open-source housekeeping items ahead of password reset:
       no secrets / anon key / Supabase URL / connection string (`.env` is git-ignored). Clean.
 - [x] Replace the Lovable stub README with a real one (features, stack, local setup, deploy).
 - [x] Remove dead scaffold files: `src/App.css`, `src/test/example.test.ts`, `public/placeholder.svg`.
-- [ ] Optional tidy (low value, flagged not done): dual bun lockfiles (`bun.lock` + `bun.lockb`)
-      alongside `package-lock.json` — pick one package manager; the dead shadcn toast chain
-      (`hooks/use-toast.ts`, `ui/toaster.tsx`, `ui/use-toast.ts`) is unused now that only Sonner is mounted.
-- [ ] Add a LICENSE file before publishing (choice is the owner's — e.g. MIT).
+- [x] Repo tidy (2026-06-05): removed the bun lockfiles (`bun.lock` + `bun.lockb`) to standardize
+      on npm (`package-lock.json`), and deleted the dead shadcn toast chain
+      (`hooks/use-toast.ts`, `ui/toaster.tsx`, `ui/use-toast.ts` — only Sonner is mounted).
+- [ ] Add a LICENSE file (deferred — repo is staying **private** for now; choice is the owner's,
+      e.g. MIT). Only needed if/when a public version is published.
+
+### Public vs private (decided 2026-06-05)
+Repo stays **private** for now. The live demo is a login wall (no showcase value, small extra
+exposure), and CP/JX initials live in the UI/docs/CLAUDE.md. When a portfolio page exists, decide
+between: (A) a **sanitized public mirror** — genericize CP/JX → P1/P2, screenshots instead of the
+live link, split docs into private (gitignored) vs public — squashed into a fresh repo rather than
+rewriting history; or (B) keep private and showcase via screenshots + an architecture write-up only.
+Git history was audited clean (no secrets/emails; only CP/JX initials), so no rewrite is needed.
 
 ## Phase 1: Lovable UI polish ✅ COMPLETE
 - [x] Initial Lovable prototype
@@ -115,9 +124,22 @@ never persisted, and the reward ledger never populated on its own.
 - [ ] "Forgot password" → email reset link flow
 - [ ] Change-password form for a signed-in user
 
+## Known limitation: past-month task config (the "task 4" item — deferred)
+Setup is hardwired to the **current** month (`currentMonthISO()`), so you can backfill *check-ins*
+for past dates (打卡页 can page back into earlier months) but you **cannot configure a task for a
+past month** that was never set up (e.g. in June you can't add a task that May lacked → that May
+day has nothing to check in against). Two ways to address, both deferred:
+- [ ] UI: let Setup switch the target month so past months can be configured in-app.
+- [ ] Or just write the rows directly via SQL (see Phase 8 / "SQL as a fallback" below) — fine for
+      a 2-person app. Settlements/奖惩 for imported periods would be written by the import (manually
+      or by a script that mirrors `calc.ts`), not produced by the live in-app "settle" click.
+
 ## Phase 8: Historical data import (later — maybe)
 (Merges the old duplicate "data migration" phase.) See memory: import only dates *before*
 the live-usage cutover (2026-06-02), additive, no month overlap.
+**SQL as a fallback:** because there are only 2 users, direct SQL writes (via the admin
+`DATABASE_URL` / service role, which bypasses RLS) are an acceptable last-resort escape hatch for
+fixing or backfilling anything the UI can't — not recommended for routine use, but a valid safety net.
 - [ ] Script to import Google Sheet history into Supabase (bulk via DATABASE_URL / service role)
 - [ ] Import daily_logs (Dec 2025 – cutover) using the value=1 / minutes / value=0 row model
 - [ ] Import weekly/monthly settlements + reward_ledger entries (dedupe on user_id, source)

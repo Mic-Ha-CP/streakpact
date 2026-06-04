@@ -40,6 +40,9 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
 - "today"/week boundaries use the device's local timezone — both users should be in the
   same TZ for consistent day/week cutoffs.
 - No in-app password reset yet — reset via the Supabase dashboard if needed.
+- No in-app way to configure a task for a **past** month (Setup is current-month only). Backfilling
+  check-ins works, but only against tasks that existed that month. See ROADMAP "Known limitation:
+  past-month task config". Settlements are manual + un-settle-able, so no auto-lock risk.
 - Count unit label: currently 次/周, flag if 天/周 is preferred
 - Notes are independent of check-in (value=0 rows); supported on any day.
 
@@ -79,6 +82,14 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-06-05 — Repo tidy: removed the bun lockfiles (standardize on npm/package-lock.json) and the
+  dead shadcn toast chain (hooks/use-toast.ts, ui/toaster.tsx, ui/use-toast.ts — only Sonner is
+  mounted). LICENSE deferred (repo staying private). See ROADMAP "Repo hardening" + public/private note.
+- 2026-06-05 — Mobile safe-area: in standalone PWA the bottom nav sat under the iPhone home
+  indicator and the header under the notch. Fixed with env(safe-area-inset-*) padding in AppShell
+  (bottom nav pb, header pt, content pb via calc) — use env(), not hardcoded px (0 on non-notch).
+- 2026-06-05 — Theme toggle was 2-state (light/dark) and lost the "follow system" option once
+  tapped. Now a tri-state cycle 跟随系统 / 日间 / 夜间 (ThemeToggle.tsx, uses next-themes `system`).
 - 2026-06-04 — Login: added a "记住邮箱" checkbox that pre-fills the most-recent email and
   offers previously-used ones via a `<datalist>` dropdown (src/lib/rememberedEmails.ts,
   Login.tsx). Stores emails only, never passwords; guarded for private mode. The session was
