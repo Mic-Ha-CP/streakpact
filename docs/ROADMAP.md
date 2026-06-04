@@ -192,3 +192,17 @@ is engineering, not infra:
 - 补签券 automation (redeem → auto-pass a failed task)
 - Push notifications (PWA web push)
 - Monthly task template library
+
+### Next-step candidates (raised by CP 2026-06-05 — to plan/design later)
+- **/account: collapse the change-password form.** Don't show the full password inputs up front;
+  start collapsed behind an option ("修改密码"), expand/pop out only when the user chooses to. Small
+  UX tweak — also tracked in NOTES "Open". (Quickest of these; good next pick.)
+- **History + year/month browsing with stats.** A view to see past months and pick year/month,
+  ideally with summary stats (streaks, totals, success rate). Needs design — research check-in /
+  habit apps and stats-heavy apps first before building. (Setup/CheckIn already switch months;
+  this is the richer *overview/stats* layer on top.)
+- **Expanded timer check-in: count-up & countdown.** Beyond logging minutes, an in-app stopwatch
+  (正计时) and countdown (倒计时) for timer tasks.
+- **Gamification (far off): cumulative time → coins → skins/themes.** Pomodoro-app style — earn
+  coins from accumulated study/timer minutes, spend them on skins/themes. Long-term, brainstorm
+  in NOTES "Ideas" before any commitment.

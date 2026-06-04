@@ -74,6 +74,13 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
 
 ## Ideas (not committed)
 (dump ideas here, not in ROADMAP)
+- (2026-06-05, CP) **Stats / history overview**: browse past months by year/month with summary
+  stats (streaks, totals, success rate, maybe charts). Design first — look at habit/check-in apps
+  and stats-heavy apps for layout patterns before building.
+- (2026-06-05, CP) **Timer modes**: in-app count-up stopwatch (正计时) + countdown (倒计时) for
+  timer tasks, not just manual minute entry.
+- (2026-06-05, CP) **Gamification (far off)**: accumulate coins from total study/timer minutes
+  (Pomodoro-app style), spend on skins/themes. Needs a coin economy + cosmetics system — long-term.
 
 ## UI/UX feedback (active)
 
@@ -82,6 +89,8 @@ Fixed items move to "Resolved" below.
 
 ### Open
 <!-- append new items here, newest at bottom -->
+- 2026-06-05 — /account: the 修改密码 form shows its full inputs up front. Should start **collapsed**
+  behind an option and expand/pop out only when the user opts to change the password. (CP request.)
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
