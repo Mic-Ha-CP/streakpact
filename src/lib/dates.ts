@@ -20,6 +20,13 @@ export function prevMonthISO(month: string): string {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Shift a YYYY-MM month by a number of months (handles year boundaries). */
+export function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const dt = new Date(y, m - 1 + delta, 1);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+}
+
 /** Shift a YYYY-MM-DD date by a number of days. */
 export function shiftDate(date: string, days: number): string {
   const [y, m, d] = date.split("-").map(Number);

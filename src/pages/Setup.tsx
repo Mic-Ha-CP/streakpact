@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useLogs } from "@/hooks/useLogs";
-import { currentMonthISO, prevMonthISO } from "@/lib/dates";
+import { currentMonthISO, prevMonthISO, shiftMonth } from "@/lib/dates";
 import { unitForType, unitLabel, type Task, type TaskType, type UserId } from "@/data/models";
 import { PersonChip } from "@/components/PersonChip";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowRight, Plus, Trash2, Timer, CheckSquare, Pencil, Lock, Check } from "lucide-react";
+import { ArrowRight, Plus, Trash2, Timer, CheckSquare, Pencil, Lock, Check, ChevronLeft, ChevronRight, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -114,17 +114,20 @@ const TaskSummary = ({ task }: { task: Task }) => (
 const PersistedTaskRow = ({
   task,
   editable,
+  lockEnabled,
   logCount,
   onSave,
   onDelete,
 }: {
   task: Task;
   editable: boolean;
+  /** Whether the "one edit per month" lock applies (current month only). */
+  lockEnabled: boolean;
   logCount: number;
   onSave: (t: Task) => void;
   onDelete: () => void;
 }) => {
-  const locked = task.editCount >= 1;
+  const locked = lockEnabled && task.editCount >= 1;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Task>(task);
 
@@ -143,10 +146,11 @@ const PersistedTaskRow = ({
   };
 
   const finishEdit = () => {
-    // The single post-creation edit is consumed here.
-    onSave({ ...draft, unit: unitForType(draft.type), editCount: 1 });
+    // Current month: the single post-creation edit is consumed (locks the task).
+    // Past months: free to edit (you're reconstructing history), so don't lock.
+    onSave({ ...draft, unit: unitForType(draft.type), editCount: lockEnabled ? 1 : draft.editCount });
     setEditing(false);
-    toast.success("已保存 · 本月改动机会已用完");
+    toast.success(lockEnabled ? "已保存 · 本月改动机会已用完" : "已保存");
   };
 
   return (
@@ -279,16 +283,16 @@ const DraftTaskRow = ({
   </div>
 );
 
-const UserSetupCard = ({ userId }: { userId: UserId }) => {
+const UserSetupCard = ({ userId, month }: { userId: UserId; month: string }) => {
   const { userId: me } = useAuth();
   const editable = userId === me;
-  const currentMonth = currentMonthISO();
-  const last = prevMonthISO(currentMonth);
+  const isCurrentMonth = month === currentMonthISO();
+  const last = prevMonthISO(month);
 
   const { tasks: curAll, isLoading: curLoading, addTask, updateTask, deleteTask } =
-    useTasks(currentMonth);
+    useTasks(month);
   const { tasks: lastAll, isLoading: lastLoading } = useTasks(last);
-  const { logs } = useLogs(currentMonth);
+  const { logs } = useLogs(month);
   const myCurrent = curAll.filter((t) => t.userId === userId);
   const myLast = lastAll.filter((t) => t.userId === userId);
 
@@ -300,7 +304,9 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
   const autoFilled = useRef(false);
   useEffect(() => {
     if (autoFilled.current) return;
-    if (!editable || curLoading || lastLoading) return;
+    // Only the current month auto-prefills from last month. Past months open blank
+    // so browsing/backfilling history never spawns surprise drafts.
+    if (!editable || !isCurrentMonth || curLoading || lastLoading) return;
     if (myCurrent.length > 0) {
       autoFilled.current = true; // already has tasks — never auto-fill
       return;
@@ -372,7 +378,9 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
           </div>
           <div>
             <div className="font-display font-extrabold">{userId} 的任务</div>
-            <div className="text-[11px] text-muted-foreground">{currentMonth} · 1–3 个 · 每任务每月仅可改动 1 次</div>
+            <div className="text-[11px] text-muted-foreground">
+              {month} · 1–3 个 · {isCurrentMonth ? "每任务每月仅可改动 1 次" : "历史月份 · 可自由修改"}
+            </div>
           </div>
         </div>
         {editable && (
@@ -383,10 +391,10 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
       </div>
 
       <div className="p-4 space-y-3">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">本月任务</div>
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">该月任务</div>
         {total === 0 && (
           <div className="text-sm text-muted-foreground py-4 text-center bg-muted/40 rounded-2xl">
-            {editable ? "还没有任务，点 “新增” 或从下方沿用" : "对方本月还没有任务"}
+            {editable ? "还没有任务，点 “新增” 或从下方沿用" : "对方该月还没有任务"}
           </div>
         )}
 
@@ -395,6 +403,7 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
             key={t.id}
             task={t}
             editable={editable}
+            lockEnabled={isCurrentMonth}
             logCount={logs.filter((l) => l.taskId === t.id).length}
             onSave={(next) => updateTask.mutate(next)}
             onDelete={() => {
@@ -443,19 +452,54 @@ const UserSetupCard = ({ userId }: { userId: UserId }) => {
 };
 
 const Setup = () => {
+  const currentMonth = currentMonthISO();
+  const [viewMonth, setViewMonth] = useState(currentMonth);
+  const isCurrent = viewMonth >= currentMonth;
+
   return (
     <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
       <div>
         <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">任务设置</h1>
-        <p className="text-sm text-muted-foreground">每月初为自己设定 1–3 个本月专注任务 · 每任务每月仅可改动 1 次</p>
+        <p className="text-sm text-muted-foreground">
+          为自己设定 1–3 个专注任务 · 当月每任务仅可改动 1 次 · 可切到过去月份补配
+        </p>
+      </div>
+
+      {/* Month switcher — past unlimited, future capped at the current month. */}
+      <div className="bg-card rounded-2xl border border-border/60 p-3 flex items-center justify-between shadow-card max-w-xs mx-auto">
+        <button
+          onClick={() => setViewMonth((m) => shiftMonth(m, -1))}
+          className="p-2 rounded-xl hover:bg-muted"
+          aria-label="上一月"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="text-center">
+          <div className="font-display font-extrabold text-lg tabular-nums">{viewMonth}</div>
+          {isCurrent ? (
+            <span className="pill bg-success-soft text-success mt-1">当前月</span>
+          ) : (
+            <span className="pill bg-secondary-soft text-secondary-foreground mt-1">
+              <History className="w-3 h-3" /> 历史月份
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => setViewMonth((m) => shiftMonth(m, 1))}
+          disabled={viewMonth >= currentMonth}
+          className="p-2 rounded-xl hover:bg-muted disabled:opacity-30"
+          aria-label="下一月"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="md:hidden flex gap-2">
           <PersonChip user="CP" /> <PersonChip user="JX" />
         </div>
-        <UserSetupCard userId="CP" />
-        <UserSetupCard userId="JX" />
+        <UserSetupCard key={`CP-${viewMonth}`} userId="CP" month={viewMonth} />
+        <UserSetupCard key={`JX-${viewMonth}`} userId="JX" month={viewMonth} />
       </div>
     </div>
   );

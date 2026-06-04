@@ -135,16 +135,26 @@ never persisted, and the reward ledger never populated on its own.
       Authentication → Email Templates → Reset Password.
       Note: Supabase's built-in email sender is rate-limited (fine for 2 users); configure custom
       SMTP only if that ever becomes a problem.
+- [ ] **PENDING (2026-06-05): reset email not delivered.** Tested live — the reset email never
+      arrives. Cause: Supabase's **built-in email service is rate-limited and documented as
+      not-for-production** (very low hourly cap, easily exhausted/blocked). Fix = configure a
+      **custom SMTP** in Auth → SMTP Settings (e.g. Resend / SendGrid / Postmark free tier), then
+      the recovery flow works as built. The in-app code is done; this is purely email delivery.
+      Workaround until then: change password from `/account` while signed in, or reset via the
+      Supabase dashboard. Low urgency (2 users, both usually stay signed in).
 
-## Known limitation: past-month task config (the "task 4" item — deferred)
-Setup is hardwired to the **current** month (`currentMonthISO()`), so you can backfill *check-ins*
-for past dates (打卡页 can page back into earlier months) but you **cannot configure a task for a
-past month** that was never set up (e.g. in June you can't add a task that May lacked → that May
-day has nothing to check in against). Two ways to address, both deferred:
-- [ ] UI: let Setup switch the target month so past months can be configured in-app.
-- [ ] Or just write the rows directly via SQL (see Phase 8 / "SQL as a fallback" below) — fine for
-      a 2-person app. Settlements/奖惩 for imported periods would be written by the import (manually
-      or by a script that mirrors `calc.ts`), not produced by the live in-app "settle" click.
+## Past-month task config (the "task 4" item — DONE 2026-06-05)
+Previously Setup was hardwired to the current month, so a month never set up (e.g. May, viewed in
+June) had no tasks to check in against. Resolved:
+- [x] **UI: Setup has a month switcher** (`shiftMonth`) — page back to any past month and add/edit
+      tasks there; future is capped at the current month. Past months are **unlocked** (free edit,
+      no "1 edit/month" lock — you're reconstructing history, not gaming live stakes); the current
+      month keeps the lock. Auto-prefill from last month only fires on the current month. Cards are
+      keyed by month so drafts reset on switch. Once a past month has tasks, the whole chain opens:
+      backfill check-ins (打卡), then settle it (本月战况), all of which were already month-aware.
+- [ ] Bulk historical import is still better via SQL for many months — see Phase 8 / "SQL as a
+      fallback" below. Settlements/奖惩 for a bulk import are written by the import (manually or by a
+      script mirroring `calc.ts`), not produced by the live in-app "settle" click.
 
 ## Phase 8: Historical data import (later — maybe)
 (Merges the old duplicate "data migration" phase.) See memory: import only dates *before*

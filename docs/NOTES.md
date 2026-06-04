@@ -41,9 +41,11 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
   same TZ for consistent day/week cutoffs.
 - In-app password reset shipped 2026-06-05 (Phase 7) but needs the Supabase dashboard config
   (Auth Site URL + Redirect URLs) to actually work — see ROADMAP Phase 7 "MANUAL".
-- No in-app way to configure a task for a **past** month (Setup is current-month only). Backfilling
-  check-ins works, but only against tasks that existed that month. See ROADMAP "Known limitation:
-  past-month task config". Settlements are manual + un-settle-able, so no auto-lock risk.
+- ⚠ Reset email not delivered (tested 2026-06-05): Supabase's built-in email is rate-limited /
+  not-for-production. Needs custom SMTP to deliver. PENDING — see ROADMAP Phase 7. Meanwhile use
+  /account (signed-in) or the dashboard to change a password.
+- (Resolved 2026-06-05) Past-month task config: Setup now has a month switcher — see Resolved below.
+  Settlements are manual + un-settle-able, so no auto-lock risk.
 - Count unit label: currently 次/周, flag if 天/周 is preferred
 - Notes are independent of check-in (value=0 rows); supported on any day.
 
@@ -83,6 +85,11 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-06-05 — Setup 切月配置: added a month switcher to the Setup page so past months can be
+  configured in-app (Setup.tsx, shiftMonth in dates.ts). Past months are unlocked (free edit) while
+  the current month keeps the 1-edit lock; auto-prefill only on the current month; future capped at
+  current; cards keyed by month. Closes the only real容错 gap vs Excel — see ROADMAP "Past-month
+  task config".
 - 2026-06-05 — Phase 7 in-app password reset: Login「忘记密码？」→ reset email; public
   `/reset-password` page sets a new password from the recovery link; `/account` page (tap the
   header user pill) lets a signed-in user change their password. Branded email template at
