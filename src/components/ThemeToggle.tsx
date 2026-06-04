@@ -1,29 +1,44 @@
 import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
 /**
- * Light/dark toggle. Defaults to the system preference (set in ThemeProvider);
- * the first tap pins an explicit choice, persisted by next-themes in localStorage.
+ * Tri-state theme switch: 跟随系统 (auto) → 日间 → 夜间 → 跟随系统.
+ * "system" follows the device preference live (no flash — index.html applies it
+ * before first paint); the choice is persisted by next-themes in localStorage.
  */
+const ORDER = ["system", "light", "dark"] as const;
+type ThemeKey = (typeof ORDER)[number];
+
+const META: Record<ThemeKey, { Icon: typeof Monitor; label: string }> = {
+  system: { Icon: Monitor, label: "跟随系统" },
+  light: { Icon: Sun, label: "日间模式" },
+  dark: { Icon: Moon, label: "夜间模式" },
+};
+
 export const ThemeToggle = () => {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  // resolvedTheme is only known after mount — avoid rendering the wrong icon first.
+  // theme is only known after mount — default the display to "跟随系统" until then.
   useEffect(() => setMounted(true), []);
 
-  const isDark = resolvedTheme === "dark";
+  const current: ThemeKey =
+    mounted && theme && (ORDER as readonly string[]).includes(theme)
+      ? (theme as ThemeKey)
+      : "system";
+  const { Icon, label } = META[current];
+  const next = ORDER[(ORDER.indexOf(current) + 1) % ORDER.length];
 
   return (
     <button
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      onClick={() => setTheme(next)}
       disabled={!mounted}
       className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-      aria-label={isDark ? "切换到日间模式" : "切换到夜间模式"}
-      title={isDark ? "日间模式" : "夜间模式"}
+      aria-label={`主题：${label}（点击切换到${META[next].label}）`}
+      title={`主题：${label}`}
     >
-      {mounted && isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      <Icon className="w-4 h-4" />
     </button>
   );
 };

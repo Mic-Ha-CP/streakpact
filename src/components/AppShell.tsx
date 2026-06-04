@@ -16,9 +16,9 @@ export const AppShell = () => {
   const { userId: user, signOut } = useAuth();
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
-      {/* Top bar */}
-      <header className="sticky top-0 z-30 bg-background border-b border-border">
+    <div className="min-h-screen bg-background pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
+      {/* Top bar — pad the notch/status-bar inset so the header clears it in standalone PWA mode. */}
+      <header className="sticky top-0 z-30 bg-background border-b border-border pt-[env(safe-area-inset-top)]">
         <div className="container flex items-center justify-between h-14 px-4 md:px-8">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary grid place-items-center text-primary-foreground font-bold text-sm">
@@ -92,8 +92,8 @@ export const AppShell = () => {
         <Outlet />
       </main>
 
-      {/* Bottom nav (mobile) */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background border-t border-border">
+      {/* Bottom nav (mobile) — pad the home-indicator inset so iOS's bar doesn't cover the icons. */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background border-t border-border pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-5">
           {navItems.map((n) => (
             <NavLink
