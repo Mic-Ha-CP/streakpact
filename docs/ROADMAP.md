@@ -156,6 +156,22 @@ June) had no tasks to check in against. Resolved:
       fallback" below. Settlements/奖惩 for a bulk import are written by the import (manually or by a
       script mirroring `calc.ts`), not produced by the live in-app "settle" click.
 
+## Personal-use UX round 2 (2026-06-11)
+Three pieces of CP feedback, all client-side, no schema change:
+- [x] **Weekday on the date selector** (打卡): the date header shows `YYYY-MM-DD · 周X` so backfilling
+      a past day no longer hides which weekday it is (`weekdayCN` in dates.ts, CheckIn.tsx).
+- [x] **本周一览 table** (打卡): a read-only week grid below the date selector — days as rows
+      (Mon–Sun of the selected date's week), tasks as columns, cells ✓ / minutes / — / ·, today
+      highlighted. Tap a past/today row to jump the day view to it; editing stays in the day cards
+      (`WeekTable.tsx`, `startOfWeekISO`). Decided days-as-rows over sheet-style days-as-columns for
+      phone width. Caveat: logs load per month, so a week spilling into the next month shows those
+      days as "·" (not loaded) rather than a false "—".
+- [x] **Reward-gap reminder banner** (仪表盘 + 奖惩页): from week 2+, if my reward/penalty plan has
+      gaps (any existing week scope or the month missing a reward or penalty), a banner links to
+      /rewards (`RewardGapBanner.tsx`). In-app only (no backend/push) — see Future "Push
+      notifications" for the true OS-push phase. "Incomplete" default = any existing week/month scope
+      missing a reward OR penalty, nagging once today ≥ W2 (tweakable).
+
 ## Phase 8: Historical data import (later — maybe)
 (Merges the old duplicate "data migration" phase.) See memory: import only dates *before*
 the live-usage cutover (2026-06-02), additive, no month overlap.
@@ -190,7 +206,11 @@ is engineering, not infra:
 ## Future (not scheduled)
 - ±5% tolerance on timer tasks
 - 补签券 automation (redeem → auto-pass a failed task)
-- Push notifications (PWA web push)
+- **Push notifications — true OS push** (PWA web push). In-app reminder *banner* shipped 2026-06-11
+  (`RewardGapBanner` — nags from week 2 when the reward/penalty plan has gaps). True push (alerting
+  when the app is **closed**) is a separate phase: needs a `push_subscriptions` table + a Supabase
+  **Edge Function** + `pg_cron` schedule + VAPID keys, and on iOS only works once the PWA is
+  installed to the home screen (16.4+). Do only if the banner proves insufficient.
 - Monthly task template library
 
 ### Next-step candidates (raised by CP 2026-06-05 — to plan/design later)

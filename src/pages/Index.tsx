@@ -7,6 +7,7 @@ import { currentMonthISO, todayISO } from "@/lib/dates";
 import { PersonChip } from "@/components/PersonChip";
 import { ProgressBar } from "@/components/ProgressBar";
 import { WeekBadge } from "@/components/WeekBadge";
+import { RewardGapBanner } from "@/components/RewardGapBanner";
 import {
   WEEK_LABELS,
   dayToWeek,
@@ -282,6 +283,8 @@ const Index = () => {
 
   return (
     <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
+      <RewardGapBanner />
+
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">本月战况</h1>

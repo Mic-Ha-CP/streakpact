@@ -34,3 +34,20 @@ export function shiftDate(date: string, days: number): string {
   dt.setDate(dt.getDate() + days);
   return todayISO(dt);
 }
+
+const WEEKDAYS_CN = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
+/** Chinese weekday label (周一…周日) for a YYYY-MM-DD date. */
+export function weekdayCN(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return WEEKDAYS_CN[new Date(y, m - 1, d).getDay()];
+}
+
+/** Monday (YYYY-MM-DD) of the week containing the given date — week starts Monday. */
+export function startOfWeekISO(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const dow = (dt.getDay() + 6) % 7; // 0=Mon … 6=Sun
+  dt.setDate(dt.getDate() - dow);
+  return todayISO(dt);
+}

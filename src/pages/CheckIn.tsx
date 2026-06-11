@@ -3,10 +3,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useLogs } from "@/hooks/useLogs";
 import { useSettlements } from "@/hooks/useSettlements";
-import { todayISO, shiftDate } from "@/lib/dates";
+import { todayISO, shiftDate, weekdayCN } from "@/lib/dates";
 import type { DailyLog, UserId } from "@/data/models";
 import type { WeekLabel } from "@/data/calc";
 import { PersonChip } from "@/components/PersonChip";
+import { WeekTable } from "@/components/WeekTable";
 import { EditableText } from "@/components/EditableText";
 import { Input } from "@/components/ui/input";
 import { Check, ChevronLeft, ChevronRight, History, Timer, X, Trash2, RotateCcw, Lock } from "lucide-react";
@@ -249,7 +250,10 @@ const CheckIn = () => {
           <ChevronLeft className="w-4 h-4" />
         </button>
         <div className="text-center">
-          <div className="font-display font-extrabold text-lg tabular-nums">{date}</div>
+          <div className="font-display font-extrabold text-lg">
+            <span className="tabular-nums">{date}</span>
+            <span className="text-muted-foreground"> · {weekdayCN(date)}</span>
+          </div>
           {isPast && (
             <span className="pill bg-secondary-soft text-secondary-foreground mt-1">
               <History className="w-3 h-3" /> 补签 · 历史记录
@@ -267,6 +271,17 @@ const CheckIn = () => {
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Week-at-a-glance (read-only; tap a day to jump the day view) */}
+      {myTasks.length > 0 && (
+        <WeekTable
+          tasks={myTasks}
+          logs={logs}
+          selectedDate={date}
+          today={today}
+          onSelectDay={setDate}
+        />
+      )}
 
       {/* Tasks */}
       <div className="space-y-3">

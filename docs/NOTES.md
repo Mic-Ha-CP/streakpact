@@ -94,6 +94,19 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-06-11 — 打卡日期条加星期: backfilling showed only the ISO date, so you couldn't tell which
+  weekday you were filling. Date header now reads `YYYY-MM-DD · 周X` (weekdayCN, dates.ts /
+  CheckIn.tsx). Monday-first, matching our "week starts Monday".
+- 2026-06-11 — 打卡页「本周一览」表: the page was single-day only — reviewing a week meant clicking
+  day by day. Added a read-only week grid (days as rows 周一→周日 × tasks as columns; cells
+  ✓ / 分钟 / — / ·; today highlighted). Tap a past/today row to jump the day view to it; editing
+  stays in the day cards (timer minutes don't belong in a cell). WeekTable.tsx + startOfWeekISO.
+  Chose days-as-rows over sheet-style days-as-columns for phone width. ⚠ A week spilling into next
+  month shows those days as "·" (logs load per month) rather than a false "—".
+- 2026-06-11 — 奖惩缺口提醒横幅: from week 2 onward, if my reward/penalty plan still has gaps (any
+  existing week scope or the month missing a reward OR penalty), a banner on 仪表盘 + 奖惩页 links to
+  /rewards (RewardGapBanner.tsx). Pure client, no backend/push. True OS push (alert when the app is
+  closed) is deferred to a ROADMAP Future phase (Edge Function + cron + VAPID + iOS install).
 - 2026-06-05 — Setup 切月配置: added a month switcher to the Setup page so past months can be
   configured in-app (Setup.tsx, shiftMonth in dates.ts). Past months are unlocked (free edit) while
   the current month keeps the 1-edit lock; auto-prefill only on the current month; future capped at
