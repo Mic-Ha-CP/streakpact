@@ -81,6 +81,9 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
   timer tasks, not just manual minute entry.
 - (2026-06-05, CP) **Gamification (far off)**: accumulate coins from total study/timer minutes
   (Pomodoro-app style), spend on skins/themes. Needs a coin economy + cosmetics system — long-term.
+- (2026-06-12, CP) **Multi-language / i18n**: deferred for now — design sketch captured in ROADMAP
+  "Multi-language / i18n (deferred 2026-06-12)". Cheaper alternative if the goal is just letting an
+  English friend understand the app: write an English manual/FAQ doc, leave the UI in Chinese.
 
 ## UI/UX feedback (active)
 
@@ -91,6 +94,8 @@ Fixed items move to "Resolved" below.
 <!-- append new items here, newest at bottom -->
 - 2026-06-05 — /account: the 修改密码 form shows its full inputs up front. Should start **collapsed**
   behind an option and expand/pop out only when the user opts to change the password. (CP request.)
+  **— NEXT UP (decided 2026-06-12; CP is doing this in Cursor).** Keep the existing form + validation
+  in `src/pages/Account.tsx`; just gate it behind a "修改密码" toggle (inline expand or a dialog).
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->

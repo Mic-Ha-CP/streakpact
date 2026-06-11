@@ -213,10 +213,15 @@ is engineering, not infra:
   installed to the home screen (16.4+). Do only if the banner proves insufficient.
 - Monthly task template library
 
-### Next-step candidates (raised by CP 2026-06-05 — to plan/design later)
-- **/account: collapse the change-password form.** Don't show the full password inputs up front;
-  start collapsed behind an option ("修改密码"), expand/pop out only when the user chooses to. Small
-  UX tweak — also tracked in NOTES "Open". (Quickest of these; good next pick.)
+### Next-step candidates (raised by CP 2026-06-05)
+**Direction decided 2026-06-12:** multi-language **deferred** (see "Multi-language / i18n" below);
+product features next, in this order — (1) `/account` collapse **[immediate]**, then (2) ONE medium
+feature: **timer count-up/countdown** OR **history + stats** (the latter needs a design pass first).
+Gamification stays far-off. (CP is continuing #1 in Cursor; pick up the medium feature when back.)
+- **/account: collapse the change-password form. — NEXT UP.** Don't show the full password inputs
+  up front; start collapsed behind a "修改密码" button/option, expand (inline or a dialog) only when
+  the user opts in. The existing form + validation in `src/pages/Account.tsx` stays — just gate it
+  behind the toggle. Small UX tweak — also tracked in NOTES "Open".
 - **History + year/month browsing with stats.** A view to see past months and pick year/month,
   ideally with summary stats (streaks, totals, success rate). Needs design — research check-in /
   habit apps and stats-heavy apps first before building. (Setup/CheckIn already switch months;
@@ -226,3 +231,20 @@ is engineering, not infra:
 - **Gamification (far off): cumulative time → coins → skins/themes.** Pomodoro-app style — earn
   coins from accumulated study/timer minutes, spend them on skins/themes. Long-term, brainstorm
   in NOTES "Ideas" before any commitment.
+
+### Multi-language / i18n (deferred 2026-06-12 — design captured)
+Considered, then deferred: both users read Chinese, so UI-English value is mainly sharing with an
+English friend / portfolio — and an English **manual/FAQ doc** would meet the "friend can understand
+it" need far cheaper than full UI i18n. When/if we do it, the shape is **wide but shallow** — no
+DB/schema/logic/RLS change; user-entered content (task titles, reward/penalty text, notes) is never
+translated:
+- **Library:** `react-i18next` (interpolation `{{count}}`, English plurals, lazy-load) — or a
+  zero-dep custom dict + context (fine for Chinese; English plurals/interpolation get fiddly).
+- `src/locales/zh.json` / `en.json` with semantic keys; extract every hardcoded JSX string → `t(...)`.
+- A `LanguageToggle` + language provider persisted in localStorage — **mirror the existing
+  `ThemeToggle.tsx` + next-themes pattern** (header toggle, no-FOUC).
+- **App-specific touch points:** interpolated toasts (`已添加 X 分钟`, `已经第 X 周了`, settle
+  messages); English plurals (week/weeks, time(s)); **dates** — `weekdayCN` (周一…) → locale-aware
+  (`Intl.DateTimeFormat`); `YYYY-MM-DD` is locale-neutral. CP/JX + numbers stay untranslated.
+- Migratable **incrementally** (a missing key falls back to the default locale) — no big-bang; just
+  watch for missed strings.
