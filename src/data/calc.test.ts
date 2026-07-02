@@ -4,6 +4,7 @@ import {
   dayToWeek,
   getWeeksInMonth,
   monthStatus,
+  pendingWeekLabels,
   weekStatusForUser,
   type MonthResult,
   type WeekLabel,
@@ -224,5 +225,31 @@ describe("getWeeksInMonth / dayToWeek — week↔month by the week's Monday", ()
     expect(dayToWeek("2026-09", "2026-09-01")).toBeNull();
     expect(dayToWeek("2026-09", "2026-09-06")).toBeNull();
     expect(dayToWeek("2026-09", "2026-09-07")).toBe("W1");
+  });
+});
+
+// pendingWeekLabels = weeks that have ended but aren't settled yet (the settle
+// "待结算" list — for the current month OR a past month). Drives the dashboard
+// pending buttons and the Ledger "未结算" entry point.
+describe("pendingWeekLabels", () => {
+  it("past 4-week month, nothing settled → all 4 weeks pending", () => {
+    expect(pendingWeekLabels(M4, new Set(), FAR)).toEqual(["W1", "W2", "W3", "W4"]);
+  });
+  it("past 5-week month, nothing settled → all 5 weeks pending", () => {
+    expect(pendingWeekLabels(M5, new Set(), FAR)).toEqual(["W1", "W2", "W3", "W4", "W5"]);
+  });
+  it("already-settled week numbers are excluded", () => {
+    expect(pendingWeekLabels(M4, new Set([1, 3]), FAR)).toEqual(["W2", "W4"]);
+  });
+  it("everything settled → nothing pending", () => {
+    expect(pendingWeekLabels(M4, new Set([1, 2, 3, 4]), FAR)).toEqual([]);
+  });
+  it("mid-month: only weeks whose Sunday has passed are pending", () => {
+    // today sits on the Monday of W2, so only W1 has ended; W2 is in progress, W3/W4 future.
+    const w2Start = getWeeksInMonth(M4).find((w) => w.label === "W2")!.startDate;
+    expect(pendingWeekLabels(M4, new Set(), w2Start)).toEqual(["W1"]);
+  });
+  it("before the month starts → nothing has ended → nothing pending", () => {
+    expect(pendingWeekLabels(M4, new Set(), "2026-01-01")).toEqual([]);
   });
 });

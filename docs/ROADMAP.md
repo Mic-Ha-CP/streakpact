@@ -121,6 +121,57 @@ never persisted, and the reward ledger never populated on its own.
 - Settling after a week/month is over is a snapshot; backfilling a settled period does NOT auto re-settle
   (use 撤销结算 then settle again).
 
+## Settlement flow rework — past-period settling, lock, review (Phase A ✅ / Phase B pending)
+The Phase 6 settle UI was pinned to the current month (no way to settle a *past* month → June's
+ledger sat empty), and monthly settle used a loose one-sided model. Reworking in two phases.
+State machine per period: UNSETTLED (preview anytime, data editable, 补签 allowed) → SETTLED+LOCKED
+(check-ins locked, ledger written, only ledger status editable; 撤销结算 to edit, no time limit).
+Lock granularity follows the **week**. No schema change — every state is row-presence-derived.
+
+### Phase A — settle past periods + preview (✅ DONE 2026-07-02)
+- [x] `monthOfWeek`-based month navigation on 本月战况 (prev/next, capped at current; 历史 pill;
+      reads `?month=`), so any past month is reachable. Past-month view hides 今日打卡 / 本周进度.
+- [x] `pendingWeekLabels(month, settled, today)` pure helper (calc.ts) + unit tests — ended-but-
+      unsettled weeks, for the current OR any past month.
+- [x] Ledger **未结算 entry-point banner** (`useUnsettledPeriods`) → links to `/?month=<oldest>`.
+- [x] **Preview-before-settle** dialog (`useSettlements.previewWeek`) — shows the result + exactly
+      what will land in the ledger, before committing.
+- [x] Week-level settle → ledger write reachable for past months (reuses the tested `settleWeek`).
+- **Weekly only.** The monthly settle button is hidden everywhere (past + current): the old
+  `settleMonth` writes the team ledger prematurely (one-sided, no both-sides gate), so settling a
+  month now would create rows that go inconsistent once Phase B changes the model. Deferred.
+
+### Phase B — lock, un-settle, monthly review, both-sides (PENDING)
+- [ ] ⚠️ **PREREQUISITE — confirm `supabase/migrations/003_settlement_delete_policies.sql` is applied
+      on the LIVE DB.** Un-settle (delete snapshot + its ledger row) is blocked without the DELETE
+      policies. Verify before any Phase B un-settle work.
+- [ ] Week-level **check-in lock**: once a week is settled, lock its check-in edits (client-side,
+      trust-based per PROJECT_RIGOR); edit path = 撤销结算 → edit → re-settle.
+- [ ] **Un-settle wiring** in the new flow (no time limit — deliberate, trust-based, 2 users).
+- [ ] **Monthly review gate**: settling the last unsettled week of a month (one-by-one, or a
+      "settle all remaining weeks of this month" action scoped to ONE month) triggers a review —
+      week-success count, monthly reward/penalty preview, 补签 reminders, explicit confirm.
+- [ ] **Both-sides monthly team settlement**: the team reward/penalty writes to the ledger only after
+      BOTH users finish their monthly settlement; show 等待对方结算 when one side is done. (RLS: each
+      user writes only their own ledger row → first-settler's row is reconciled lazily when both are
+      done, guarded by the existing `(user_id, source)` check.)
+- [ ] **Home banner** when the team monthly settlement completes ("你们的 [month] 已结算，点击查看结果").
+- [ ] **`settleMonth` rework** + decide `monthly_settlements.result` = per-user **individual** (derive
+      the team result when both rows exist) vs. the current **team**-in-`result`. No new columns
+      expected (presence-derived); revisit only if the review flow needs more.
+
+## Ledger polish (deferred — low priority, not blocking)
+From the 2026-07-02 Ledger field-editability check. Editable today: **status** (both layouts),
+**notes** (desktop only). Display-only / never set by the app: **used_progress**, **expiry_date**.
+- [ ] **Ledger entry editing: allow setting/editing `expiry_date` (截止日期)** on ledger entries —
+      real need from source data (time-limited rewards like spending allowances, 补签券 validity).
+      Low priority, not blocking. **UI-only change**: `useLedger.updateEntry` / `LedgerPatch` and the
+      `reward_ledger` UPDATE RLS already support it; just add a date-picker in the 截止 cell for own
+      rows. (Today `expiry_date` only gets a value via a historical import writing straight to the DB.)
+- [ ] **Make `used_progress` editable** too (e.g. "141/888") — same story: hook + DB already support
+      it, no UI wires it; add an input (+ a desktop column). Display-only currently.
+- [ ] Minor: notes are editable on **desktop only** — add a notes editor to the mobile card too.
+
 ## Phase 7: In-app password reset
 - [x] "Forgot password" → email reset link flow (2026-06-05): "忘记密码？" on Login sends
       `resetPasswordForEmail` (redirectTo `/reset-password`); the public `ResetPassword` page

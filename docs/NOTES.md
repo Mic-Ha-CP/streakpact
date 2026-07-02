@@ -12,8 +12,15 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
 - Phase 4: PWA (vite-plugin-pwa, placeholder icons from public/logo.svg)
 - Phase 5: Deployed to Vercel (HTTPS verified; RLS blocks anon reads)
 - Phase 6: Settlement + ledger automation (one-click settle → ledger; team-combined month)
+- Settlement **Phase A** (2026-07-02): settle **past** months/weeks (本月战况 month-nav + Ledger
+  未结算 banner) + preview-before-settle + week-level settle → ledger. **Weekly only** (monthly = Phase B).
 
 ### Ready to do next (re-ranked 2026-06-03 — see ROADMAP)
+- **Settlement Phase B (NEXT):** week-level check-in lock · un-settle wiring · monthly review gate ·
+  both-sides monthly team settlement + 等待对方结算 · home "both settled" banner · `settleMonth` rework
+  (+ decide `monthly_settlements.result` individual-vs-team). See ROADMAP "Settlement flow rework".
+- ⚠️ **PREREQUISITE for Phase B un-settle:** confirm `migrations/003_settlement_delete_policies.sql`
+  is applied on the **LIVE** Supabase DB — un-settle (DELETE snapshot + ledger row) is blocked without it.
 - Log UI/UX issues into ### Open section below
 - Phase 7: in-app password reset (most useful profile piece; needs Auth Site URL set)
 - Phase 8: migrate historical Google Sheet check-ins (later, maybe)
@@ -48,6 +55,11 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
   Settlements are manual + un-settle-able, so no auto-lock risk.
 - Count unit label: currently 次/周, flag if 天/周 is preferred
 - Notes are independent of check-in (value=0 rows); supported on any day.
+- Ledger field editability (audited 2026-07-02): editable = **status** (both layouts) + **notes**
+  (desktop only). Display-only / never set by the app = **used_progress**, **expiry_date**
+  (expiry_date only lands via a historical import). Making expiry_date + used_progress editable is
+  UI-only (hook `updateEntry`/`LedgerPatch` + `reward_ledger` UPDATE RLS already support it) —
+  deferred, see ROADMAP "Ledger polish".
 
 ### Smoke test checklist
 1. npm run dev
@@ -99,6 +111,16 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-07-02 — Settlement flow **Phase A** (settle past periods + preview). The Phase 6 settle UI was
+  pinned to the current accountability month, so once a month rolled over there was no way to settle
+  it — June's ledger sat empty. Added: month navigation on 本月战况 (prev/next, capped at current,
+  历史 pill, reads `?month=`); a Ledger **未结算** banner (`useUnsettledPeriods`) linking to
+  `/?month=<oldest unsettled>`; a **preview-before-settle** dialog (`useSettlements.previewWeek`,
+  mirrors `settleWeek` exactly); a `pendingWeekLabels` pure helper (calc.ts) + 6 unit tests; past-month
+  view hides 今日打卡/本周进度. **Weekly settlement only** — the monthly button is hidden everywhere
+  because the old `settleMonth` writes the team ledger prematurely (one-sided); all monthly work is
+  Phase B. No schema change. Next = Phase B (lock, un-settle, monthly review, both-sides) — ⚠ needs
+  `migrations/003` applied on the live DB first. See ROADMAP "Settlement flow rework".
 - 2026-07-02 — Week→month boundary was wrong on carry-in days. Pages derived the "current month"
   from *today's calendar month* (`today.slice(0,7)` / `currentMonthISO()`). On a carry-in day —
   the start of a calendar month before its first Monday — that disagrees with the accountability

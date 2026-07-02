@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
+import { NavLink } from "react-router-dom";
 import { useLedger } from "@/hooks/useLedger";
 import { useAuth } from "@/hooks/useAuth";
+import { useUnsettledPeriods } from "@/hooks/useUnsettledPeriods";
 import type { RewardStatus, RewardType, UserId } from "@/data/models";
 import { PersonChip } from "@/components/PersonChip";
 import { Input } from "@/components/ui/input";
@@ -11,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Skull, Filter } from "lucide-react";
+import { Sparkles, Skull, Filter, AlertTriangle, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -58,6 +60,7 @@ const StatusSelect = ({
 
 const Ledger = () => {
   const { entries, updateEntry } = useLedger();
+  const { periods } = useUnsettledPeriods();
   const { userId: me } = useAuth();
   const [person, setPerson] = useState<"all" | UserId>("all");
   const [type, setType] = useState<"all" | RewardType>("all");
@@ -85,6 +88,24 @@ const Ledger = () => {
         <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">奖惩账本</h1>
         <p className="text-sm text-muted-foreground">所有已结算的奖励与惩罚</p>
       </div>
+
+      {/* Unsettled-period entry point → jumps the dashboard to the oldest such month */}
+      {periods.length > 0 && (
+        <NavLink
+          to={`/?month=${periods[0].month}`}
+          className="flex items-center gap-3 rounded-2xl border border-secondary/40 bg-secondary-soft/70 px-4 py-3 text-secondary-foreground shadow-card transition-opacity hover:opacity-90"
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <div className="flex-1 min-w-0 text-sm leading-snug">
+            <span className="font-bold">有未结算的周期</span>
+            <span className="text-secondary-foreground/80">
+              {" · "}
+              {periods.map((p) => `${p.month}（${p.pending.join("、")}）`).join("；")}
+            </span>
+          </div>
+          <ChevronRight className="w-4 h-4 shrink-0" />
+        </NavLink>
+      )}
 
       {/* Filters */}
       <div className="bg-card rounded-2xl p-3 border border-border/60 shadow-card flex flex-wrap items-center gap-2">

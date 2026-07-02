@@ -47,6 +47,24 @@ export function dayToWeek(month: string, date: string): WeekLabel | null {
   return getWeeksInMonth(month).find((w) => date >= w.startDate && date <= w.endDate)?.label ?? null;
 }
 
+/**
+ * Week labels of `month` that have ENDED (their Sunday has passed relative to
+ * `today`) but are not yet in `settled` (the set of already-settled week numbers).
+ * These are the weeks the current user can still settle — works for the current
+ * month or any past month. Note: a week is settleable regardless of pass/fail;
+ * this is purely "ended and not yet settled".
+ */
+export function pendingWeekLabels(
+  month: string,
+  settled: Set<number>,
+  today: string,
+): WeekLabel[] {
+  return getWeeksInMonth(month)
+    .filter((w) => today > w.endDate)
+    .filter((w) => !settled.has(Number(w.label.slice(1))))
+    .map((w) => w.label);
+}
+
 export function logsForTaskInRange(
   logs: DailyLog[],
   taskId: string,

@@ -9,13 +9,13 @@ import {
   combineTeamMonth,
   getWeeksInMonth,
   monthStatus,
-  weekIsComplete,
+  pendingWeekLabels,
   weekStatusForUser,
   type MonthResult,
   type WeekLabel,
 } from "@/data/calc";
 import { todayISO } from "@/lib/dates";
-import type { UserId } from "@/data/models";
+import type { RewardType, UserId } from "@/data/models";
 import type { Tables, TablesInsert } from "@/lib/database.types";
 
 export interface WeeklySettlement {
@@ -121,12 +121,7 @@ export function useSettlements(month: string) {
   // Weeks that have ended but the current user hasn't settled yet (only if they
   // actually have tasks — an empty month has nothing to settle).
   const pendingWeeks: WeekLabel[] =
-    myTasks.length === 0
-      ? []
-      : weeks
-          .filter((w) => weekIsComplete(month, w.label, today))
-          .filter((w) => !mySettledWeekNumbers.has(Number(w.label.slice(1))))
-          .map((w) => w.label);
+    myTasks.length === 0 ? [] : pendingWeekLabels(month, mySettledWeekNumbers, today);
 
   // Team month preview — null if either member has no tasks (can't judge yet).
   const resultFor = (u: UserId): MonthResult | null => {
@@ -135,6 +130,20 @@ export function useSettlements(month: string) {
   };
   const teamMonthPreview = combineTeamMonth(resultFor("CP"), resultFor("JX"));
   const monthSettleable = teamMonthPreview !== null && !mySettledMonthly;
+
+  /**
+   * What settling `week` will produce — mirrors settleWeek exactly, so a preview
+   * dialog shows precisely what will be written (single source of truth).
+   */
+  const previewWeek = (
+    week: WeekLabel,
+  ): { isSuccess: boolean; type: RewardType; text: string; willLedger: boolean } => {
+    const isSuccess = weekStatusForUser(myTasks, logs, month, week, today) === "success";
+    const weekNumber = Number(week.slice(1));
+    const plan = plans.find((p) => p.userId === userId && p.weekNumber === weekNumber);
+    const text = ((isSuccess ? plan?.successReward : plan?.failurePenalty) ?? "").trim();
+    return { isSuccess, type: isSuccess ? "reward" : "penalty", text, willLedger: text !== "" };
+  };
 
   // ---- Settle actions --------------------------------------------------------
   const ledgerExists = async (source: string) => {
@@ -191,6 +200,7 @@ export function useSettlements(month: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["weekly_settlements", month] });
       qc.invalidateQueries({ queryKey: ["reward_ledger"] });
+      qc.invalidateQueries({ queryKey: ["unsettled_periods"] });
     },
   });
 
@@ -267,6 +277,7 @@ export function useSettlements(month: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["weekly_settlements", month] });
       qc.invalidateQueries({ queryKey: ["reward_ledger"] });
+      qc.invalidateQueries({ queryKey: ["unsettled_periods"] });
     },
   });
 
@@ -293,6 +304,7 @@ export function useSettlements(month: string) {
     isLoading: weekly.isLoading || monthly.isLoading,
     // current-user settle state + actions
     pendingWeeks,
+    previewWeek,
     monthSettleable,
     teamMonthPreview,
     mySettledWeeks: [...mySettledWeekNumbers].sort((a, b) => a - b),

@@ -1,9 +1,11 @@
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { unitLabel, type DailyLog, type Task, type UserId } from "@/data/models";
 import { useTasks } from "@/hooks/useTasks";
 import { useLogs } from "@/hooks/useLogs";
 import { useAuth } from "@/hooks/useAuth";
 import { useSettlements, type MonthlySettlement } from "@/hooks/useSettlements";
-import { monthOfWeek, todayISO } from "@/lib/dates";
+import { monthOfWeek, shiftMonth, todayISO } from "@/lib/dates";
 import { PersonChip } from "@/components/PersonChip";
 import { ProgressBar } from "@/components/ProgressBar";
 import { WeekBadge } from "@/components/WeekBadge";
@@ -18,9 +20,19 @@ import {
   type MonthResult,
   type WeekLabel,
 } from "@/data/calc";
-import { Flame, Sparkles, Lock } from "lucide-react";
+import { Flame, Sparkles, Lock, ChevronLeft, ChevronRight, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
   if (!result) return <span className="pill border border-border text-muted-foreground">进行中</span>;
@@ -31,20 +43,9 @@ const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
   return <span className="pill bg-muted text-muted-foreground">无事发生</span>;
 };
 
-/** Button label describing what settling the month will trigger. */
-const teamMonthLabel = (r: MonthResult | null) =>
-  r === "success"
-    ? "团队成功 → 月度奖励"
-    : r === "failure"
-      ? "团队失败 → 月度惩罚"
-      : "团队无事发生";
-
 interface SettleProps {
   pendingWeeks: WeekLabel[];
-  monthSettleable: boolean;
-  teamMonthPreview: MonthResult | null;
   onSettleWeek: (w: WeekLabel) => void;
-  onSettleMonth: () => void;
   settling: boolean;
 }
 
@@ -54,6 +55,7 @@ const UserPanel = ({
   logs,
   currentMonth,
   today,
+  isPastMonth,
   settledWeekly,
   settledMonthly,
   settle,
@@ -63,15 +65,16 @@ const UserPanel = ({
   logs: DailyLog[];
   currentMonth: string;
   today: string;
+  /** Viewing a month before the current accountability month — no "today"/"this week". */
+  isPastMonth: boolean;
   settledWeekly: Set<number>;
   settledMonthly: MonthlySettlement | null;
   /** Settle actions for the current user only; null on the other user's panel. */
   settle: SettleProps | null;
 }) => {
   const myTasks = tasks.filter((t) => t.userId === userId && t.month === currentMonth);
-  // currentMonth is the accountability month (monthOfWeek), so today always lands
-  // in one of its weeks — dayToWeek is non-null; the ?? "W1" is just a guard.
-  const currentWeek = dayToWeek(currentMonth, today) ?? "W1";
+  // The current month has a "this week"; a past month does not (today isn't in it).
+  const currentWeek = isPastMonth ? null : (dayToWeek(currentMonth, today) ?? "W1");
   const weeks = getWeeksInMonth(currentMonth);
   const month = monthStatus(myTasks, logs, currentMonth, today);
 
@@ -126,21 +129,23 @@ const UserPanel = ({
         </div>
       </div>
 
-      {/* Today */}
-      <div className="px-5 pt-4 pb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Flame className={cn("w-4 h-4", todayDone ? "text-secondary" : "text-muted-foreground")} />
-          <span className="text-sm font-medium">今日打卡</span>
+      {/* Today (current month only) */}
+      {!isPastMonth && (
+        <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Flame className={cn("w-4 h-4", todayDone ? "text-secondary" : "text-muted-foreground")} />
+            <span className="text-sm font-medium">今日打卡</span>
+          </div>
+          <span
+            className={cn(
+              "pill",
+              todayDone ? "bg-success-soft text-success" : "bg-muted text-muted-foreground",
+            )}
+          >
+            {todayDone ? "已完成 ✓" : "待打卡"}
+          </span>
         </div>
-        <span
-          className={cn(
-            "pill",
-            todayDone ? "bg-success-soft text-success" : "bg-muted text-muted-foreground",
-          )}
-        >
-          {todayDone ? "已完成 ✓" : "待打卡"}
-        </span>
-      </div>
+      )}
 
       {/* Week grid */}
       <div className="px-5 pb-4">
@@ -165,88 +170,93 @@ const UserPanel = ({
         </div>
       </div>
 
-      {/* Settle (current user only) */}
-      {settle && (settle.pendingWeeks.length > 0 || settle.monthSettleable) && (
+      {/* Settle (current user only) — Phase A: WEEKLY only. Monthly team settlement is
+          intentionally absent here; it's reworked in Phase B with a both-sides gate. */}
+      {settle && settle.pendingWeeks.length > 0 && (
         <div className="px-5 pb-4">
           <div className="rounded-2xl border border-secondary/40 bg-secondary-soft/40 p-3 space-y-2">
             <div className="text-[11px] uppercase tracking-wider text-secondary-foreground font-bold flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" /> 待结算
             </div>
-            {settle.pendingWeeks.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {settle.pendingWeeks.map((w) => (
-                  <button
-                    key={w}
-                    disabled={settle.settling}
-                    onClick={() => settle.onSettleWeek(w)}
-                    className="px-3 py-1.5 rounded-xl bg-card border border-border text-xs font-bold hover:bg-muted transition-colors disabled:opacity-50"
-                  >
-                    结算 {w}
-                  </button>
-                ))}
-              </div>
-            )}
-            {settle.monthSettleable && (
-              <button
-                disabled={settle.settling}
-                onClick={settle.onSettleMonth}
-                className="w-full px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                结算本月 · {teamMonthLabel(settle.teamMonthPreview)}
-              </button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {settle.pendingWeeks.map((w) => (
+                <button
+                  key={w}
+                  disabled={settle.settling}
+                  onClick={() => settle.onSettleWeek(w)}
+                  className="px-3 py-1.5 rounded-xl bg-card border border-border text-xs font-bold hover:bg-muted transition-colors disabled:opacity-50"
+                >
+                  结算 {w}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Tasks */}
-      <div className="px-5 pb-5 space-y-3">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
-          本周进度 · {currentWeek}
-        </div>
-        {myTasks.length === 0 && (
-          <div className="text-sm text-muted-foreground py-4 text-center bg-muted/40 rounded-2xl">
-            尚未设置任务
+      {/* This-week progress (current month only; a past month has no current week —
+          use the 月度周历 for a past month's per-week breakdown). */}
+      {currentWeek && (
+        <div className="px-5 pb-5 space-y-3">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+            本周进度 · {currentWeek}
           </div>
-        )}
-        {myTasks.map((t) => {
-          const v = weeklyProgress(t, logs, currentMonth, currentWeek);
-          const passed = v >= t.target;
-          return (
-            <div key={t.id} className="space-y-1.5">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium truncate pr-2">{t.title}</span>
-                <span
-                  className={cn(
-                    "tabular-nums font-bold text-xs",
-                    passed ? "text-success" : "text-muted-foreground",
-                  )}
-                >
-                  {v}/{t.target} {unitLabel(t.unit)}
-                </span>
-              </div>
-              <ProgressBar value={v} max={t.target} user={userId} />
+          {myTasks.length === 0 && (
+            <div className="text-sm text-muted-foreground py-4 text-center bg-muted/40 rounded-2xl">
+              尚未设置任务
             </div>
-          );
-        })}
-      </div>
+          )}
+          {myTasks.map((t) => {
+            const v = weeklyProgress(t, logs, currentMonth, currentWeek);
+            const passed = v >= t.target;
+            return (
+              <div key={t.id} className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium truncate pr-2">{t.title}</span>
+                  <span
+                    className={cn(
+                      "tabular-nums font-bold text-xs",
+                      passed ? "text-success" : "text-muted-foreground",
+                    )}
+                  >
+                    {v}/{t.target} {unitLabel(t.unit)}
+                  </span>
+                </div>
+                <ProgressBar value={v} max={t.target} user={userId} />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
 
 const Index = () => {
   const today = todayISO();
-  const currentMonth = monthOfWeek(today);
-  const { tasks } = useTasks(currentMonth);
-  const { logs } = useLogs(currentMonth);
+  const accMonth = monthOfWeek(today); // the real current accountability month
+  const [searchParams] = useSearchParams();
+  const requested = searchParams.get("month");
+  const [viewMonth, setViewMonth] = useState(
+    requested && /^\d{4}-\d{2}$/.test(requested) && requested <= accMonth ? requested : accMonth,
+  );
+  const isPastMonth = viewMonth < accMonth;
+
+  const { tasks } = useTasks(viewMonth);
+  const { logs } = useLogs(viewMonth);
   const { userId: me } = useAuth();
-  const s = useSettlements(currentMonth);
+  const s = useSettlements(viewMonth);
+
+  const [settleTarget, setSettleTarget] = useState<WeekLabel | null>(null);
+  const preview = settleTarget ? s.previewWeek(settleTarget) : null;
 
   const settledWeeklyFor = (u: UserId) =>
     new Set(s.weekly.filter((x) => x.userId === u).map((x) => x.weekNumber));
   const settledMonthlyFor = (u: UserId) => s.monthly.find((x) => x.userId === u) ?? null;
 
-  const onSettleWeek = (w: WeekLabel) =>
+  const confirmSettle = () => {
+    const w = settleTarget;
+    if (!w) return;
     s.settleWeek.mutate(w, {
       onSuccess: (r) =>
         toast.success(
@@ -256,30 +266,16 @@ const Index = () => {
         ),
       onError: (e) => toast.error(`结算失败：${(e as Error).message}`),
     });
+    setSettleTarget(null);
+  };
 
-  const onSettleMonth = () =>
-    s.settleMonth.mutate(undefined, {
-      onSuccess: (r) => {
-        const label =
-          r.team === "success" ? "团队通关 🏆" : r.team === "failure" ? "团队失败 ⚠" : "无事发生";
-        toast.success(
-          r.ledgered
-            ? `本月已结算：${label}，${r.team === "success" ? "奖励" : "惩罚"}已入账本`
-            : `本月已结算：${label}`,
-        );
-      },
-      onError: (e) => toast.error(`结算失败：${(e as Error).message}`),
-    });
-
+  // Phase A: weekly settlement only. Clicking 结算 opens a preview first (below).
   const settleFor = (u: UserId): SettleProps | null =>
     u === me
       ? {
           pendingWeeks: s.pendingWeeks,
-          monthSettleable: s.monthSettleable,
-          teamMonthPreview: s.teamMonthPreview,
-          onSettleWeek,
-          onSettleMonth,
-          settling: s.settleWeek.isPending || s.settleMonth.isPending,
+          onSettleWeek: (w) => setSettleTarget(w),
+          settling: s.settleWeek.isPending,
         }
       : null;
 
@@ -290,12 +286,43 @@ const Index = () => {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">本月战况</h1>
-          <p className="text-sm text-muted-foreground">今天 {today} · 一起加油 💪</p>
+          <p className="text-sm text-muted-foreground">
+            {isPastMonth ? "查看并结算历史月份" : `今天 ${today} · 一起加油 💪`}
+          </p>
         </div>
         <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
           <Sparkles className="w-4 h-4 text-secondary" />
           每周 ≥ 全部任务达标 = 周成功 · 月内 ≥ 3 周 = 月成功
         </div>
+      </div>
+
+      {/* Month switcher — past unlimited, capped at the current accountability month. */}
+      <div className="bg-card rounded-2xl border border-border/60 p-3 flex items-center justify-between shadow-card max-w-xs mx-auto">
+        <button
+          onClick={() => setViewMonth((m) => shiftMonth(m, -1))}
+          className="p-2 rounded-xl hover:bg-muted"
+          aria-label="上一月"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="text-center">
+          <div className="font-display font-extrabold text-lg tabular-nums">{viewMonth}</div>
+          {isPastMonth ? (
+            <span className="pill bg-secondary-soft text-secondary-foreground mt-1">
+              <History className="w-3 h-3" /> 历史月份
+            </span>
+          ) : (
+            <span className="pill bg-success-soft text-success mt-1">当前月</span>
+          )}
+        </div>
+        <button
+          onClick={() => setViewMonth((m) => shiftMonth(m, 1))}
+          disabled={viewMonth >= accMonth}
+          className="p-2 rounded-xl hover:bg-muted disabled:opacity-30"
+          aria-label="下一月"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -307,8 +334,9 @@ const Index = () => {
           userId="CP"
           tasks={tasks}
           logs={logs}
-          currentMonth={currentMonth}
+          currentMonth={viewMonth}
           today={today}
+          isPastMonth={isPastMonth}
           settledWeekly={settledWeeklyFor("CP")}
           settledMonthly={settledMonthlyFor("CP")}
           settle={settleFor("CP")}
@@ -317,8 +345,9 @@ const Index = () => {
           userId="JX"
           tasks={tasks}
           logs={logs}
-          currentMonth={currentMonth}
+          currentMonth={viewMonth}
           today={today}
+          isPastMonth={isPastMonth}
           settledWeekly={settledWeeklyFor("JX")}
           settledMonthly={settledMonthlyFor("JX")}
           settle={settleFor("JX")}
@@ -329,6 +358,43 @@ const Index = () => {
         <Sparkles className="w-4 h-4 text-secondary shrink-0 mt-0.5" />
         <span>每周所有任务达标 = 周成功 · 月内 ≥ 3 周成功 = 本月通关</span>
       </div>
+
+      {/* Settle preview — shows exactly what will be written before committing. */}
+      <AlertDialog open={settleTarget !== null} onOpenChange={(o) => !o && setSettleTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>结算 {viewMonth} {settleTarget}？</AlertDialogTitle>
+            <AlertDialogDescription>
+              确认后写入结算快照{preview?.willLedger ? "，并生成奖惩账本条目" : ""}。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 text-sm">
+            <div>
+              你的结果：
+              <span className={cn("font-bold", preview?.isSuccess ? "text-success" : "text-danger")}>
+                {preview?.isSuccess ? "成功 ✓" : "失败"}
+              </span>
+            </div>
+            {preview?.willLedger ? (
+              <div className="rounded-lg bg-muted/50 p-2">
+                将入账本 · {preview.isSuccess ? "奖励" : "惩罚"}：
+                <span className="font-medium">{preview.text}</span>
+              </div>
+            ) : (
+              <div className="text-muted-foreground text-xs">
+                未设置对应{preview?.isSuccess ? "奖励" : "惩罚"}，仅记录结算（不入账本）。
+              </div>
+            )}
+            <div className="text-[11px] text-muted-foreground">
+              结算后如需修改，可在「打卡」页撤销结算再重新结算。
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSettle}>确认结算</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
