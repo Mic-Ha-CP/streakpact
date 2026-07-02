@@ -99,6 +99,21 @@ Fixed items move to "Resolved" below.
 
 ### Resolved
 <!-- move fixed items here with date + how it was fixed -->
+- 2026-07-02 — Week→month boundary was wrong on carry-in days. Pages derived the "current month"
+  from *today's calendar month* (`today.slice(0,7)` / `currentMonthISO()`). On a carry-in day —
+  the start of a calendar month before its first Monday — that disagrees with the accountability
+  month. On 2026-07-02 (a Thursday whose week starts Mon 6-29, so ∈ **June W5**) the dashboard /
+  check-in loaded **July**: July W1 (not started) was highlighted as "本周", and 本周一览 showed
+  Jun 29–Jul 5 with **no W5 label** (and `useLogs("2026-07")` starts Jul 6, so today's own
+  check-ins weren't even fetched). Root cause was **not** calc.ts — `getWeeksInMonth` / `dayToWeek`
+  were already correct (June = 5 weeks, W5 = Jun 29–Jul 5; July = 4 weeks, W1 = Jul 6). Fix: new
+  `monthOfWeek(date)` in dates.ts (= calendar month of the week's Monday) is now the single
+  accountability-month source of truth; Index / CheckIn / Calendar / Rewards / RewardGapBanner /
+  WeekTable all use it. **Setup deliberately keeps the plain calendar month** (its edit-lock and
+  future-cap are per calendar month) — commented in dates.ts so no one "unifies" it. Settlement /
+  ledger behavior unchanged (useSettlements is parameterized by the month it's handed). +15 unit
+  tests (calc.test + dates.test), incl. Mon-1st no-carry-in, Sun-1st carry-in, and Tue-1st 6-day
+  max carry-in. → Supersedes the WeekTable "spill days show as ·" caveat below.
 - 2026-06-11 — 打卡日期条加星期: backfilling showed only the ISO date, so you couldn't tell which
   weekday you were filling. Date header now reads `YYYY-MM-DD · 周X` (weekdayCN, dates.ts /
   CheckIn.tsx). Monday-first, matching our "week starts Monday".
@@ -106,8 +121,10 @@ Fixed items move to "Resolved" below.
   day by day. Added a read-only week grid (days as rows 周一→周日 × tasks as columns; cells
   ✓ / 分钟 / — / ·; today highlighted). Tap a past/today row to jump the day view to it; editing
   stays in the day cards (timer minutes don't belong in a cell). WeekTable.tsx + startOfWeekISO.
-  Chose days-as-rows over sheet-style days-as-columns for phone width. ⚠ A week spilling into next
-  month shows those days as "·" (logs load per month) rather than a false "—".
+  Chose days-as-rows over sheet-style days-as-columns for phone width. (The original "spill days
+  show as ·" caveat was removed 2026-07-02 by the week-boundary fix above — WeekTable now loads by
+  `monthOfWeek(selectedDate)`, so all 7 shown days are in the loaded span and spill days render
+  real ✓/—.)
 - 2026-06-11 — 奖惩缺口提醒横幅: from week 2 onward, if my reward/penalty plan still has gaps (any
   existing week scope or the month missing a reward OR penalty), a banner on 仪表盘 + 奖惩页 links to
   /rewards (RewardGapBanner.tsx). Pure client, no backend/push. True OS push (alert when the app is

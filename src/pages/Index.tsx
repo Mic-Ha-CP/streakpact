@@ -3,7 +3,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { useLogs } from "@/hooks/useLogs";
 import { useAuth } from "@/hooks/useAuth";
 import { useSettlements, type MonthlySettlement } from "@/hooks/useSettlements";
-import { currentMonthISO, todayISO } from "@/lib/dates";
+import { monthOfWeek, todayISO } from "@/lib/dates";
 import { PersonChip } from "@/components/PersonChip";
 import { ProgressBar } from "@/components/ProgressBar";
 import { WeekBadge } from "@/components/WeekBadge";
@@ -69,7 +69,9 @@ const UserPanel = ({
   settle: SettleProps | null;
 }) => {
   const myTasks = tasks.filter((t) => t.userId === userId && t.month === currentMonth);
-  const currentWeek = today.startsWith(currentMonth) ? (dayToWeek(currentMonth, today) ?? "W1") : "W1";
+  // currentMonth is the accountability month (monthOfWeek), so today always lands
+  // in one of its weeks — dayToWeek is non-null; the ?? "W1" is just a guard.
+  const currentWeek = dayToWeek(currentMonth, today) ?? "W1";
   const weeks = getWeeksInMonth(currentMonth);
   const month = monthStatus(myTasks, logs, currentMonth, today);
 
@@ -234,7 +236,7 @@ const UserPanel = ({
 
 const Index = () => {
   const today = todayISO();
-  const currentMonth = currentMonthISO();
+  const currentMonth = monthOfWeek(today);
   const { tasks } = useTasks(currentMonth);
   const { logs } = useLogs(currentMonth);
   const { userId: me } = useAuth();

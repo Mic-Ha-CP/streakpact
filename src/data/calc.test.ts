@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   combineTeamMonth,
+  dayToWeek,
   getWeeksInMonth,
   monthStatus,
   weekStatusForUser,
@@ -174,5 +175,54 @@ describe("monthStatus — mid-month (not all weeks finished) → no result yet",
     // today sits inside W2, so W2..W4 are not complete
     const r = monthStatus([countTask(M4, 3)], monthLogs(M4, 3, 1), M4, w2.startDate);
     expect(r.result).toBeNull();
+  });
+});
+
+// A week belongs to the month that contains its MONDAY (locked rule, DECISIONS.md).
+// The June/July 2026 boundary is the regression case: Mon 2026-06-29 starts June W5
+// (spanning Jun 29 – Jul 5), so July's first Monday is 2026-07-06 → July W1.
+describe("getWeeksInMonth / dayToWeek — week↔month by the week's Monday", () => {
+  it("June 2026 has exactly 5 weeks; W5 spans Jun 29 – Jul 5", () => {
+    const weeks = getWeeksInMonth("2026-06");
+    expect(weeks).toHaveLength(5);
+    expect(weeks[4]).toMatchObject({
+      label: "W5",
+      startDate: "2026-06-29",
+      endDate: "2026-07-05",
+    });
+  });
+  it("July 2026 has exactly 4 weeks; W1 starts Jul 6 (Jul 1–5 ∈ June W5)", () => {
+    const weeks = getWeeksInMonth("2026-07");
+    expect(weeks).toHaveLength(4);
+    expect(weeks[0]).toMatchObject({
+      label: "W1",
+      startDate: "2026-07-06",
+      endDate: "2026-07-12",
+    });
+  });
+  it("Mon 2026-06-29 → June W5", () => {
+    expect(dayToWeek("2026-06", "2026-06-29")).toBe("W5");
+  });
+  it("Mon 2026-07-06 → July W1", () => {
+    expect(dayToWeek("2026-07", "2026-07-06")).toBe("W1");
+  });
+  it("Jul 2 is not one of July's weeks — it belongs to June W5", () => {
+    expect(dayToWeek("2026-07", "2026-07-02")).toBeNull();
+    expect(dayToWeek("2026-06", "2026-07-02")).toBe("W5");
+  });
+  it("1st is a Monday → no carry-in; the 1st is W1 (June 2026)", () => {
+    expect(getWeeksInMonth("2026-06")[0].startDate).toBe("2026-06-01");
+    expect(dayToWeek("2026-06", "2026-06-01")).toBe("W1");
+  });
+  it("1st is a Sunday → the 1st is NOT in the month's own weeks; W1 starts the 2nd (Feb 2026)", () => {
+    expect(getWeeksInMonth("2026-02")[0].startDate).toBe("2026-02-02");
+    expect(dayToWeek("2026-02", "2026-02-01")).toBeNull();
+  });
+  it("1st is a Tuesday → 6-day max carry-in; W1 starts the 7th (Sep 2026)", () => {
+    // 2026-09-01 is a Tuesday → first Monday is 2026-09-07, so the 1st–6th ∈ Aug W5.
+    expect(getWeeksInMonth("2026-09")[0].startDate).toBe("2026-09-07");
+    expect(dayToWeek("2026-09", "2026-09-01")).toBeNull();
+    expect(dayToWeek("2026-09", "2026-09-06")).toBeNull();
+    expect(dayToWeek("2026-09", "2026-09-07")).toBe("W1");
   });
 });

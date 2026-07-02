@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { unitLabel, type UserId } from "@/data/models";
 import { useTasks } from "@/hooks/useTasks";
 import { useLogs } from "@/hooks/useLogs";
-import { currentMonthISO, todayISO } from "@/lib/dates";
+import { monthOfWeek, todayISO } from "@/lib/dates";
 import { WeekBadge } from "@/components/WeekBadge";
 import { ProgressBar } from "@/components/ProgressBar";
 import {
@@ -28,13 +28,13 @@ const MonthResultBadge = ({ result }: { result: MonthResult | null }) => {
 };
 
 const Calendar = () => {
-  const currentMonth = currentMonthISO();
   const today = todayISO();
+  const currentMonth = monthOfWeek(today);
   const { tasks } = useTasks(currentMonth);
   const { logs } = useLogs(currentMonth);
   const [active, setActive] = useState<UserId>("CP");
   const [openWeek, setOpenWeek] = useState<WeekLabel | null>(
-    today.startsWith(currentMonth) ? (dayToWeek(currentMonth, today) ?? "W1") : "W1",
+    dayToWeek(currentMonth, today) ?? "W1",
   );
 
   const weeks = getWeeksInMonth(currentMonth);

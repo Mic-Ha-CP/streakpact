@@ -7,7 +7,7 @@ import { RewardGapBanner } from "@/components/RewardGapBanner";
 import { Sparkles, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getWeeksInMonth, WEEK_LABELS, type WeekLabel } from "@/data/calc";
-import { currentMonthISO } from "@/lib/dates";
+import { monthOfWeek, todayISO } from "@/lib/dates";
 import { toast } from "sonner";
 
 type Scope = "MONTH" | WeekLabel;
@@ -18,7 +18,7 @@ const scopeToWeek = (scope: Scope): number | null =>
   scope === "MONTH" ? null : Number(scope.slice(1));
 
 const Rewards = () => {
-  const currentMonth = currentMonthISO();
+  const currentMonth = monthOfWeek(todayISO());
   const { userId: me } = useAuth();
   const { plans, upsertPlan } = useRewardPlans(currentMonth);
   const [active, setActive] = useState<UserId>(me ?? "CP");

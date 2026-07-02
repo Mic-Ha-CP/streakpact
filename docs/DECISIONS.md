@@ -85,6 +85,11 @@ All decisions below are LOCKED. Do not change without explicit user approval.
 - Week starts Monday
 - Week label format: "YYYY-M月 W1" (e.g. "2026-6月 W1")
 - W1 starts on first Monday on or after the 1st of month
+- A week belongs to the month that contains its **Monday**. The app's "current month" is the
+  month that owns *today's* week (`monthOfWeek` in dates.ts), which on the first days of a
+  calendar month (before its first Monday) is the **previous** calendar month — e.g. 2026-07-01..05
+  are still June W5. `Setup` is the deliberate exception: task setup keys on the plain calendar
+  month, since the one-edit lock and future-month cap are per calendar month.
 
 ## Auth
 - Supabase Auth with email/password

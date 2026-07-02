@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRewardPlans } from "@/hooks/useRewardPlans";
-import { currentMonthISO, todayISO } from "@/lib/dates";
+import { monthOfWeek, todayISO } from "@/lib/dates";
 import { dayToWeek, getWeeksInMonth } from "@/data/calc";
 
 /**
@@ -13,8 +13,8 @@ import { dayToWeek, getWeeksInMonth } from "@/data/calc";
  */
 export function RewardGapBanner() {
   const { userId: me } = useAuth();
-  const month = currentMonthISO();
   const today = todayISO();
+  const month = monthOfWeek(today);
   const { plans, isLoading } = useRewardPlans(month);
 
   if (!me || isLoading) return null;

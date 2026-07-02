@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useLogs } from "@/hooks/useLogs";
 import { useSettlements } from "@/hooks/useSettlements";
-import { todayISO, shiftDate, weekdayCN } from "@/lib/dates";
+import { todayISO, shiftDate, weekdayCN, monthOfWeek } from "@/lib/dates";
 import type { DailyLog, UserId } from "@/data/models";
 import type { WeekLabel } from "@/data/calc";
 import { PersonChip } from "@/components/PersonChip";
@@ -176,7 +176,10 @@ const CheckIn = () => {
   const [date, setDate] = useState(today);
   const isPast = date < today;
   const editable = active === me;
-  const viewMonth = date.slice(0, 7);
+  // Load the month that owns the selected day's week (not its calendar month), so a
+  // carry-in day like 2026-07-02 (∈ June W5) loads June's tasks/logs/settlements.
+  // useLogs' monthSpan already covers the week's spill-over days.
+  const viewMonth = monthOfWeek(date);
 
   const { tasks } = useTasks(viewMonth);
   const { logs, toggleCount, insertLog, deleteLog, setNote } = useLogs(viewMonth);

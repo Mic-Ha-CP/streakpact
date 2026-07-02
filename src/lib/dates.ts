@@ -51,3 +51,19 @@ export function startOfWeekISO(date: string): string {
   dt.setDate(dt.getDate() - dow);
   return todayISO(dt);
 }
+
+/**
+ * The month (YYYY-MM) that OWNS the week containing `date` — i.e. the calendar
+ * month of that week's Monday. This is the app's "accountability month" and the
+ * single source of truth for "which month are we in right now". On the first days
+ * of a calendar month that still belong to the previous month's final week (a
+ * carry-in week, e.g. 2026-07-01..05 ∈ June W5), it returns the PREVIOUS month —
+ * matching getWeeksInMonth's rule that a week belongs to the month of its Monday.
+ *
+ * NOTE: Setup.tsx deliberately does NOT use this — task setup is keyed on the
+ * plain calendar month (currentMonthISO), because the one-edit lock and the
+ * future-month cap are per calendar month. Don't "unify" that to monthOfWeek.
+ */
+export function monthOfWeek(date: string): string {
+  return startOfWeekISO(date).slice(0, 7);
+}

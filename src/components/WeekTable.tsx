@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { DailyLog, Task } from "@/data/models";
 import { dayToWeek } from "@/data/calc";
-import { shiftDate, startOfWeekISO, weekdayCN } from "@/lib/dates";
+import { shiftDate, startOfWeekISO, weekdayCN, monthOfWeek } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,8 +11,9 @@ import { cn } from "@/lib/utils";
  * Tapping a past-or-today row jumps the day view to that date (editing stays in
  * the day cards below). Future days are not selectable, mirroring the date arrow.
  *
- * Caveat: logs are loaded per month, so a week that spills into the next month
- * shows those days as "·" (not a false "—") — they aren't loaded here.
+ * The parent loads logs by monthOfWeek(selectedDate) — the month that owns this
+ * week — so all 7 displayed days sit inside the loaded span. A week that spills
+ * across the month boundary still shows real ✓/— for its spill days, not a blind ·.
  */
 export function WeekTable({
   tasks,
@@ -32,7 +33,7 @@ export function WeekTable({
     return Array.from({ length: 7 }, (_, i) => shiftDate(mon, i));
   }, [selectedDate]);
 
-  const loadedMonth = selectedDate.slice(0, 7);
+  const loadedMonth = monthOfWeek(selectedDate);
   const weekLabel = dayToWeek(loadedMonth, selectedDate);
 
   const cols = {
@@ -47,7 +48,6 @@ export function WeekTable({
       const mins = dayLogs.reduce((s, l) => s + (l.value ?? 0), 0);
       if (mins > 0) return { text: `${mins}'`, tone: "done" as const };
     }
-    if (date.slice(0, 7) !== loadedMonth) return { text: "·", tone: "idle" as const };
     if (date < today) return { text: "—", tone: "miss" as const };
     return { text: "·", tone: "idle" as const };
   };
