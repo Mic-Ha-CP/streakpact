@@ -1,3 +1,4 @@
+import type { ElementType } from "react";
 import { cn } from "@/lib/utils";
 import { Check, X, Minus, Loader2 } from "lucide-react";
 import type { WeekStatus } from "@/data/calc";
@@ -34,7 +35,7 @@ export const WeekBadge = ({
     "in-progress": <Loader2 className="w-3.5 h-3.5 animate-spin" />,
   }[status];
 
-  const Comp: any = onClick ? "button" : "div";
+  const Comp: ElementType = onClick ? "button" : "div";
   return (
     <Comp
       onClick={onClick}

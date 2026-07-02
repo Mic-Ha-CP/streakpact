@@ -1,0 +1,24 @@
+name: CI
+
+# Gate every push and PR to main with the checks Vercel does NOT run.
+# Build is intentionally excluded — Vercel already fails the deploy on a broken
+# build, so the value-add here is lint + typecheck + test (see PROJECT_RIGOR.md).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test

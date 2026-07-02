@@ -13,6 +13,9 @@ dist-ssr
 dev-dist
 *.local
 
+# TypeScript incremental build info (emitted by `tsc -b` / npm run typecheck)
+*.tsbuildinfo
+
 # Local env (real secrets — never commit; .env.example is the tracked template)
 .env
 .env.*
