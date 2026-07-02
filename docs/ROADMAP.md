@@ -116,8 +116,9 @@ never persisted, and the reward ledger never populated on its own.
 - [x] Un-settle ("撤销结算"): delete snapshot + generated ledger entry → re-settleable (fault tolerance)
 - [x] Task-delete safety: confirm dialog showing how many logs will be cascade-deleted
 - [x] Comprehensive unit tests: combineTeamMonth, weekStatusForUser, monthStatus (4-week & 5-week months)
-- [ ] **Manual:** run `supabase/migrations/002_ledger_unique.sql` (optional) and
-      `supabase/migrations/003_settlement_delete_policies.sql` (**required** for un-settle) in the SQL Editor
+- [x] **Manual — `003_settlement_delete_policies.sql` applied & verified live 2026-07-02** (DELETE
+      policies, required for un-settle). `002_ledger_unique.sql` (optional dedup) not required — the app
+      guards idempotency in code via the `(user_id, source)` check; apply only if wanted.
 - Settling after a week/month is over is a snapshot; backfilling a settled period does NOT auto re-settle
   (use 撤销结算 then settle again).
 
@@ -142,9 +143,9 @@ Lock granularity follows the **week**. No schema change — every state is row-p
   month now would create rows that go inconsistent once Phase B changes the model. Deferred.
 
 ### Phase B — lock, un-settle, monthly review, both-sides (PENDING)
-- [ ] ⚠️ **PREREQUISITE — confirm `supabase/migrations/003_settlement_delete_policies.sql` is applied
-      on the LIVE DB.** Un-settle (delete snapshot + its ledger row) is blocked without the DELETE
-      policies. Verify before any Phase B un-settle work.
+- [x] ✅ **PREREQUISITE CLEARED (2026-07-02):** `003_settlement_delete_policies.sql` DELETE policies
+      confirmed applied on the LIVE DB via `pg_policies` (`weekly_settlements_delete_own`,
+      `monthly_settlements_delete_own`, `reward_ledger_delete_own`). Un-settle is unblocked.
 - [ ] Week-level **check-in lock**: once a week is settled, lock its check-in edits (client-side,
       trust-based per PROJECT_RIGOR); edit path = 撤销结算 → edit → re-settle.
 - [ ] **Un-settle wiring** in the new flow (no time limit — deliberate, trust-based, 2 users).

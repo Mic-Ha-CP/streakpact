@@ -19,8 +19,9 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
 - **Settlement Phase B (NEXT):** week-level check-in lock · un-settle wiring · monthly review gate ·
   both-sides monthly team settlement + 等待对方结算 · home "both settled" banner · `settleMonth` rework
   (+ decide `monthly_settlements.result` individual-vs-team). See ROADMAP "Settlement flow rework".
-- ⚠️ **PREREQUISITE for Phase B un-settle:** confirm `migrations/003_settlement_delete_policies.sql`
-  is applied on the **LIVE** Supabase DB — un-settle (DELETE snapshot + ledger row) is blocked without it.
+- ✅ **Phase B un-settle prerequisite CLEARED (2026-07-02):** `migrations/003` DELETE policies confirmed
+  on the LIVE DB — `pg_policies` shows `weekly_settlements_delete_own`, `monthly_settlements_delete_own`,
+  `reward_ledger_delete_own` (+ tasks / daily_logs). Un-settle is unblocked for Phase B.
 - Log UI/UX issues into ### Open section below
 - Phase 7: in-app password reset (most useful profile piece; needs Auth Site URL set)
 - Phase 8: migrate historical Google Sheet check-ins (later, maybe)
