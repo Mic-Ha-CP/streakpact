@@ -4,10 +4,19 @@ A two-person accountability check-in app — a small PWA that replaces a shared
 Google Sheet for tracking monthly habits, weekly/monthly settlement, and a
 reward/penalty ledger between two people.
 
-Built for two fixed users, but the code is generic (no real data in the repo) —
-fork it and point it at your own Supabase project to run your own two-person pact.
-
 **Live:** https://streakpact.vercel.app
+
+> **Closed 2-user pilot.** There is no public sign-up — the live link opens a login
+> screen only the two pilot users can pass, so the screenshots below (not the live
+> URL) are the real first look. The code itself is generic and carries no real data,
+> so you can fork it and point it at your own Supabase project to run your own
+> two-person pact.
+
+## Screenshots
+
+_Add 2–3 screenshots or a short GIF here (dashboard · check-in · settlement) — the
+live URL is login-gated, so these carry the first impression. Put the files in
+`docs/screenshots/` and reference them, e.g. `![Dashboard](docs/screenshots/dashboard.png)`._
 
 ## What it does
 

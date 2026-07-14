@@ -2,7 +2,7 @@ name: CI
 
 # Gate every push and PR to main with the checks Vercel does NOT run.
 # Build is intentionally excluded — Vercel already fails the deploy on a broken
-# build, so the value-add here is lint + typecheck + test (see PROJECT_RIGOR.md).
+# build, so the value-add here is lint + typecheck + test (see docs/PROJECT_RIGOR.md).
 on:
   push:
     branches: [main]

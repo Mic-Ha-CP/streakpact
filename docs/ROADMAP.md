@@ -147,7 +147,7 @@ Lock granularity follows the **week**. No schema change — every state is row-p
       confirmed applied on the LIVE DB via `pg_policies` (`weekly_settlements_delete_own`,
       `monthly_settlements_delete_own`, `reward_ledger_delete_own`). Un-settle is unblocked.
 - [ ] Week-level **check-in lock**: once a week is settled, lock its check-in edits (client-side,
-      trust-based per PROJECT_RIGOR); edit path = 撤销结算 → edit → re-settle.
+      trust-based per docs/PROJECT_RIGOR.md); edit path = 撤销结算 → edit → re-settle.
 - [ ] **Un-settle wiring** in the new flow (no time limit — deliberate, trust-based, 2 users).
 - [ ] **Monthly review gate**: settling the last unsettled week of a month (one-by-one, or a
       "settle all remaining weeks of this month" action scoped to ONE month) triggers a review —

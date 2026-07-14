@@ -12,6 +12,7 @@ Migrating from a Google Sheets workflow to a web app (PWA).
 
 ## Key context
 - Only 2 users (CP and JX), both fixed accounts
+- Closed 2-user pilot with no public sign-up — outsiders can't log in. Repo/README are written for public viewing, so the README leads with screenshots (the live URL is login-gated)
 - Supabase Auth handles login (email/password)
 - All CRUD goes through Supabase client SDK, protected by Row Level Security
 - Settlement logic (weekly/monthly) is computed client-side, not server-side
