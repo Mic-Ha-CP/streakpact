@@ -161,6 +161,14 @@ Lock granularity follows the **week**. No schema change — every state is row-p
       the team result when both rows exist) vs. the current **team**-in-`result`. No new columns
       expected (presence-derived); revisit only if the review flow needs more.
 
+## Rewards history view (deferred — after Phase B)
+- [ ] **Month-switcher on the Rewards page** — add the same month switcher Setup uses
+      (`shiftMonth`; see "Past-month task config" above) so past months' reward/penalty **plans**
+      become viewable **read-only**. The data already exists in `reward_plans` keyed by `year_month`;
+      today only the current month's plan is shown, so past plans can't be referenced. **Low effort**
+      (`useRewardPlans` is already month-queried), **medium value**. Read-only for past months; the
+      current month stays editable as it is today.
+
 ## Ledger polish (deferred — low priority, not blocking)
 From the 2026-07-02 Ledger field-editability check. Editable today: **status** (both layouts),
 **notes** (desktop only). Display-only / never set by the app: **used_progress**, **expiry_date**.

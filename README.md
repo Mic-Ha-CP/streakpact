@@ -14,9 +14,9 @@ reward/penalty ledger between two people.
 
 ## Screenshots
 
-_Add 2–3 screenshots or a short GIF here (dashboard · check-in · settlement) — the
-live URL is login-gated, so these carry the first impression. Put the files in
-`docs/screenshots/` and reference them, e.g. `![Dashboard](docs/screenshots/dashboard.png)`._
+| Home / dashboard | Daily check-in | Monthly calendar |
+|:---:|:---:|:---:|
+| ![Home / dashboard](docs/screenshots/home.png) | ![Daily check-in](docs/screenshots/checkin.png) | ![Monthly calendar](docs/screenshots/calendar.png) |
 
 ## What it does
 
