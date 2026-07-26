@@ -161,6 +161,14 @@ Lock granularity follows the **week**. No schema change — every state is row-p
       the team result when both rows exist) vs. the current **team**-in-`result`. No new columns
       expected (presence-derived); revisit only if the review flow needs more.
 
+## Product redesign: Periods & Gamify (design phase)
+Sequenced **after Phase B**. Status: **awaiting JX feedback** — design only, no code yet.
+- [ ] See **`docs/design/PERIODS_AND_GAMIFY.md`** — reframes check-in from an implicit monthly
+      default to an opt-in **Period** model (fixes the "app always waiting on you" pressure that
+      Google Sheets never had), plus proposed **coins + item shop**, a far-off **deposit/anti-charity
+      stake** (StickK-style), and an optional daily **check-in** feature. Nothing is built until the
+      open questions at the end of that doc are settled with JX.
+
 ## Rewards history view (deferred — after Phase B)
 - [ ] **Month-switcher on the Rewards page** — add the same month switcher Setup uses
       (`shiftMonth`; see "Past-month task config" above) so past months' reward/penalty **plans**
@@ -308,3 +316,10 @@ translated:
   (`Intl.DateTimeFormat`); `YYYY-MM-DD` is locale-neutral. CP/JX + numbers stay untranslated.
 - Migratable **incrementally** (a missing key falls back to the default locale) — no big-bang; just
   watch for missed strings.
+
+## Ops / known issues
+- **Supabase free tier auto-pauses after ~7 days of inactivity.** When paused the app can't reach the
+  DB until it's restored — restore from the Supabase dashboard (Project → Resume); **data persists**
+  across the pause. Optional mitigation: a **keep-alive ping** (a scheduled GitHub Action hitting a
+  trivial query on a cron) to keep the project warm. **Deferred** — only worth it if the pause proves
+  disruptive in practice.
