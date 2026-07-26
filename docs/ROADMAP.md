@@ -163,6 +163,11 @@ Lock granularity follows the **week**. No schema change — every state is row-p
 
 ## Product redesign: Periods & Gamify (design phase)
 Sequenced **after Phase B**. Status: **awaiting JX feedback** — design only, no code yet.
+**Gating question: settlement structure — 双层 (keep weekly + monthly settle, two sets of 奖惩) vs
+单层 (period = one indivisible challenge judged on a total target only; no weekly settle, no weekly
+奖惩).** This decision gates everything else. **If 单层 is chosen, Phase B scope shrinks
+significantly** — much of the weekly settle / lock / both-sides-gate work becomes unnecessary, so
+don't over-invest in that Phase B tail until the structure is decided with JX.
 - [ ] See **`docs/design/PERIODS_AND_GAMIFY.md`** — reframes check-in from an implicit monthly
       default to an opt-in **Period** model (fixes the "app always waiting on you" pressure that
       Google Sheets never had), plus proposed **coins + item shop**, a far-off **deposit/anti-charity
