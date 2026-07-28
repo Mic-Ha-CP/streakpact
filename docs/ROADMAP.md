@@ -142,37 +142,89 @@ Lock granularity follows the **week**. No schema change — every state is row-p
   `settleMonth` writes the team ledger prematurely (one-sided, no both-sides gate), so settling a
   month now would create rows that go inconsistent once Phase B changes the model. Deferred.
 
-### Phase B — lock, un-settle, monthly review, both-sides (PENDING)
+### Phase B — lock, un-settle, monthly review, both-sides (⚠ SUPERSEDED by 单层 — 2026-07-28)
+> **Settlement structure is now decided = 单层 (single-layer challenge)** — see the Periods & Gamify
+> plan below and `docs/design/PERIODS_AND_GAMIFY.md` D2. There is **no weekly settle and no monthly
+> settle** in the new model, so most of this phase is obsolete. The salvageable ideas (un-settle as
+> fault tolerance, the both-sides team gate, a completion banner) are **re-homed to challenge
+> settlement in P1** below. Kept here (not deleted) as the record of why. Legacy months already settled
+> the old way are **preserved as history** (see the migration note in P1).
 - [x] ✅ **PREREQUISITE CLEARED (2026-07-02):** `003_settlement_delete_policies.sql` DELETE policies
       confirmed applied on the LIVE DB via `pg_policies` (`weekly_settlements_delete_own`,
       `monthly_settlements_delete_own`, `reward_ledger_delete_own`). Un-settle is unblocked.
-- [ ] Week-level **check-in lock**: once a week is settled, lock its check-in edits (client-side,
-      trust-based per docs/PROJECT_RIGOR.md); edit path = 撤销结算 → edit → re-settle.
-- [ ] **Un-settle wiring** in the new flow (no time limit — deliberate, trust-based, 2 users).
-- [ ] **Monthly review gate**: settling the last unsettled week of a month (one-by-one, or a
-      "settle all remaining weeks of this month" action scoped to ONE month) triggers a review —
-      week-success count, monthly reward/penalty preview, 补签 reminders, explicit confirm.
-- [ ] **Both-sides monthly team settlement**: the team reward/penalty writes to the ledger only after
-      BOTH users finish their monthly settlement; show 等待对方结算 when one side is done. (RLS: each
-      user writes only their own ledger row → first-settler's row is reconciled lazily when both are
-      done, guarded by the existing `(user_id, source)` check.)
-- [ ] **Home banner** when the team monthly settlement completes ("你们的 [month] 已结算，点击查看结果").
-- [ ] **`settleMonth` rework** + decide `monthly_settlements.result` = per-user **individual** (derive
-      the team result when both rows exist) vs. the current **team**-in-`result`. No new columns
-      expected (presence-derived); revisit only if the review flow needs more.
+      **← still relevant:** challenge un-settle reuses `reward_ledger_delete_own`; the new
+      `challenge_settlements` table gets its own DELETE policy in the same spirit.
+- ✗ ~~Week-level **check-in lock**~~ — **OBSOLETE under 单层** (no weekly settle). Any lock now happens
+      once at challenge end, not per week (P1).
+- → ~~**Un-settle wiring** (weekly)~~ — **RE-HOMED (P1):** un-settle applies to the single challenge
+      settlement instead of per-week; reuses the 撤销结算 pattern + DELETE policies.
+- ✗ ~~**Monthly review gate**~~ — **OBSOLETE under 单层** (no monthly settle). The equivalent is the
+      single end-of-challenge settlement/review (P1).
+- → ~~**Both-sides monthly team settlement**~~ — **RE-HOMED (P1):** team reward/penalty still writes
+      only after BOTH finish, but at the **challenge** level; the lazy-reconcile + `(user_id, source)`
+      idempotency idea carries over.
+- → ~~**Home banner** on monthly team settlement~~ — **RE-HOMED (P1):** banner fires on **challenge**
+      completion.
+- ✗ ~~**`settleMonth` rework**~~ — **OBSOLETE under 单层:** replaced by a single `settleChallenge`
+      (total-target, team-combined). `settleWeek`/`settleMonth` + `weekly_settlements`/
+      `monthly_settlements` retire for new challenges (kept for legacy months as history).
 
-## Product redesign: Periods & Gamify (design phase)
-Sequenced **after Phase B**. Status: **awaiting JX feedback** — design only, no code yet.
-**Gating question: settlement structure — 双层 (keep weekly + monthly settle, two sets of 奖惩) vs
-单层 (period = one indivisible challenge judged on a total target only; no weekly settle, no weekly
-奖惩).** This decision gates everything else. **If 单层 is chosen, Phase B scope shrinks
-significantly** — much of the weekly settle / lock / both-sides-gate work becomes unnecessary, so
-don't over-invest in that Phase B tail until the structure is decided with JX.
-- [ ] See **`docs/design/PERIODS_AND_GAMIFY.md`** — reframes check-in from an implicit monthly
-      default to an opt-in **Period** model (fixes the "app always waiting on you" pressure that
-      Google Sheets never had), plus proposed **coins + item shop**, a far-off **deposit/anti-charity
-      stake** (StickK-style), and an optional daily **check-in** feature. Nothing is built until the
-      open questions at the end of that doc are settled with JX.
+## Product redesign: Periods & Gamify — DECIDED, building (2026-07-28)
+Design **finalized** (JX feedback merged) — full spec + decision record **D1–D8** in
+**`docs/design/PERIODS_AND_GAMIFY.md`**. This **supersedes the old monthly-default model**: check-in
+is now an opt-in **4-week challenge** (Monday-aligned, starts next Monday) with **single-layer**
+total-target settlement — no weekly/monthly settle (see Phase B "SUPERSEDED" above). Plan below is
+for **owner sign-off before code**.
+
+**Schema delta.** New tables:
+- `challenges` — one period: `start_date` (Monday), 4 weeks, `initiator`, `mode` (solo/duo, only duo
+  now), `status`, per-task total-target + fault-tolerance config, deposit declaration (each side).
+- `challenge_settlements` — one row per user per challenge (replaces weekly_settlements +
+  monthly_settlements); presence-derived state, team result derived when both rows exist.
+- `coin_ledger` — append-only earn/spend rows; balance = SUM. `checkin_days` — daily 签到, independent
+  of tasks. `shop_items` — unified catalog + price. `shop_redemptions` — buy → coin spend (+ optional
+  coupon into reward_ledger).
+
+**Reused as-is:** `tasks`, `daily_logs`, `reward_ledger`, `profiles`.
+**Retiring for new challenges (kept for legacy history):** `weekly_settlements`, `monthly_settlements`,
+weekly rows in `reward_plans`.
+**Migration:** additive only — new tables alongside existing; June's settled weeks/months + existing
+ledger entries stay untouched as history. No backfill of challenges for past months.
+
+### P1 — Challenge core loop (发起 + 单层结算 + 押注记账)  · D1 D2 D4 D7
+- [ ] `challenges` + `challenge_settlements` tables + RLS + migration. New-challenge init from a Monday
+      (fixed 4 weeks), initiator + mode fields, per-task total-target + fault-tolerance number, deposit
+      declaration text (each side).
+- [ ] Dashboard: dormant **empty-state** when no active challenge; active view shows **total-target
+      progress** + a **weekly pace reference line** (display only, no settle). Reuse `getWeeksInMonth`/
+      `weeklyProgress` (calc.ts) for the pace line; add `challengeProgress`/`challengeStatus` (total vs
+      target). Retire `weekStatusForUser`/`monthStatus`/`combineTeamMonth` for the new path.
+- [ ] **End-of-challenge single settlement:** total-target pass/fail, **team-combined** (both pass →
+      reward; either fails → both penalty), **both-sides gate** (writes only after both settle; 等待
+      对方结算 state), **un-settle** (reuse DELETE policies), **completion banner**. (Re-homes the
+      salvageable Phase B ideas.)
+- [ ] **Deposit 记账 (D4):** success → release + coins (coin grant wired in P2); fail → auto-write a
+      "待执行" penalty row to `reward_ledger` (existing execution flow). 真钱托管版 = never.
+- [ ] **中途修改 (D7):** once per challenge, first-half only (wk 1–2), edit-all-tasks-at-once (delete
+      needs confirm, raise/lower target, keep ≥1 task), single "one chance" confirm. Replaces `edit_count`.
+
+### P2 — Coins + 签到 + 补签扣币  · D5 D6 D8
+- [ ] `coin_ledger` + `checkin_days` tables + RLS. Balance = SUM(coin_ledger); header coin balance.
+- [ ] **Coin grants (D5 start values):** 签到 5/day · count check-in 10/each · timer 2 per 10 min
+      (**cap 60 min/task/day** → ≤12/task/day) · challenge success 500 · fail 0. Grant on the action;
+      two-user mutual visibility + trust, **no anti-cheat**.
+- [ ] **签到 (D8):** independent daily check-in, no penalty for breaks, backfillable. 签到补签 spends
+      **20 coins** (D6, direct deduction — no coupon item). 打卡补签 stays **free**.
+
+### P3 — Shop  · D3
+- [ ] `shop_items` (**unified catalog + unified price**, generic + personal items mixed) +
+      `shop_redemptions`.
+- [ ] Buy = spend coins (coin_ledger debit); real-world coupons write a reward into `reward_ledger`
+      (manual redeem, optional expiry). **Anchor prices (D5):** 奶茶券 300 · 外卖券 400 · 大额 ~1200
+      (签到补签 20 handled in P2). Virtual items (titles/frames) low priority.
+
+> **Note:** the two sections below (**Rewards history view**, **Ledger polish**) predate this redesign;
+> revisit their assumptions (they reference weekly/monthly `reward_plans`) once P1 lands.
 
 ## Rewards history view (deferred — after Phase B)
 - [ ] **Month-switcher on the Rewards page** — add the same month switcher Setup uses
