@@ -80,7 +80,33 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
   rename on GitHub first → disconnect in Lovable → reconnect.
 
 ## Supabase notes
-(add as you go)
+
+### Local dev (Supabase CLI + Docker)
+Full local stack so migrations + backend changes are verified locally before any prod apply.
+Requires Docker Desktop running.
+
+- **Start / stop:** `supabase start` (first run pulls images), `supabase stop`. `supabase status`
+  shows URLs/keys; `supabase status -o env` prints them env-formatted.
+- **Rebuild from scratch:** `supabase db reset` — replays `supabase/migrations/` in order
+  (`001_init` → `002_ledger_unique` → `003_settlement_delete_policies` → `004_challenges` →
+  `005_coins_checkins`) then runs `supabase/seed.sql`.
+- **Migrations are the canonical chain.** `001_init.sql` is the original base; each later file layers
+  on. `supabase/migration.sql` is kept only as the README's manual (SQL Editor) full-rebuild path and
+  points here as canonical. CLI migration files carry **no `begin/commit`** (the runner wraps each).
+- **Seed** (`supabase/seed.sql`, local only): users `cp@test.local` / `jx@test.local`, password
+  `test1234` (security irrelevant — local), + a tiny 2026-06 legacy fixture. The `handle_new_user`
+  trigger auto-creates the CP/JX profiles.
+- **Env / the prod↔local swap:** `.env.local` (git-ignored) points at the local stack and, because
+  Vite prioritises `.env.local` over `.env`, `npm run dev` uses local by default. To run against
+  **prod**, rename `.env.local` (e.g. `.env.local.off`) so `.env` (prod values) takes over. **Never
+  put prod values in `.env.local`, never point migrations/reset at prod.** Prod SQL Editor is only for
+  the final `004`+`005` apply.
+- Local keys are the shared Supabase demo values (same on every machine) — not secrets.
+
+### Applying to prod (when handed off)
+Run `004_challenges.sql` then `005_coins_checkins.sql` in the Supabase SQL Editor (in order). Both are
+additive; existing data is untouched. `002_ledger_unique` is optional and may already be skipped on
+prod — the app guards `(user_id, source)` in code regardless.
 
 ## Bugs / issues
 (add as you go)

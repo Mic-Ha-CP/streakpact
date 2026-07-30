@@ -1,14 +1,16 @@
-import { NavLink, Outlet, Link } from "react-router-dom";
-import { Calendar, CheckSquare, Home, LogOut, Settings, Sparkles, Wallet } from "lucide-react";
+import { NavLink, Outlet } from "react-router-dom";
+import { Calendar, CheckSquare, Home, LogOut, Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
+// Under the challenge model, tasks are defined at create/join time and stakes/奖惩 live
+// on the challenge card — so the standalone 任务设置 (Setup) and 奖惩 (Rewards) pages are
+// retired from nav (their routes remain reachable by URL for legacy access only).
 const navItems = [
   { to: "/", label: "首页", icon: Home },
   { to: "/check-in", label: "打卡", icon: CheckSquare },
   { to: "/calendar", label: "周历", icon: Calendar },
-  { to: "/rewards", label: "奖惩", icon: Sparkles },
   { to: "/ledger", label: "账本", icon: Wallet },
 ];
 
@@ -65,20 +67,6 @@ export const AppShell = () => {
               {user}
             </NavLink>
             <ThemeToggle />
-            <NavLink
-              to="/setup"
-              className={({ isActive }) =>
-                cn(
-                  "p-2 rounded-lg transition-colors",
-                  isActive
-                    ? "text-primary bg-primary/10"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                )
-              }
-              aria-label="任务设置"
-            >
-              <Settings className="w-4 h-4" />
-            </NavLink>
             <button
               onClick={() => void signOut()}
               className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -96,7 +84,7 @@ export const AppShell = () => {
 
       {/* Bottom nav (mobile) — pad the home-indicator inset so iOS's bar doesn't cover the icons. */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background border-t border-border pb-[env(safe-area-inset-bottom)]">
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-4">
           {navItems.map((n) => (
             <NavLink
               key={n.to}

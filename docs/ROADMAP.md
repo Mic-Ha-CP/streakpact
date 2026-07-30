@@ -176,52 +176,126 @@ is now an opt-in **4-week challenge** (Monday-aligned, starts next Monday) with 
 total-target settlement — no weekly/monthly settle (see Phase B "SUPERSEDED" above). Plan below is
 for **owner sign-off before code**.
 
-**Schema delta.** New tables:
-- `challenges` — one period: `start_date` (Monday), 4 weeks, `initiator`, `mode` (solo/duo, only duo
-  now), `status`, per-task total-target + fault-tolerance config, deposit declaration (each side).
-- `challenge_settlements` — one row per user per challenge (replaces weekly_settlements +
-  monthly_settlements); presence-derived state, team result derived when both rows exist.
-- `coin_ledger` — append-only earn/spend rows; balance = SUM. `checkin_days` — daily 签到, independent
-  of tasks. `shop_items` — unified catalog + price. `shop_redemptions` — buy → coin spend (+ optional
-  coupon into reward_ledger).
+**Schema delta (P1 — migration `004_challenges.sql`).** New tables:
+- `challenges` — one shared period: `start_date` (Monday, enforced by an isodow CHECK), `weeks` (4),
+  `initiator`, `mode` (solo/duo, only duo now), optional `team_reward` (D3 add-on — shared success
+  reward, lands in `reward_ledger` on a team win), `status` (active/cancelled). "ended"/"settled" are
+  DERIVED (dates + member rows), not stored.
+- `challenge_members` — **one row per user per challenge** (replaces weekly_settlements +
+  monthly_settlements). Holds that user's deposit declaration (`deposit_stake` + `deposit_execution`),
+  their `result`/`settled_at` (NULL = unsettled), and `edited_at` (NULL = the D7 edit unused). Team
+  result is derived once both rows have a `result`.
+- `tasks` gains an additive **`challenge_id`** + a XOR CHECK: a task is EITHER month-scoped
+  (`year_month`) OR challenge-scoped (`challenge_id`), never both — so month pages and challenge views
+  stay disjoint. For a challenge task, `target_value` is the **total** target (fault tolerance folded
+  in), not weekly.
 
-**Reused as-is:** `tasks`, `daily_logs`, `reward_ledger`, `profiles`.
+**Reused as-is:** `daily_logs`, `reward_ledger` (challenge rewards/penalties + its 003 DELETE policy +
+`(user_id, source)` idempotency), `profiles`. `tasks` reused **+ the additive `challenge_id`** above.
 **Retiring for new challenges (kept for legacy history):** `weekly_settlements`, `monthly_settlements`,
 weekly rows in `reward_plans`.
 **Migration:** additive only — new tables alongside existing; June's settled weeks/months + existing
 ledger entries stay untouched as history. No backfill of challenges for past months.
+**P2/P3 tables (`coin_ledger`, `checkin_days`, `shop_items`, `shop_redemptions`) are NOT created in
+P1** — deferred until coin values are calibrated from the first real challenge.
 
-### P1 — Challenge core loop (发起 + 单层结算 + 押注记账)  · D1 D2 D4 D7
-- [ ] `challenges` + `challenge_settlements` tables + RLS + migration. New-challenge init from a Monday
-      (fixed 4 weeks), initiator + mode fields, per-task total-target + fault-tolerance number, deposit
-      declaration text (each side).
-- [ ] Dashboard: dormant **empty-state** when no active challenge; active view shows **total-target
-      progress** + a **weekly pace reference line** (display only, no settle). Reuse `getWeeksInMonth`/
-      `weeklyProgress` (calc.ts) for the pace line; add `challengeProgress`/`challengeStatus` (total vs
-      target). Retire `weekStatusForUser`/`monthStatus`/`combineTeamMonth` for the new path.
-- [ ] **End-of-challenge single settlement:** total-target pass/fail, **team-combined** (both pass →
-      reward; either fails → both penalty), **both-sides gate** (writes only after both settle; 等待
-      对方结算 state), **un-settle** (reuse DELETE policies), **completion banner**. (Re-homes the
-      salvageable Phase B ideas.)
-- [ ] **Deposit 记账 (D4):** success → release + coins (coin grant wired in P2); fail → auto-write a
-      "待执行" penalty row to `reward_ledger` (existing execution flow). 真钱托管版 = never.
-- [ ] **中途修改 (D7):** once per challenge, first-half only (wk 1–2), edit-all-tasks-at-once (delete
-      needs confirm, raise/lower target, keep ≥1 task), single "one chance" confirm. Replaces `edit_count`.
+### P1 — Challenge core loop (发起 + 单层结算 + 押注记账)  · D1 D2 D4 D7 — ✅ BUILT (pending migration run + smoke test)
+- [x] `challenges` + `challenge_members` tables + RLS + `004_challenges.sql`. New-challenge init from
+      next Monday (fixed 4 weeks), initiator + mode + optional `team_reward`, per-task total target,
+      per-user deposit declaration. Pure logic in `src/data/challenge.ts` (+ unit tests).
+- [x] Dashboard (`ChallengeHome`): dormant **empty-state** when no active challenge; active view shows
+      **total-target progress** + a **weekly pace reference line** (display only, no settle). Pace uses
+      **challenge-relative weeks** (`start_date + 7k`, via `paceExpected`) — NOT month-anchored
+      `getWeeksInMonth`; `weeklyProgress`'s range-summation idea is reused as `totalProgress`. New
+      `challengeStatusForUser`/`combineTeamChallenge`; legacy `weekStatusForUser`/`monthStatus`/
+      `combineTeamMonth` are untouched (legacy months only). Includes challenge check-in + 补签 (date
+      picker across the span).
+- [x] **End-of-challenge single settlement:** total-target pass/fail, **team-combined** (both pass →
+      reward; either fails → both penalty), **both-sides gate** (ledger writes only after both settle;
+      等待对方结算 state; first-settler's row written by lazy `reconcile`), **un-settle** (reuses the 003
+      DELETE policies), **completion banner**. (Re-homes the salvageable Phase B ideas.)
+- [x] **Deposit 记账 (D4):** success → stake released (coin grant is a P2 hook — P1 is coin-free); team
+      failure → auto-writes a "待执行" penalty row to `reward_ledger` from each side's own
+      `deposit_execution` (existing execution flow). 真钱托管版 = never.
+- [x] **中途修改 (D7):** once per challenge (`edited_at`), first-half only (wk 1–2, `editWindowOpen`),
+      edit-all-tasks-at-once (delete needs confirm, raise/lower target, keep ≥1 task). Replaces
+      `edit_count` for challenge tasks. **Client-enforced** (trust-based per PROJECT_RIGOR — RLS guards
+      ownership, not the time window).
 
-### P2 — Coins + 签到 + 补签扣币  · D5 D6 D8
-- [ ] `coin_ledger` + `checkin_days` tables + RLS. Balance = SUM(coin_ledger); header coin balance.
-- [ ] **Coin grants (D5 start values):** 签到 5/day · count check-in 10/each · timer 2 per 10 min
-      (**cap 60 min/task/day** → ≤12/task/day) · challenge success 500 · fail 0. Grant on the action;
-      two-user mutual visibility + trust, **no anti-cheat**.
-- [ ] **签到 (D8):** independent daily check-in, no penalty for breaks, backfillable. 签到补签 spends
-      **20 coins** (D6, direct deduction — no coupon item). 打卡补签 stays **free**.
+### P2 — Coins + 签到 + 补签扣币  · D5 D6 D8 — ✅ BUILT (local-verified; pending prod apply + smoke test)
+- [x] `coin_ledger` + `checkin_days` tables + RLS (`005_coins_checkins.sql`). **Derived model:** balance
+      = `earnedCoins(...)` + Σ coin_ledger.amount; `coin_ledger` holds only **spends** (earnings are a
+      pure fn of the data, so undo/backfill/un-settle auto-correct). Pure math in `src/data/coins.ts`
+      (+ tests); all tunable values in `src/data/coinRules.ts`.
+- [x] **Coin grants (D5 start values):** 签到 5/day · count check-in 10/each · timer `floor(min/10)*2`
+      (**cap 60 min/task/day** → ≤12/task/day) · challenge success 500 (**derived from
+      `result='success'` — no settleChallenge hook**) · fail 0. Scoped to challenge tasks + 签到 + wins
+      (legacy months earn 0). Two-user trust, **no anti-cheat**.
+- [x] **签到 (D8):** independent daily 签到 (dashboard strip), no penalty for breaks, backfillable.
+      签到补签 spends **20 coins** (D6, blocked if balance < 20 — direct deduction, no coupon item).
+      打卡补签 stays **free**. Coin **section on Ledger** (balance · earnings by 签到/打卡/通关 · spends),
+      kept separate from reward rows.
 
-### P3 — Shop  · D3
+### P1 follow-ups landed this pass (A + B)
+- [x] **D9 auto-void** + **D10 free pre-start edit** (`autoVoidDue` / `preStartEditable` / `midEditOpen`).
+- [x] **CheckIn page is challenge-aware** (challenge-relative W1–W4, span-bounded date picker, 补签,
+      notes) — replaces the month-based CheckIn going forward.
+- [x] `RewardGapBanner` removed; **历史月度 board gated to ≤ 2026-06** (see P1.5). Calendar debt tracked.
+- **Local dev env** (Supabase CLI + Docker) set up — see docs/NOTES.md. Migrations 001→005 replay via
+  `db reset`; seed users cp@/jx@test.local. All P1/P2 verified locally before this handoff.
+
+### P3 — Shop  · D3 — deferred (lands mid-first-challenge, once real balances exist to spend)
 - [ ] `shop_items` (**unified catalog + unified price**, generic + personal items mixed) +
       `shop_redemptions`.
 - [ ] Buy = spend coins (coin_ledger debit); real-world coupons write a reward into `reward_ledger`
       (manual redeem, optional expiry). **Anchor prices (D5):** 奶茶券 300 · 外卖券 400 · 大额 ~1200
       (签到补签 20 handled in P2). Virtual items (titles/frames) low priority.
+
+## Challenge history view (deferred — post-first-challenge)
+- [ ] After a challenge settles it disappears — no way to look back at it (goals, completion, both
+      sides' results). Only its **ledger entries** remain visible. Add a **challenge history list** (past
+      challenges with their tasks/targets, per-side result, team verdict, dates) once real challenge
+      history exists. Data is all there (`challenges` + `challenge_members` + challenge `tasks`); this is
+      a read-only view. Build post-first-challenge.
+
+## P1.5 — legacy-cleanup debt (not blocking)
+- [x] **Home 历史月度 board** gated to months **≤ 2026-06** (last real old-model month); July 2026+
+      never appears. `RewardGapBanner` (incl. the "已经第 N 周" nag) removed from Index + Rewards.
+- [x] **Nav retired 任务设置 (Setup) + 奖惩 (Rewards)** — tasks are defined at challenge create/join,
+      stakes/team-reward live on the challenge card. Routes remain (URL-only) for legacy access.
+- [x] **Calendar → 签到 calendar (redesigned).** Compact month grid, circular day markers (signed =
+      light fill + darker border), month nav, header **连续签到 X 天 · 累计 Y 天**; tap an unsigned
+      **past** day → **补签 (-20)** activates (future/signed not selectable), today unsigned → **free
+      签到**. It's the **single 签到 / 补签 entry point** (the Ledger 补签到 picker was removed). Legacy
+      month view moved into a **collapsed disclosure** (≤ 2026-06). Replaces the month-anchored layer.
+- [ ] **(optional) per-task 打卡 status overlay** on the 签到 calendar — show which days had check-ins,
+      not just 签到. Deferred; the 签到 calendar covers the daily-open loop.
+
+### Round 2 fixes landed this pass
+- [x] **Stakes surfaced + editable pre-start:** both sides' deposit declarations + team reward shown on
+      the challenge card; editable (with tasks) via the free pre-start edit, locked after start (D10).
+- [x] **Deposit required** on create/join (+ pre-start edit); team reward stays optional.
+- [x] **Timer target 分钟/小时 toggle** (小时 ×60 on save; storage/math stay minutes).
+- [x] **连续签到 streak** next to the coin balance (`checkinStreak`, unit-tested).
+- [x] **Seed fixtures:** an in-progress challenge (data for pace/calendar/coins) + an ended-unsettled
+      challenge (both pass → settle-testable without manual SQL); 2026-06 legacy fixture kept.
+
+### Round 3 fixes landed this pass
+- [x] **D11 cancel / abort:** pre-start = initiator unilateral cancel; **post-start = consensual 中止**
+      (per-member `abort_requested_at`; both set → aborted; initiator lazy-writes `status='aborted'`).
+      Closes the mid-challenge "one-click dodge the stakes" escape hatch. (`004` gained the column +
+      the `'aborted'` status — re-apply `004` to prod.)
+- [x] **Calendar → 签到 calendar** + legacy view collapsed; **Ledger 补签到 picker removed** (single
+      entry point on the calendar). See P1.5.
+
+### Round 4 fixes landed this pass
+- [x] **Coin refresh bug:** settle/un-settle now invalidate `coins_wins` → the +500 (and its removal on
+      撤销) update immediately, not on tab-switch.
+- [x] **No orphaned unsettled challenge:** a new challenge can only be started from the both-settled
+      completion view (**开启下一期挑战**) — never while one is ended-unsettled, so the unsettled one is
+      always the current view. Aborted challenges leave the active set and don't block. Seed simplified
+      to a single ended-unsettled challenge (the two-active seed was itself the orphan).
+- [x] **撤销结算 no time limit** made explicit in the design doc (D2).
 
 > **Note:** the two sections below (**Rewards history view**, **Ledger polish**) predate this redesign;
 > revisit their assumptions (they reference weekly/monthly `reward_plans`) once P1 lands.

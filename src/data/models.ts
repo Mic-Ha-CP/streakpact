@@ -70,3 +70,33 @@ export interface LedgerEntry {
   expiryDate: string | null;
   notes: string | null;
 }
+
+// --- Periods & Gamify P1 (see docs/design/PERIODS_AND_GAMIFY.md) --------------
+export type ChallengeMode = "solo" | "duo";
+export type ChallengeStatus = "active" | "cancelled" | "aborted";
+export type ChallengeResultValue = "success" | "failure";
+
+/** A shared opt-in period (single-layer, total-target settlement). */
+export interface Challenge {
+  id: string;
+  startDate: string; // YYYY-MM-DD (a Monday)
+  weeks: number; // fixed 4 in v1
+  initiator: UserId;
+  mode: ChallengeMode; // only "duo" used now
+  teamReward: string | null; // optional shared success reward
+  status: ChallengeStatus;
+  createdAt: string;
+}
+
+/** One user's participation in a challenge: deposit declaration + settlement state. */
+export interface ChallengeMember {
+  id: string;
+  challengeId: string;
+  userId: UserId;
+  depositStake: string | null; // 押什么
+  depositExecution: string | null; // 失败如何执行
+  result: ChallengeResultValue | null; // null = not yet settled
+  settledAt: string | null;
+  editedAt: string | null; // null = the one mid-challenge edit is unused
+  abortRequestedAt: string | null; // D11: this side requested/confirmed a consensual abort
+}

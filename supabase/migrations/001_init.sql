@@ -1,20 +1,13 @@
--- StreakPact — initial schema migration
--- Generated from docs/SUPABASE_SCHEMA.md
+-- StreakPact — migration 001 (base schema)
 --
--- Run this in the Supabase SQL Editor (Dashboard → SQL Editor → New query).
--- Safe to run once on a fresh project. Creates tables, constraints, the
--- profile-on-signup trigger, Row Level Security policies, and indexes.
+-- This is the ORIGINAL base schema, split out so the Supabase CLI migration chain
+-- (`supabase db reset`) rebuilds the DB from scratch: 001_init → 002_ledger_unique →
+-- 003_settlement_delete_policies → 004_challenges → 005_coins_checkins.
 --
--- Notes:
---   * `value NOT NULL` on daily_logs: 1 for a count check-in, minutes for a timer
---     entry. The "one count check-in per day" rule is enforced in app code, not by a
---     DB constraint (timer tasks legitimately have many rows per day, and a partial
---     unique index cannot reference tasks.type in PostgreSQL).
---   * daily_logs has no UPDATE policy by design — undo = delete, edit = delete + insert.
---   * reward_plans uniqueness uses NULLS NOT DISTINCT (PostgreSQL 15+, Supabase default)
---     so a user has at most one monthly plan (week_number IS NULL) per month.
-
-begin;
+-- It deliberately EXCLUDES what later migrations add: the reward_ledger (user_id,
+-- source) unique (→ 002), the settlement/ledger DELETE policies (→ 003), and the
+-- challenge tables (→ 004). `supabase/migration.sql` remains the squashed full-schema
+-- for the README's manual (SQL Editor) path; `migrations/` is the canonical chain.
 
 -- =====================================================================
 -- profiles
@@ -25,9 +18,8 @@ create table public.profiles (
   created_at   timestamptz not null default now()
 );
 
--- Auto-create a profile row whenever an auth user is created.
--- display_name is taken from the user's metadata key "display_name"
--- (set this when creating each account), falling back to the email.
+-- Auto-create a profile row whenever an auth user is created. display_name comes from
+-- the user's metadata key "display_name" (set when creating each account), else email.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -125,7 +117,7 @@ create table public.reward_plans (
 );
 
 -- =====================================================================
--- reward_ledger
+-- reward_ledger  (the (user_id, source) unique is added by 002)
 -- =====================================================================
 create table public.reward_ledger (
   id            uuid primary key default gen_random_uuid(),
@@ -140,229 +132,73 @@ create table public.reward_ledger (
   created_at    timestamptz not null default now(),
   constraint reward_ledger_type_chk check (type in ('reward', 'penalty')),
   constraint reward_ledger_status_chk
-    check (status in ('pending', 'in_progress', 'used', 'completed', 'forfeited')),
-  -- A settlement scope yields at most one ledger entry per user (success→reward or
-  -- fail→penalty). This makes settle actions idempotent and dedupes historical imports.
-  -- App code also guards on (user_id, source) before inserting, so this is hardening.
-  constraint reward_ledger_user_source_uniq unique (user_id, source)
+    check (status in ('pending', 'in_progress', 'used', 'completed', 'forfeited'))
 );
 
 -- =====================================================================
--- Row Level Security
--- Everyone authenticated can READ all rows (both users see each other).
--- Writes are restricted to the owner (auth.uid() = user_id), except profiles
--- (own row by id). daily_logs has no UPDATE policy by design.
+-- Row Level Security — read-all for authenticated; write-own. (The settlement/ledger
+-- DELETE policies are added by 003.)
 -- =====================================================================
-
--- profiles ------------------------------------------------------------
 alter table public.profiles enable row level security;
-
 create policy profiles_select on public.profiles
   for select to authenticated using (true);
-
 create policy profiles_update_own on public.profiles
   for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
 
--- tasks ---------------------------------------------------------------
 alter table public.tasks enable row level security;
-
 create policy tasks_select on public.tasks
   for select to authenticated using (true);
-
 create policy tasks_insert_own on public.tasks
   for insert to authenticated with check (auth.uid() = user_id);
-
 create policy tasks_update_own on public.tasks
   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
 create policy tasks_delete_own on public.tasks
   for delete to authenticated using (auth.uid() = user_id);
 
--- daily_logs ----------------------------------------------------------
 alter table public.daily_logs enable row level security;
-
 create policy daily_logs_select on public.daily_logs
   for select to authenticated using (true);
-
 create policy daily_logs_insert_own on public.daily_logs
   for insert to authenticated with check (auth.uid() = user_id);
-
 create policy daily_logs_delete_own on public.daily_logs
   for delete to authenticated using (auth.uid() = user_id);
 
--- weekly_settlements --------------------------------------------------
 alter table public.weekly_settlements enable row level security;
-
 create policy weekly_settlements_select on public.weekly_settlements
   for select to authenticated using (true);
-
 create policy weekly_settlements_insert_own on public.weekly_settlements
   for insert to authenticated with check (auth.uid() = user_id);
-
 create policy weekly_settlements_update_own on public.weekly_settlements
   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy weekly_settlements_delete_own on public.weekly_settlements
-  for delete to authenticated using (auth.uid() = user_id);
-
--- monthly_settlements -------------------------------------------------
 alter table public.monthly_settlements enable row level security;
-
 create policy monthly_settlements_select on public.monthly_settlements
   for select to authenticated using (true);
-
 create policy monthly_settlements_insert_own on public.monthly_settlements
   for insert to authenticated with check (auth.uid() = user_id);
-
 create policy monthly_settlements_update_own on public.monthly_settlements
   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy monthly_settlements_delete_own on public.monthly_settlements
-  for delete to authenticated using (auth.uid() = user_id);
-
--- reward_plans --------------------------------------------------------
 alter table public.reward_plans enable row level security;
-
 create policy reward_plans_select on public.reward_plans
   for select to authenticated using (true);
-
 create policy reward_plans_insert_own on public.reward_plans
   for insert to authenticated with check (auth.uid() = user_id);
-
 create policy reward_plans_update_own on public.reward_plans
   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- reward_ledger -------------------------------------------------------
 alter table public.reward_ledger enable row level security;
-
 create policy reward_ledger_select on public.reward_ledger
   for select to authenticated using (true);
-
 create policy reward_ledger_insert_own on public.reward_ledger
   for insert to authenticated with check (auth.uid() = user_id);
-
 create policy reward_ledger_update_own on public.reward_ledger
   for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy reward_ledger_delete_own on public.reward_ledger
-  for delete to authenticated using (auth.uid() = user_id);
-
 -- =====================================================================
--- Indexes (cheap, helpful even at 2 users)
+-- Indexes
 -- =====================================================================
 create index idx_daily_logs_task_date on public.daily_logs (task_id, log_date);
 create index idx_tasks_user_month     on public.tasks (user_id, year_month);
 create index idx_weekly_user_month    on public.weekly_settlements (user_id, year_month);
 create index idx_ledger_user_status   on public.reward_ledger (user_id, status);
-
--- =====================================================================
--- Periods & Gamify P1 — challenges (see migrations/004_challenges.sql and
--- docs/design/PERIODS_AND_GAMIFY.md). Opt-in 4-week challenges with single-layer
--- (total-target) settlement. A task belongs EITHER to a month (year_month) OR to a
--- challenge (challenge_id) — never both.
--- =====================================================================
-create table public.challenges (
-  id          uuid primary key default gen_random_uuid(),
-  start_date  date not null,
-  weeks       integer not null default 4,
-  initiator   uuid not null references public.profiles (id) on delete cascade,
-  mode        text not null default 'duo',
-  team_reward text,
-  status      text not null default 'active',
-  created_at  timestamptz not null default now(),
-  constraint challenges_weeks_chk  check (weeks >= 1),
-  constraint challenges_mode_chk   check (mode in ('solo', 'duo')),
-  constraint challenges_status_chk check (status in ('active', 'cancelled', 'aborted')),
-  constraint challenges_monday_chk check (extract(isodow from start_date) = 1)
-);
-
-create table public.challenge_members (
-  id                uuid primary key default gen_random_uuid(),
-  challenge_id      uuid not null references public.challenges (id) on delete cascade,
-  user_id           uuid not null references public.profiles (id) on delete cascade,
-  deposit_stake     text,
-  deposit_execution text,
-  result            text,
-  settled_at        timestamptz,
-  edited_at         timestamptz,
-  abort_requested_at timestamptz,
-  created_at        timestamptz not null default now(),
-  constraint challenge_members_result_chk
-    check (result is null or result in ('success', 'failure')),
-  constraint challenge_members_unique unique (challenge_id, user_id)
-);
-
-alter table public.tasks alter column year_month drop not null;
-alter table public.tasks add column challenge_id uuid references public.challenges (id) on delete cascade;
-alter table public.tasks add constraint tasks_scope_chk
-  check ((year_month is not null) <> (challenge_id is not null));
-
-alter table public.challenges enable row level security;
-
-create policy challenges_select on public.challenges
-  for select to authenticated using (true);
-create policy challenges_insert_initiator on public.challenges
-  for insert to authenticated with check (auth.uid() = initiator);
-create policy challenges_update_initiator on public.challenges
-  for update to authenticated using (auth.uid() = initiator) with check (auth.uid() = initiator);
-create policy challenges_delete_initiator on public.challenges
-  for delete to authenticated using (auth.uid() = initiator);
-
-alter table public.challenge_members enable row level security;
-
-create policy challenge_members_select on public.challenge_members
-  for select to authenticated using (true);
-create policy challenge_members_insert_own on public.challenge_members
-  for insert to authenticated with check (auth.uid() = user_id);
-create policy challenge_members_update_own on public.challenge_members
-  for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy challenge_members_delete_own on public.challenge_members
-  for delete to authenticated using (auth.uid() = user_id);
-
-create index idx_challenges_status     on public.challenges (status);
-create index idx_challenge_members_cid on public.challenge_members (challenge_id);
-create index idx_tasks_challenge       on public.tasks (challenge_id);
-
--- =====================================================================
--- Periods & Gamify P2 — coins + 签到 (see migrations/005_coins_checkins.sql). Earned
--- coins are DERIVED (src/data/coins.ts); coin_ledger holds only spends/adjustments.
--- =====================================================================
-create table public.checkin_days (
-  id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null references public.profiles (id) on delete cascade,
-  day        date not null,
-  backfilled boolean not null default false,
-  created_at timestamptz not null default now(),
-  constraint checkin_days_unique unique (user_id, day)
-);
-
-create table public.coin_ledger (
-  id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null references public.profiles (id) on delete cascade,
-  amount     integer not null,
-  reason     text not null,
-  source     text,
-  created_at timestamptz not null default now(),
-  constraint coin_ledger_reason_chk check (reason in ('补签到', 'shop', 'adjust'))
-);
-
-alter table public.checkin_days enable row level security;
-create policy checkin_days_select on public.checkin_days
-  for select to authenticated using (true);
-create policy checkin_days_insert_own on public.checkin_days
-  for insert to authenticated with check (auth.uid() = user_id);
-create policy checkin_days_delete_own on public.checkin_days
-  for delete to authenticated using (auth.uid() = user_id);
-
-alter table public.coin_ledger enable row level security;
-create policy coin_ledger_select on public.coin_ledger
-  for select to authenticated using (true);
-create policy coin_ledger_insert_own on public.coin_ledger
-  for insert to authenticated with check (auth.uid() = user_id);
-create policy coin_ledger_delete_own on public.coin_ledger
-  for delete to authenticated using (auth.uid() = user_id);
-
-create index idx_checkin_days_user on public.checkin_days (user_id, day);
-create index idx_coin_ledger_user  on public.coin_ledger (user_id);
-
-commit;

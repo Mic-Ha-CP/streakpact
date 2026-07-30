@@ -47,7 +47,8 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          year_month: string;
+          year_month: string | null;
+          challenge_id: string | null;
           title: string;
           type: string;
           target_value: number;
@@ -59,7 +60,8 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          year_month: string;
+          year_month?: string | null;
+          challenge_id?: string | null;
           title: string;
           type: string;
           target_value: number;
@@ -71,7 +73,8 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
-          year_month?: string;
+          year_month?: string | null;
+          challenge_id?: string | null;
           title?: string;
           type?: string;
           target_value?: number;
@@ -86,6 +89,13 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "challenges";
             referencedColumns: ["id"];
           },
         ];
@@ -289,6 +299,168 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "reward_ledger_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      challenges: {
+        Row: {
+          id: string;
+          start_date: string;
+          weeks: number;
+          initiator: string;
+          mode: string;
+          team_reward: string | null;
+          status: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          start_date: string;
+          weeks?: number;
+          initiator: string;
+          mode?: string;
+          team_reward?: string | null;
+          status?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          start_date?: string;
+          weeks?: number;
+          initiator?: string;
+          mode?: string;
+          team_reward?: string | null;
+          status?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "challenges_initiator_fkey";
+            columns: ["initiator"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      challenge_members: {
+        Row: {
+          id: string;
+          challenge_id: string;
+          user_id: string;
+          deposit_stake: string | null;
+          deposit_execution: string | null;
+          result: string | null;
+          settled_at: string | null;
+          edited_at: string | null;
+          abort_requested_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          challenge_id: string;
+          user_id: string;
+          deposit_stake?: string | null;
+          deposit_execution?: string | null;
+          result?: string | null;
+          settled_at?: string | null;
+          edited_at?: string | null;
+          abort_requested_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          challenge_id?: string;
+          user_id?: string;
+          deposit_stake?: string | null;
+          deposit_execution?: string | null;
+          result?: string | null;
+          settled_at?: string | null;
+          edited_at?: string | null;
+          abort_requested_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "challenge_members_challenge_id_fkey";
+            columns: ["challenge_id"];
+            isOneToOne: false;
+            referencedRelation: "challenges";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "challenge_members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      checkin_days: {
+        Row: {
+          id: string;
+          user_id: string;
+          day: string;
+          backfilled: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          day: string;
+          backfilled?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          day?: string;
+          backfilled?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "checkin_days_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      coin_ledger: {
+        Row: {
+          id: string;
+          user_id: string;
+          amount: number;
+          reason: string;
+          source: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          amount: number;
+          reason: string;
+          source?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          amount?: number;
+          reason?: string;
+          source?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "coin_ledger_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";

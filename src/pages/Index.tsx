@@ -5,11 +5,12 @@ import { useTasks } from "@/hooks/useTasks";
 import { useLogs } from "@/hooks/useLogs";
 import { useAuth } from "@/hooks/useAuth";
 import { useSettlements, type MonthlySettlement } from "@/hooks/useSettlements";
-import { monthOfWeek, shiftMonth, todayISO } from "@/lib/dates";
+import { shiftMonth, todayISO } from "@/lib/dates";
 import { PersonChip } from "@/components/PersonChip";
 import { ProgressBar } from "@/components/ProgressBar";
 import { WeekBadge } from "@/components/WeekBadge";
-import { RewardGapBanner } from "@/components/RewardGapBanner";
+import { ChallengeHome } from "@/components/challenge/ChallengeHome";
+import { CoinCheckinStrip } from "@/components/challenge/CoinCheckinStrip";
 import {
   WEEK_LABELS,
   dayToWeek,
@@ -148,7 +149,7 @@ const UserPanel = ({
       )}
 
       {/* Week grid */}
-      <div className="px-5 pb-4">
+      <div className="px-5 pt-4 pb-4">
         <div className="flex gap-2 justify-between">
           {WEEK_LABELS.filter((w) => weeks.find((x) => x.label === w)).map((w) => {
             const status = weekStatusForUser(myTasks, logs, currentMonth, w, today);
@@ -234,13 +235,15 @@ const UserPanel = ({
 
 const Index = () => {
   const today = todayISO();
-  const accMonth = monthOfWeek(today); // the real current accountability month
+  // The old monthly model was retired after 2026-06 (its last real month; July 2026
+  // onward was never used). This board is history-only now, capped at 2026-06.
+  const legacyMax = "2026-06";
   const [searchParams] = useSearchParams();
   const requested = searchParams.get("month");
   const [viewMonth, setViewMonth] = useState(
-    requested && /^\d{4}-\d{2}$/.test(requested) && requested <= accMonth ? requested : accMonth,
+    requested && /^\d{4}-\d{2}$/.test(requested) && requested <= legacyMax ? requested : legacyMax,
   );
-  const isPastMonth = viewMonth < accMonth;
+  const isPastMonth = true; // legacy board only ever shows historical months now
 
   const { tasks } = useTasks(viewMonth);
   const { logs } = useLogs(viewMonth);
@@ -281,14 +284,18 @@ const Index = () => {
 
   return (
     <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
-      <RewardGapBanner />
+      <CoinCheckinStrip />
+      <ChallengeHome />
 
+      <details className="bg-card rounded-2xl border border-border/60 shadow-card overflow-hidden">
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-bold text-muted-foreground flex items-center gap-2 hover:bg-muted/40">
+          <History className="w-4 h-4" /> 历史月度战况（旧模型 · 已被挑战制取代）
+        </summary>
+        <div className="p-4 space-y-5">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">本月战况</h1>
-          <p className="text-sm text-muted-foreground">
-            {isPastMonth ? "查看并结算历史月份" : `今天 ${today} · 一起加油 💪`}
-          </p>
+          <p className="text-sm text-muted-foreground">查看并结算历史月份（≤ 2026-06）</p>
         </div>
         <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
           <Sparkles className="w-4 h-4 text-secondary" />
@@ -296,7 +303,7 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Month switcher — past unlimited, capped at the current accountability month. */}
+      {/* Month switcher — history only, capped at 2026-06 (last real old-model month). */}
       <div className="bg-card rounded-2xl border border-border/60 p-3 flex items-center justify-between shadow-card max-w-xs mx-auto">
         <button
           onClick={() => setViewMonth((m) => shiftMonth(m, -1))}
@@ -317,7 +324,7 @@ const Index = () => {
         </div>
         <button
           onClick={() => setViewMonth((m) => shiftMonth(m, 1))}
-          disabled={viewMonth >= accMonth}
+          disabled={viewMonth >= legacyMax}
           className="p-2 rounded-xl hover:bg-muted disabled:opacity-30"
           aria-label="下一月"
         >
@@ -358,6 +365,8 @@ const Index = () => {
         <Sparkles className="w-4 h-4 text-secondary shrink-0 mt-0.5" />
         <span>每周所有任务达标 = 周成功 · 月内 ≥ 3 周成功 = 本月通关</span>
       </div>
+        </div>
+      </details>
 
       {/* Settle preview — shows exactly what will be written before committing. */}
       <AlertDialog open={settleTarget !== null} onOpenChange={(o) => !o && setSettleTarget(null)}>

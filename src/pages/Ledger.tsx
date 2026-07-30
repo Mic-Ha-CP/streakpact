@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUnsettledPeriods } from "@/hooks/useUnsettledPeriods";
 import type { RewardStatus, RewardType, UserId } from "@/data/models";
 import { PersonChip } from "@/components/PersonChip";
+import { CoinSection } from "@/components/challenge/CoinSection";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -88,6 +89,9 @@ const Ledger = () => {
         <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">奖惩账本</h1>
         <p className="text-sm text-muted-foreground">所有已结算的奖励与惩罚</p>
       </div>
+
+      {/* Coins — a distinct section, deliberately kept separate from the reward rows. */}
+      <CoinSection />
 
       {/* Unsettled-period entry point → jumps the dashboard to the oldest such month */}
       {periods.length > 0 && (

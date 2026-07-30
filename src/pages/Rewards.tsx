@@ -3,7 +3,6 @@ import { useRewardPlans } from "@/hooks/useRewardPlans";
 import { useAuth } from "@/hooks/useAuth";
 import type { UserId } from "@/data/models";
 import { EditableText } from "@/components/EditableText";
-import { RewardGapBanner } from "@/components/RewardGapBanner";
 import { Sparkles, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getWeeksInMonth, WEEK_LABELS, type WeekLabel } from "@/data/calc";
@@ -43,8 +42,6 @@ const Rewards = () => {
 
   return (
     <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
-      <RewardGapBanner />
-
       <div>
         <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">奖惩设置</h1>
         <p className="text-sm text-muted-foreground">每月初约定每周与月度的奖励 / 惩罚</p>
