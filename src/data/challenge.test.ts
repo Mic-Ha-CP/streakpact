@@ -170,11 +170,12 @@ describe("edit windows (D7 / D10)", () => {
   });
 });
 
-describe("auto-void (D9)", () => {
-  it("is due once the start day arrives with the partner not joined (memberCount < 2)", () => {
-    expect(autoVoidDue(START, "2026-01-30", 1)).toBe(false); // before start — partner may still join
-    expect(autoVoidDue(START, START, 1)).toBe(true); // start day, only initiator
-    expect(autoVoidDue(START, START, 2)).toBe(false); // both joined
+describe("auto-void (D9, grace day)", () => {
+  it("only voids from the day AFTER start (grace for a timezone-behind partner)", () => {
+    expect(autoVoidDue(START, "2026-01-30", 1)).toBe(false); // before start
+    expect(autoVoidDue(START, START, 1)).toBe(false); // start day itself — grace, partner keeps their day
+    expect(autoVoidDue(START, addDays(START, 1), 1)).toBe(true); // day after start, only initiator
+    expect(autoVoidDue(START, addDays(START, 1), 2)).toBe(false); // both joined
     expect(autoVoidDue(START, "2026-02-10", 1)).toBe(true); // running, partner never joined
   });
 });

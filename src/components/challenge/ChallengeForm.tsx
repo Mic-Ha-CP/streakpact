@@ -15,7 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { CheckSquare, Timer, Plus, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, NO_SPIN } from "@/lib/utils";
 import { toast } from "sonner";
 import { unitForType, unitLabel, type TaskType } from "@/data/models";
 import type { ChallengeTaskInput, DepositInput } from "@/hooks/useChallenge";
@@ -25,10 +25,11 @@ interface Row {
   id?: string; // existing task (edit mode)
   title: string;
   type: TaskType;
-  target: number;
+  target: number | null; // null = empty field (no auto-fill); validated on submit
   hourMode?: boolean; // timer only — input is in hours, ×60 to minutes on save
   logCount?: number; // existing logs, for the delete warning
 }
+
 
 export interface ChallengeFormResult {
   tasks: ChallengeTaskInput[];
@@ -80,40 +81,45 @@ export const ChallengeForm = ({
   const [rows, setRows] = useState<Row[]>(
     initialTasks && initialTasks.length > 0
       ? initialTasks.map((t) => ({ ...t, key: newKey() }))
-      : [{ key: newKey(), title: "", type: "count", target: 20 }],
+      : [{ key: newKey(), title: "", type: "count", target: null }],
   );
   const [stake, setStake] = useState(initialDeposit?.stake ?? "");
   const [execution, setExecution] = useState(initialDeposit?.execution ?? "");
   const [teamReward, setTeamReward] = useState(initialTeamReward);
   // Deposit is required wherever it's shown (create/join, or the free pre-start edit).
   const showDeposit = mode !== "edit" || editFree;
+  const [showErrors, setShowErrors] = useState(false);
+  // A titled task whose total target is empty/invalid (surfaced inline after a submit).
+  const targetInvalid = (r: Row) => r.title.trim() !== "" && (r.target === null || r.target < 1);
 
   const patch = (key: string, p: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...p } : r)));
   const addRow = () =>
-    setRows((rs) => [...rs, { key: newKey(), title: "", type: "count", target: 20 }]);
+    setRows((rs) => [...rs, { key: newKey(), title: "", type: "count", target: null }]);
   const removeRow = (key: string) => setRows((rs) => rs.filter((r) => r.key !== key));
 
   const submit = () => {
-    const kept = rows.filter((r) => r.title.trim() !== "" && r.target >= 1);
-    if (kept.length === 0) {
+    setShowErrors(true);
+    const named = rows.filter((r) => r.title.trim() !== "");
+    if (named.length === 0) {
       toast.error("至少保留 1 个有效任务");
       return;
     }
+    if (named.some(targetInvalid)) return; // inline "请填写总量目标" shown under the field
     if (showDeposit && (stake.trim() === "" || execution.trim() === "")) {
       toast.error("请填写押注声明（押什么 + 失败如何执行）");
       return;
     }
-    const tasks: ChallengeTaskInput[] = kept.map((r) => ({
+    const tasks: ChallengeTaskInput[] = named.map((r) => ({
       id: r.id,
       title: r.title.trim(),
       type: r.type,
       // 小时 input is a convenience — stored as minutes.
-      target: r.type === "timer" && r.hourMode ? r.target * 60 : r.target,
+      target: r.type === "timer" && r.hourMode ? (r.target as number) * 60 : (r.target as number),
       unit: unitForType(r.type),
     }));
     const initialIds = (initialTasks ?? []).map((t) => t.id).filter(Boolean) as string[];
-    const keptIds = new Set(kept.map((r) => r.id).filter(Boolean) as string[]);
+    const keptIds = new Set(named.map((r) => r.id).filter(Boolean) as string[]);
     const deleteIds = initialIds.filter((id) => !keptIds.has(id));
     onSubmit({ tasks, deleteIds, deposit: { stake, execution }, teamReward });
   };
@@ -245,11 +251,23 @@ export const ChallengeForm = ({
                   </Label>
                   <Input
                     type="number"
-                    min={1}
-                    value={r.target}
-                    onChange={(e) => patch(r.key, { target: Math.max(1, +e.target.value || 1) })}
-                    className="rounded-xl tabular-nums font-bold"
+                    inputMode="numeric"
+                    value={r.target ?? ""}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) =>
+                      patch(r.key, {
+                        target: e.target.value === "" ? null : Math.floor(Number(e.target.value)),
+                      })
+                    }
+                    className={cn(
+                      "rounded-xl tabular-nums font-bold",
+                      NO_SPIN,
+                      showErrors && targetInvalid(r) && "border-danger",
+                    )}
                   />
+                  {showErrors && targetInvalid(r) && (
+                    <p className="text-[11px] text-danger mt-1">请填写总量目标</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-[10px] uppercase text-muted-foreground tracking-wider">

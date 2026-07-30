@@ -16,7 +16,7 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronLeft, ChevronRight, History, Timer, X, Trash2, Flag } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, NO_SPIN } from "@/lib/utils";
 import { toast } from "sonner";
 
 const strMin = (a: string, b: string) => (a < b ? a : b);
@@ -90,7 +90,8 @@ const TimerCard = ({
             min={0}
             value={pending}
             placeholder="本次时长"
-            className="rounded-xl h-11 text-lg font-bold tabular-nums"
+            className={cn("rounded-xl h-11 text-lg font-bold tabular-nums", NO_SPIN)}
+            onFocus={(e) => e.currentTarget.select()}
             onChange={(e) => setPending(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") confirm();

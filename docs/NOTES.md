@@ -108,6 +108,28 @@ Run `004_challenges.sql` then `005_coins_checkins.sql` in the Supabase SQL Edito
 additive; existing data is untouched. `002_ledger_unique` is optional and may already be skipped on
 prod — the app guards `(user_id, source)` in code regardless.
 
+### Backups (free tier has NO scheduled backups — do this manually after each challenge ends)
+Dumps prod's `public` schema (all app data) to a timestamped file **outside the repo**. The dump holds
+**real data — NEVER commit it** (the `streakpact-backups` dir lives outside the repo for that reason).
+Prereq: the local Supabase stack running (`supabase start`) so the `supabase_db_*` container (with
+`pg_dump`) exists. From the repo root, in Git Bash:
+
+```bash
+DB=$(docker ps --format '{{.Names}}' | grep supabase_db | head -1)
+DBURL=$(grep '^DATABASE_URL=' .env | sed -E 's/^DATABASE_URL=//; s/^"//; s/"$//' | tr -d '\r')
+mkdir -p /c/Users/Admin/Documents/Self_Learning/streakpact-backups
+docker exec -e PGCONN="$DBURL" "$DB" sh -c 'pg_dump "$PGCONN" --schema=public --no-owner --no-privileges' \
+  > "/c/Users/Admin/Documents/Self_Learning/streakpact-backups/streakpact-prod-public-$(date +%Y%m%d-%H%M%S).sql"
+```
+
+- `DATABASE_URL` (in `.env`, git-ignored) is the direct 5432 connection — pg_dump needs a session
+  connection, not the transaction pooler (6543).
+- Auth accounts (CP/JX in `auth.users`) are Supabase-managed and not in this dump; they persist unless
+  the project is deleted, so the `public` data + the two accounts fully reconstruct state.
+- **Restore** (recovery): the dump is plain SQL (CREATE TABLE + COPY). Restore into a fresh/empty
+  project's `public` schema with `psql "$DBURL" < <backup-file>`. Test on a scratch DB before ever
+  running it against a live one.
+
 ## Bugs / issues
 (add as you go)
 

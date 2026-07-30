@@ -39,7 +39,7 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, NO_SPIN } from "@/lib/utils";
 import { toast } from "sonner";
 
 const strMin = (a: string, b: string) => (a < b ? a : b);
@@ -105,7 +105,7 @@ const CheckinControls = ({
   onAddTimer: (taskId: string, minutes: number) => void;
   onDeleteLog: (id: string) => void;
 }) => {
-  const [minutes, setMinutes] = useState(30);
+  const [minutes, setMinutes] = useState("");
   if (task.type === "count") {
     const done = logs.some((l) => l.taskId === task.id && l.date === date && l.value > 0);
     return (
@@ -123,18 +123,30 @@ const CheckinControls = ({
     );
   }
   const entries = logs.filter((l) => l.taskId === task.id && l.date === date && l.value > 0);
+  const mins = minutes === "" ? 0 : Math.floor(Number(minutes));
+  const canAdd = mins >= 1;
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
         <Input
           type="number"
-          min={1}
+          inputMode="numeric"
+          placeholder="分钟"
           value={minutes}
-          onChange={(e) => setMinutes(Math.max(1, +e.target.value || 1))}
-          className="rounded-xl h-9 w-24 tabular-nums"
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => setMinutes(e.target.value)}
+          className={cn("rounded-xl h-9 w-24 tabular-nums", NO_SPIN)}
         />
         <span className="text-xs text-muted-foreground">分钟</span>
-        <Button size="sm" className="rounded-xl h-9" onClick={() => onAddTimer(task.id, minutes)}>
+        <Button
+          size="sm"
+          className="rounded-xl h-9"
+          disabled={!canAdd}
+          onClick={() => {
+            onAddTimer(task.id, mins);
+            setMinutes("");
+          }}
+        >
           记录
         </Button>
       </div>
@@ -311,7 +323,8 @@ export const ChallengeHome = () => {
         <div className="space-y-1">
           <h2 className="font-display font-extrabold text-xl">当前没有进行中的挑战</h2>
           <p className="text-sm text-muted-foreground">
-            休眠中 · 零打卡义务。任一方都可发起一个 4 周挑战（从下周一 {start} 开始）。
+            休眠中 · 零打卡义务。任一方都可发起一个 4 周挑战 —— 最早{" "}
+            <b className="text-foreground">{start}</b>（周一）开始。歇一阵再来也没问题。
           </p>
         </div>
         <Button onClick={() => setFormMode("create")} className="rounded-xl">
@@ -331,6 +344,9 @@ export const ChallengeHome = () => {
   const canEditMid =
     c.iJoined && !ended && midEditOpen(start, ch.weeks, today, c.myMember?.editedAt ?? null);
   const canEdit = canEditFree || canEditMid;
+  // Earliest a NEXT challenge could start (a Monday). Surfaces the settle→start timing
+  // so a rest week is a choice, not a surprise (challenge-to-challenge gap, ROADMAP).
+  const nextStart = nextMondayOnOrAfter(today);
 
   // check-in date (default = today, clamped into [start, min(end, today)])
   const maxCheckin = ended ? end : strMin(today, end);
@@ -607,6 +623,10 @@ export const ChallengeHome = () => {
           <p className="text-sm text-muted-foreground">
             结算会锁定你的结果。团队奖惩在双方都结算后入账。
           </p>
+          <p className="text-xs text-muted-foreground">
+            本期已结束 · 双方结算后可于 <b className="text-foreground">{nextStart}</b>（周一）立即开启下一期。
+            晚于这个周一才结算，最早开始就顺延到再下一个周一（会空出一段）。
+          </p>
           <Button onClick={() => setSettleOpen(true)} className="rounded-xl">
             结算我的挑战
           </Button>
@@ -622,6 +642,9 @@ export const ChallengeHome = () => {
           <div className="text-sm text-muted-foreground">
             你的结果：<ResultPill result={s.myResult} />
           </div>
+          <p className="text-xs text-muted-foreground">
+            对方结算后即可于 <b className="text-foreground">{nextStart}</b>（周一）开启下一期。
+          </p>
           <UnsettleButton onConfirm={() => doUnsettle()} />
         </div>
       );
@@ -649,7 +672,10 @@ export const ChallengeHome = () => {
               : "双方都通关（本期未设团队奖励）。"
             : "失败方的押注惩罚已按各自声明记入账本，待手动执行。"}
         </p>
-        <div className="flex flex-wrap items-center gap-2 pt-1">
+        <p className="text-xs text-muted-foreground pt-1">
+          下一期最早可于 <b className="text-foreground">{nextStart}</b>（周一）开始。
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" className="rounded-xl" onClick={() => setFormMode("create")}>
             开启下一期挑战
           </Button>

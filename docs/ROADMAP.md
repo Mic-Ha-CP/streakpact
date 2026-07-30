@@ -297,6 +297,21 @@ P1** — deferred until coin values are calibrated from the first real challenge
       to a single ended-unsettled challenge (the two-active seed was itself the orphan).
 - [x] **撤销结算 no time limit** made explicit in the design doc (D2).
 
+### Rule interaction: challenge-to-challenge timing (surfaced 2026-07-31 — intentional, do NOT "fix")
+A challenge ends Sunday; settlement opens Monday; a new challenge must start on a **Monday** with both
+sides settled. So **zero gap happens only if both settle on that first Monday.** Settle on Tuesday and the
+earliest next start is the *following* Monday — an accidental **~6-day dead zone**. Deliberately **not**
+changed (Monday alignment + both-settled rule both stay). Instead the gap is made **visible**: the
+ended / waiting / settled views and the dormant empty state all show the concrete earliest start date
+(`nextMondayOnOrAfter(today)`), and the 开启下一期 CTA sits on the settled view. A rest week is now an
+informed choice, not a surprise. Future-me: this is by design — don't collapse the Monday alignment.
+
+### Timezone (D9 grace day, 2026-07-31)
+"today" is device-local everywhere (`todayISO`). Check-in / 签到 / streak use each user's local date =
+fair (intended). Shared boundaries are protected by span-bounded 补签 (end) or are per-user (mid-edit),
+except **auto-void**, which now has a **grace day** (`daysBetween(start, today) >= 1`) so a timezone-behind
+partner keeps their start day; residual ≤~7h edge accepted (see design doc D9). No timezone storage.
+
 > **Note:** the two sections below (**Rewards history view**, **Ledger polish**) predate this redesign;
 > revisit their assumptions (they reference weekly/monthly `reward_plans`) once P1 lands.
 

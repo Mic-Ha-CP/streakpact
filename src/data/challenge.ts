@@ -198,10 +198,15 @@ export function midEditOpen(
 }
 
 /**
- * A duo challenge auto-voids (D9) once its start day arrives and the partner never
- * joined (only the initiator has a member row → memberCount < 2). Detected on load;
- * the initiator's client writes status='cancelled' and both UIs derive dormant.
+ * A duo challenge auto-voids (D9) once its start day has PASSED and the partner never
+ * joined (only the initiator has a member row → memberCount < 2). Detected on load; the
+ * initiator's client writes status='cancelled' and both UIs derive dormant.
+ *
+ * Grace day (timezone fairness): we require the day AFTER start (`daysBetween >= 1`),
+ * not `today >= start`, so a timezone-behind partner still gets essentially their whole
+ * start day to join. The initiator evaluates on their own device clock, so a residual
+ * ≤~7h edge remains for the worst sub-case — accepted for a 2-user app (see D9 note).
  */
 export function autoVoidDue(startDate: string, today: string, memberCount: number): boolean {
-  return today >= startDate && memberCount < 2;
+  return daysBetween(startDate, today) >= 1 && memberCount < 2;
 }
