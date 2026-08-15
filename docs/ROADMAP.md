@@ -274,22 +274,13 @@ one dark block redefining the brand token set (`src/index.css`, contract documen
 theme is a single reviewed variable block — the foundation the future ~500 premium tier needs. The
 shipped **sakura is v1**: a correct, complete *hue swap*, not yet a designed skin. Visual refinement is
 deferred to the premium tier. Priority recommendations for v2 / premium authoring:
-1. **Cohesive surface tinting, not just an accent swap.** v1 only moves the brand hue (primary / accent
-   / ring / cp / gradient); surfaces, muted, and borders stay neutral gray, so it reads as "teal app
-   with pink buttons." A premium theme should warm the whole palette — tint `--background` / `--card` /
-   `--muted` / `--border` subtly toward the theme hue (e.g. a warm off-white with a pink undertone) so
-   the skin feels designed. The mechanism already supports overriding any token; v1 just declined to.
-2. **Hand-tuned dark variant + a contrast/accessibility pass.** v1's dark sakura is a mechanical
-   brightness bump. Premium themes need per-mode tuning: verify WCAG AA for text on tinted surfaces and
-   for `--primary-foreground` on the accent, drop saturation so the accent doesn't vibrate on a dark
-   ground, and confirm the person accents (CP-theme vs JX-slate) stay distinguishable. Bundle a contrast
-   check into theme authoring.
-3. **Richer, theme-specific surface — gradients, shadows, maybe a secondary accent.** The gradient
-   (`--gradient-warm/cool/canvas`) and shadow tokens are still brand-generic. A premium theme should
-   ship its own gradient ramps and optionally tinted shadows / a secondary decorative accent, so themes
-   feel distinct beyond a single hue — the differentiation that justifies the ~$300–500 (3000–5000 金币)
-   premium price. Consider extending the themeable set with a couple of decoration tokens + a canonical
-   theme-authoring checklist so each of the 500 themes ships as one reviewed, accessible block.
+1. **降低大面积色块的主题参与度。** 页面底、信息卡片底改暖中性(sakura:奶油白底 / 纯白卡),brand 粉
+   收缩到 CTA、active、小 accent。这一条做完,"刷漆感"消失一大半。(即让主题块覆盖 `--background` /
+   `--card` 等 surface token,把品牌色留给按钮 / 高亮,而非铺满整页。)
+2. **给语义色加主题变体。** sakura 下:success → sage 绿,danger → 橘红。主题契约从"brand token 块"
+   升级为"brand + 语义微调块"(每个主题额外重定义 `--success*` / `--danger*` 等语义色)。
+3. **Dark mode 独立调色。** 暖黑底 + 降饱和粉,不是 light 版的反色 —— dark 块单独手调(暖色调背景 +
+   降低饱和度的粉),而非机械提亮。配 WCAG AA 对比度检查纳入主题创作流程。
 
 ## Challenge history view (deferred — post-first-challenge)
 - [ ] After a challenge settles it disappears — no way to look back at it (goals, completion, both
