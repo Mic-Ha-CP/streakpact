@@ -26,9 +26,26 @@ export function checkinStreak(days: string[], today: string): number {
 }
 
 /**
+ * Coins from one timer TASK's minutes on a SINGLE day (D12 three-tier formula). The day's
+ * total minutes M are split across tiers by minute-band (prevUpto, uptoMinutes]; each tier
+ * awards ceil(portion / blockMinutes) coins (a started block counts), capped at the tier's
+ * maxCoins. The tier maxes sum to 22, so this is inherently ≤ 22 per task per day.
+ */
+export function coinsForTimerDay(dayMinutes: number): number {
+  let coins = 0;
+  let lower = 0;
+  for (const tier of COINS.timerTiers) {
+    const portion = Math.max(0, Math.min(dayMinutes, tier.uptoMinutes) - lower);
+    if (portion > 0) coins += Math.min(Math.ceil(portion / tier.blockMinutes), tier.maxCoins);
+    lower = tier.uptoMinutes;
+  }
+  return coins;
+}
+
+/**
  * Coins earned from one task's logs:
  *   count → COINS.countPerCheckin per DISTINCT checked-in day (dup same-day rows = 1);
- *   timer → per day, floor(min(dayMinutes, cap) / block) * perBlock, summed over days.
+ *   timer → per day, the D12 three-tier formula (coinsForTimerDay), summed over days.
  * `backfilled` is irrelevant — a backfilled log counts exactly like a live one.
  */
 export function coinsFromTaskLogs(task: Task, logs: DailyLog[]): number {
@@ -40,10 +57,7 @@ export function coinsFromTaskLogs(task: Task, logs: DailyLog[]): number {
   const perDay = new Map<string, number>();
   for (const l of taskLogs) perDay.set(l.date, (perDay.get(l.date) ?? 0) + l.value);
   let coins = 0;
-  for (const mins of perDay.values()) {
-    const capped = Math.min(mins, COINS.timerDailyCapMinutes);
-    coins += Math.floor(capped / COINS.timerBlockMinutes) * COINS.timerPerBlock;
-  }
+  for (const mins of perDay.values()) coins += coinsForTimerDay(mins);
   return coins;
 }
 

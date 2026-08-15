@@ -244,12 +244,52 @@ P1** — deferred until coin values are calibrated from the first real challenge
 - **Local dev env** (Supabase CLI + Docker) set up — see docs/NOTES.md. Migrations 001→005 replay via
   `db reset`; seed users cp@/jx@test.local. All P1/P2 verified locally before this handoff.
 
-### P3 — Shop  · D3 — deferred (lands mid-first-challenge, once real balances exist to spend)
-- [ ] `shop_items` (**unified catalog + unified price**, generic + personal items mixed) +
-      `shop_redemptions`.
-- [ ] Buy = spend coins (coin_ledger debit); real-world coupons write a reward into `reward_ledger`
-      (manual redeem, optional expiry). **Anchor prices (D5):** 奶茶券 300 · 外卖券 400 · 大额 ~1200
-      (签到补签 20 handled in P2). Virtual items (titles/frames) low priority.
+### P3 — Shop  · D3 / D12 — ✅ BUILT (local-verified; pending prod apply + smoke test)
+Pricing + timer formula finalized in the 2026-08-14 grilling → **DECISIONS.md D12** (this is the
+source of truth for prices/tiers/lifecycle). Migration `006_shop.sql`.
+- [x] `shop_items` (**unified catalog + unified price**, generic + personal mixed) + `shop_redemptions`
+      (+ RLS + indexes). Seeded v1 catalog. `coin_ledger.reason` already allows `'shop'` (no delta).
+- [x] **Buy flow (D12):** spend via `coin_ledger` (negative, reason `'shop'`); **现实兑换** items
+      (奶茶 120 / 外卖 400 / 大额 1200, 大额 repeatable) write a `reward_ledger` pending entry (buyer
+      self-marks used — reuses the existing Ledger status machine); **虚拟** items (称号 50–80 / Theme
+      300) activate immediately. Non-atomic writes tied by a shared `source` token `shop:<id>`.
+- [x] **Virtual ownership** derived from `shop_redemptions` + `equipped` flag (one active 称号 + one
+      active theme; equip clears same-kind siblings in code). Item fields snapshotted onto each
+      redemption (D12 "value changes affect future only"). Shop page manages equip/switch.
+- [x] **Timer earning reworked (D12):** table-driven 3-tier (≤60 /5 max12, ≤120 /10 max6, ≤180 /15
+      max4), ceil-per-block, **per-task-per-day cap 22** (NOT a daily total — two maxed timer tasks =
+      44). Replaces the flat 2c/10min + 60-cap. 13 boundary unit tests locked.
+- [x] **Rules page (金币规则说明):** earning rates + timer tiers + price list + exchange rule (×10) +
+      failure outcome + no-expiry/no-refund. Linked from Shop + Ledger. Doubles as JX's consent doc.
+- [x] **补签(签到) stays the 周历 flow** (contextual date-picker, not a shop button) — listed on the
+      rules page only. **打卡补签** stays free.
+- [x] **Fix (pre-flight orphan flag):** `useCoins` task/win earning now **scoped to non-cancelled /
+      non-aborted challenges** — cancelled-challenge orphan tasks can no longer leak coins.
+      **Verified (g):** 打卡 earning is structurally challenge-gated (challenge tasks only); 签到 stays
+      year-round by design.
+
+### Sakura v2 / premium theme design spec (deferred — post-P3)
+The **token architecture** is the real deliverable of the P3 theme work: a theme = one light block +
+one dark block redefining the brand token set (`src/index.css`, contract documented there), so a new
+theme is a single reviewed variable block — the foundation the future ~500 premium tier needs. The
+shipped **sakura is v1**: a correct, complete *hue swap*, not yet a designed skin. Visual refinement is
+deferred to the premium tier. Priority recommendations for v2 / premium authoring:
+1. **Cohesive surface tinting, not just an accent swap.** v1 only moves the brand hue (primary / accent
+   / ring / cp / gradient); surfaces, muted, and borders stay neutral gray, so it reads as "teal app
+   with pink buttons." A premium theme should warm the whole palette — tint `--background` / `--card` /
+   `--muted` / `--border` subtly toward the theme hue (e.g. a warm off-white with a pink undertone) so
+   the skin feels designed. The mechanism already supports overriding any token; v1 just declined to.
+2. **Hand-tuned dark variant + a contrast/accessibility pass.** v1's dark sakura is a mechanical
+   brightness bump. Premium themes need per-mode tuning: verify WCAG AA for text on tinted surfaces and
+   for `--primary-foreground` on the accent, drop saturation so the accent doesn't vibrate on a dark
+   ground, and confirm the person accents (CP-theme vs JX-slate) stay distinguishable. Bundle a contrast
+   check into theme authoring.
+3. **Richer, theme-specific surface — gradients, shadows, maybe a secondary accent.** The gradient
+   (`--gradient-warm/cool/canvas`) and shadow tokens are still brand-generic. A premium theme should
+   ship its own gradient ramps and optionally tinted shadows / a secondary decorative accent, so themes
+   feel distinct beyond a single hue — the differentiation that justifies the ~$300–500 (3000–5000 金币)
+   premium price. Consider extending the themeable set with a couple of decoration tokens + a canonical
+   theme-authoring checklist so each of the 500 themes ships as one reviewed, accessible block.
 
 ## Challenge history view (deferred — post-first-challenge)
 - [ ] After a challenge settles it disappears — no way to look back at it (goals, completion, both

@@ -107,3 +107,62 @@ All decisions below are LOCKED. Do not change without explicit user approval.
 - No real personal data in committed code
 - Seed data in code uses generic placeholders only
 - Real data lives exclusively in Supabase
+
+## D12 · P3 商城定版 (2026-08-14 grilling 定稿)
+P3 shop pricing + the timer-earning rework, finalized in a design-grilling session over the
+first challenge's real coin data. Supersedes the D5 *starter* numbers for the timer formula and
+adds the商城 v1 catalog + exchange rule. Everything below is LOCKED.
+
+### 定价表 v1
+Exchange rule: **现实兑换类 = 真实价 × 10**（虚拟物按投入定价，无 $ 锚点）。统一目录、两人同价 (D3)。
+
+| 商品 | 价格 | 类型 | 备注 |
+|---|---|---|---|
+| 补签(签到) | 20 | — | 只修签到记录，对挑战结果零影响。**仍走周历补签流程**（非商城按钮）— 商城/规则页只列出说明 |
+| 称号 ×2–3 | 50–80 | 虚拟 | 即买即生效（equip） |
+| 奶茶券 | 120 | 现实兑换 | 单款大杯，$12×10 |
+| Theme ×1 | 300 | 虚拟 | 未来高设计款可上浮 ~500 |
+| 外卖券 | 400 | 现实兑换 | ≈ $40 |
+| 大额消费额度 | 1200 | 现实兑换 | = $120；**可重复购买**，线下合并兑现 |
+
+### 时长打卡金币公式（取代 D5 的 2c/10min + 60min 封顶）
+每日累计 M 分钟，**表驱动三段、每段 ceil（起了一个 block 就算满）**，**单任务单日封顶 22 金币**：
+- **0–60 min**：每 5 min = 1 金币（该段上限 12）
+- **60–120 min**：每 10 min = 1 金币（该段上限 6）
+- **120–180 min**：每 15 min = 1 金币（该段上限 4）
+- 边界锚点（已验证并锁定为单元测试）：M=1→1, 4→1, 5→1, 6→2, 59→12, 60→12, 61→13, 119→18,
+  120→18, 121→19, 179→22, 180→22, 240→22。
+
+> **封顶是「单任务·单日」，不是每日总额。** 两个时长任务当天都打满 = 各自 22 金币（共 44）——
+> 这是真实投入，两个任务**不共享一个池子**。勿把 22c 误读为一天的上限。（tunables 全在
+> `src/data/coinRules.ts`；纯函数在 `src/data/coins.ts`。）
+
+### 生命周期规则
+- **签到全年可赚**；次数/时长**打卡仅在挑战进行中可赚**（打卡金币只来自挑战任务，结构上天然受限于
+  挑战存在期）。
+- **余额跨挑战保留**，任何时候可花。
+- **挑战失败** = 押注惩罚执行 + **保留已赚余额** + **无 500 通关奖**。
+- **无追溯调整**：数值变更只影响未来。
+  - ⚠ **已知取舍（accepted）**：金币是**派生模型**（`earnedCoins` 实时重算历史日志），所以改公式后
+    旧日志会按**新公式**重算——严格说与"只影响未来"相悖。D12 的"无追溯"是**意图层面**的约定
+    （不手动回改账目），派生模型重算旧日志是**明知并接受**的取舍（换来 undo/补签/撤销结算自动
+    自洽）。首期数值本就预期一期后调，可接受。
+
+### 购买流程
+买 → 扣币（`coin_ledger` 负数、reason `'shop'`）→ 现实兑换类生成 `reward_ledger` 待用条目
+（pending，买家自行标记 used，复用现有账本状态机）；虚拟物（称号/theme）**即时生效**（持有 +
+equipped 状态）。三次写入**非原子**（无跨调用事务），以共享 `source` token (`shop:<id>`) 串联，
+供人工对账——2 人信任模型下沿用 `backfillCheckin` 同款取舍。**无有效期、无退款**：仅作规则页文字，
+**不在代码里强制**。
+
+### 明确排除/延后（记录以免再议）
+- 头像收藏系统 → 仅当虚拟物真的产生购买后再考虑。
+- Deposit 审计日志（trigger + append-only）→ 出现第一次真实纠错需求时再做。
+- 工具类道具（如自动补签卡）→ **永久排除**。
+- 审批流 UI → 砍掉（买家自主，无需对方批准）。
+
+### 虚拟物持有 schema（选型记录）
+持有 = 从 `shop_redemptions` **派生**（有该 item 的 redemption 行即拥有），`equipped` 布尔标记当前
+生效的称号/theme（各类型仅一个 active，由 equip mutation 客户端保证：先清同类再置位——与全 app 的
+"客户端约束 + RLS 只管归属"一致，**不加**partial unique index）。redemption 行**快照** item 的
+key/name/kind/price/payload，使"数值变更只影响未来"字面成立（历史购买记录当时所付，不随目录改价）。

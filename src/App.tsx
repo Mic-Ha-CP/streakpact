@@ -15,6 +15,8 @@ import Calendar from "./pages/Calendar.tsx";
 import Rewards from "./pages/Rewards.tsx";
 import Ledger from "./pages/Ledger.tsx";
 import Setup from "./pages/Setup.tsx";
+import Shop from "./pages/Shop.tsx";
+import CoinRules from "./pages/CoinRules.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -41,6 +43,8 @@ const App = () => (
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/rewards" element={<Rewards />} />
             <Route path="/ledger" element={<Ledger />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/coin-rules" element={<CoinRules />} />
             <Route path="/setup" element={<Setup />} />
             <Route path="/account" element={<Account />} />
           </Route>

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   checkinStreak,
+  coinsForTimerDay,
   coinsFromCheckins,
   coinsFromChallengeWins,
   coinsFromLogs,
@@ -39,26 +40,46 @@ describe("count-task coins", () => {
   });
 });
 
-describe("timer-task coins (floor 10-min blocks, daily cap 60)", () => {
-  it("caps a heavy day at 60 min → 12 coins", () => {
-    const t = timerTask();
-    const logs = [log(t.id, "2026-08-03", 75)]; // capped to 60 → floor(60/10)*2 = 12
-    expect(coinsFromTaskLogs(t, logs)).toBe(12);
+describe("timer-task coins (D12 three-tier, per-task-per-day cap 22)", () => {
+  // Tiers: 0–60 → 1c/5min (max12); 60–120 → 1c/10min (max6); 120–180 → 1c/15min (max4).
+  // ceil per block within each tier (a started block counts).
+  it.each([
+    [1, 1],
+    [4, 1],
+    [5, 1],
+    [6, 2],
+    [59, 12],
+    [60, 12],
+    [61, 13],
+    [119, 18],
+    [120, 18],
+    [121, 19],
+    [179, 22],
+    [180, 22],
+    [240, 22], // beyond 180 stays at the 22 cap
+  ])("M=%i minutes → %i coins (locked boundary)", (mins, coins) => {
+    expect(coinsForTimerDay(mins)).toBe(coins);
   });
 
-  it("floors to whole 10-min blocks within a day", () => {
-    const t = timerTask();
-    expect(coinsFromTaskLogs(t, [log(t.id, "2026-08-03", 25)])).toBe(4); // floor(25/10)*2
+  it("0 minutes → 0 coins", () => {
+    expect(coinsForTimerDay(0)).toBe(0);
   });
 
-  it("sums per-day (each day capped independently), across split entries", () => {
+  it("sums per-day across split same-day entries (day total drives the tiers)", () => {
     const t = timerTask();
     const logs = [
       log(t.id, "2026-08-03", 40),
-      log(t.id, "2026-08-03", 40, 1), // same day → 80, capped 60 → 12
-      log(t.id, "2026-08-04", 30), // → 6
+      log(t.id, "2026-08-03", 40, 1), // same day → 80 → tier1 12 + tier2 ceil(20/10)=2 = 14
+      log(t.id, "2026-08-04", 25), // → ceil(25/5)=5
     ];
-    expect(coinsFromTaskLogs(t, logs)).toBe(18);
+    expect(coinsFromTaskLogs(t, logs)).toBe(14 + 5);
+  });
+
+  it("caps each task independently — two maxed timer tasks earn 22 each (not shared)", () => {
+    const a = timerTask("a");
+    const b = timerTask("b");
+    const logs = [log(a.id, "2026-08-03", 200), log(b.id, "2026-08-03", 200)];
+    expect(coinsFromLogs([a, b], logs)).toBe(44);
   });
 });
 
@@ -67,7 +88,7 @@ describe("aggregate earnings", () => {
     const a = countTask("a");
     const b = timerTask("b");
     const logs = [log(a.id, "2026-08-03", 1), log(a.id, "2026-08-04", 1), log(b.id, "2026-08-03", 50)];
-    expect(coinsFromLogs([a, b], logs)).toBe(20 + 10); // 2 days*10 + floor(50/10)*2
+    expect(coinsFromLogs([a, b], logs)).toBe(20 + 10); // 2 days*10 + timer 50min→ceil(50/5)=10
   });
 
   it("签到 = 5/day, wins = 500 each", () => {

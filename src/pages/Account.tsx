@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PersonChip } from "@/components/PersonChip";
+import { VirtualItemManager } from "@/components/challenge/VirtualItemManager";
 import { toast } from "sonner";
 
 /** Account page: shows who you are and lets a signed-in user change their password. */
@@ -50,6 +51,9 @@ const Account = () => {
           <span className="text-sm text-muted-foreground break-all">{session?.user.email}</span>
         </div>
       </div>
+
+      {/* Owned virtual items — equip / switch / unequip (buying happens in the Shop). */}
+      <VirtualItemManager />
 
       <form onSubmit={submit} className="bg-card rounded-3xl border border-border/60 shadow-card p-5 space-y-4">
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">修改密码</div>

@@ -365,4 +365,56 @@ create policy coin_ledger_delete_own on public.coin_ledger
 create index idx_checkin_days_user on public.checkin_days (user_id, day);
 create index idx_coin_ledger_user  on public.coin_ledger (user_id);
 
+-- =====================================================================
+-- Periods & Gamify P3 — coin shop (see migrations/006_shop.sql + DECISIONS.md D12).
+-- shop_items = catalog (seed-managed); shop_redemptions = purchases + virtual ownership.
+-- =====================================================================
+create table public.shop_items (
+  id          uuid primary key default gen_random_uuid(),
+  key         text not null unique,
+  name        text not null,
+  description text,
+  kind        text not null,
+  price       integer not null,
+  payload     text,
+  repeatable  boolean not null default false,
+  sort_order  integer not null default 0,
+  active      boolean not null default true,
+  created_at  timestamptz not null default now(),
+  constraint shop_items_kind_chk  check (kind in ('redemption', 'title', 'theme')),
+  constraint shop_items_price_chk check (price > 0)
+);
+
+create table public.shop_redemptions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles (id) on delete cascade,
+  item_id    uuid references public.shop_items (id) on delete set null,
+  item_key   text not null,
+  item_name  text not null,
+  kind       text not null,
+  price      integer not null,
+  payload    text,
+  source     text not null,
+  equipped   boolean not null default false,
+  created_at timestamptz not null default now(),
+  constraint shop_redemptions_kind_chk check (kind in ('redemption', 'title', 'theme'))
+);
+
+alter table public.shop_items enable row level security;
+create policy shop_items_select on public.shop_items
+  for select to authenticated using (true);
+
+alter table public.shop_redemptions enable row level security;
+create policy shop_redemptions_select on public.shop_redemptions
+  for select to authenticated using (true);
+create policy shop_redemptions_insert_own on public.shop_redemptions
+  for insert to authenticated with check (auth.uid() = user_id);
+create policy shop_redemptions_update_own on public.shop_redemptions
+  for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy shop_redemptions_delete_own on public.shop_redemptions
+  for delete to authenticated using (auth.uid() = user_id);
+
+create index idx_shop_items_active     on public.shop_items (active, sort_order);
+create index idx_shop_redemptions_user on public.shop_redemptions (user_id, kind);
+
 commit;

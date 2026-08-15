@@ -468,6 +468,105 @@ export type Database = {
           },
         ];
       };
+      shop_items: {
+        Row: {
+          id: string;
+          key: string;
+          name: string;
+          description: string | null;
+          kind: string;
+          price: number;
+          payload: string | null;
+          repeatable: boolean;
+          sort_order: number;
+          active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          name: string;
+          description?: string | null;
+          kind: string;
+          price: number;
+          payload?: string | null;
+          repeatable?: boolean;
+          sort_order?: number;
+          active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          key?: string;
+          name?: string;
+          description?: string | null;
+          kind?: string;
+          price?: number;
+          payload?: string | null;
+          repeatable?: boolean;
+          sort_order?: number;
+          active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      shop_redemptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          item_id: string | null;
+          item_key: string;
+          item_name: string;
+          kind: string;
+          price: number;
+          payload: string | null;
+          source: string;
+          equipped: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          item_id?: string | null;
+          item_key: string;
+          item_name: string;
+          kind: string;
+          price: number;
+          payload?: string | null;
+          source: string;
+          equipped?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          item_id?: string | null;
+          item_key?: string;
+          item_name?: string;
+          kind?: string;
+          price?: number;
+          payload?: string | null;
+          source?: string;
+          equipped?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "shop_redemptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shop_redemptions_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "shop_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<never, never>;
     Functions: Record<never, never>;

@@ -27,15 +27,35 @@ export function useCoins() {
   const today = todayISO();
   const enabled = !!profileId;
 
-  const tasksQ = useQuery({
-    queryKey: ["coins_tasks", profileId],
+  // Coins are earned only from challenges that actually count. A 'cancelled' (pre-start
+  // unilateral) or 'aborted' (consensual dissolution) challenge is void — its tasks/wins must
+  // NOT earn (D12 fix f; closes the pre-flight orphan-task leak). "ended"/"settled" are DERIVED
+  // (dates + member rows), so a legitimately-finished challenge stays status='active' and keeps
+  // earning. 签到 is deliberately NOT gated here — it earns year-round (D12 lifecycle).
+  const challengesQ = useQuery({
+    queryKey: ["coins_challenges"],
     enabled,
     queryFn: async () => {
+      const { data, error } = await supabase.from("challenges").select("id, status");
+      if (error) throw error;
+      return (data ?? []) as { id: string; status: string }[];
+    },
+  });
+  const validChallengeIds = (challengesQ.data ?? [])
+    .filter((c) => c.status !== "cancelled" && c.status !== "aborted")
+    .map((c) => c.id);
+  const challengesReady = challengesQ.isSuccess;
+
+  const tasksQ = useQuery({
+    queryKey: ["coins_tasks", profileId, validChallengeIds.join(",")],
+    enabled: enabled && challengesReady,
+    queryFn: async () => {
+      if (validChallengeIds.length === 0) return [];
       const { data, error } = await supabase
         .from("tasks")
         .select("id, type")
         .eq("user_id", profileId!)
-        .not("challenge_id", "is", null);
+        .in("challenge_id", validChallengeIds);
       if (error) throw error;
       return (data ?? []) as { id: string; type: string }[];
     },
@@ -70,14 +90,16 @@ export function useCoins() {
   });
 
   const winsQ = useQuery({
-    queryKey: ["coins_wins", profileId],
-    enabled,
+    queryKey: ["coins_wins", profileId, validChallengeIds.join(",")],
+    enabled: enabled && challengesReady,
     queryFn: async () => {
+      if (validChallengeIds.length === 0) return 0;
       const { count, error } = await supabase
         .from("challenge_members")
         .select("id", { count: "exact", head: true })
         .eq("user_id", profileId!)
-        .eq("result", "success");
+        .eq("result", "success")
+        .in("challenge_id", validChallengeIds);
       if (error) throw error;
       return count ?? 0;
     },
@@ -108,10 +130,14 @@ export function useCoins() {
   }));
   const checkinDays = checkinsQ.data ?? [];
   const winCount = winsQ.data ?? 0;
-  const spends = ledgerQ.data ?? [];
+  const ledgerRows = ledgerQ.data ?? [];
+  // coin_ledger holds negative spends and (rarely) positive 'adjust' corrections. Split them
+  // so the UI shows spends vs credits correctly; balance counts BOTH (Σ over all rows).
+  const spends = ledgerRows.filter((r) => r.amount < 0);
+  const adjustments = ledgerRows.filter((r) => r.amount > 0);
 
   const earnings = earnedCoins({ tasks, logs, checkinDayCount: checkinDays.length, winCount });
-  const balance = earnings.total + spends.reduce((s, r) => s + r.amount, 0);
+  const balance = earnings.total + ledgerRows.reduce((s, r) => s + r.amount, 0);
   const signedToday = checkinDays.some((c) => c.day === today);
   const streak = checkinStreak(checkinDays.map((c) => c.day), today);
 
@@ -169,12 +195,20 @@ export function useCoins() {
     spends: spends.map((r): CoinSpend => ({
       id: r.id, amount: r.amount, reason: r.reason, source: r.source, date: r.created_at.slice(0, 10),
     })),
+    adjustments: adjustments.map((r): CoinSpend => ({
+      id: r.id, amount: r.amount, reason: r.reason, source: r.source, date: r.created_at.slice(0, 10),
+    })),
     checkinDays: checkinDays.map((c) => c.day),
     signedToday,
     streak,
     canBackfill: balance >= COINS.backfillCheckinCost,
     backfillCost: COINS.backfillCheckinCost,
-    isLoading: tasksQ.isLoading || checkinsQ.isLoading || winsQ.isLoading || ledgerQ.isLoading,
+    isLoading:
+      challengesQ.isLoading ||
+      tasksQ.isLoading ||
+      checkinsQ.isLoading ||
+      winsQ.isLoading ||
+      ledgerQ.isLoading,
     signInToday,
     backfillCheckin,
     unCheckin,

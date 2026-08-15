@@ -108,6 +108,28 @@ Run `004_challenges.sql` then `005_coins_checkins.sql` in the Supabase SQL Edito
 additive; existing data is untouched. `002_ledger_unique` is optional and may already be skipped on
 prod — the app guards `(user_id, source)` in code regardless.
 
+**D11 catch-up (2026-08-14):** prod's applied `004` predated the Round-3 D11 edit, so
+`challenge_members.abort_requested_at` + the `'aborted'` status were missing → abort broken on prod.
+Paste-ready catch-up SQL was handed off separately (idempotent: `add column if not exists` +
+drop/re-create `challenges_status_chk`). Apply before relying on 中止/abort in prod.
+
+**P3 shop (2026-08-14): run `006_shop.sql`** in the SQL Editor after 004/005. Additive: adds
+`shop_items` + `shop_redemptions` + RLS + indexes; **does NOT seed a catalog on prod** (the catalog
+INSERTs live in `seed.sql`, local-only). After applying 006, seed the prod catalog by hand (the 6 v1
+items per DECISIONS.md D12) via the SQL Editor — or the shop shows an empty catalog. `coin_ledger`
+already allows `reason='shop'` (from 005), so no change there.
+
+### Shop (P3) smoke test — local
+1. Login CP. 首页/账本 → 金币余额 visible; open 商城 (nav).
+2. Buy a **现实兑换** item (e.g. 奶茶券 120) → balance −120; a **pending** row appears in 账本
+   (奖惩账本, type 奖励) → mark it **已使用** there.
+3. Buy a **虚拟** item: a 称号 → activates (equipped) → shows on the header pill (CP · 称号).
+   Buy the **Theme** → skin applies immediately; switch/unequip from 商城「我的」.
+4. Buy the **大额** item twice (repeatable) → two spends, two pending ledger rows.
+5. Balance never goes negative (buy blocked when balance < price). Open 金币规则说明 (linked from
+   商城 + 账本) → renders earning rates + timer tiers + price list.
+6. Switch to JX → same catalog/prices (D3); JX's own balance/owned items independent.
+
 ### Backups (free tier has NO scheduled backups — do this manually after each challenge ends)
 Dumps prod's `public` schema (all app data) to a timestamped file **outside the repo**. The dump holds
 **real data — NEVER commit it** (the `streakpact-backups` dir lives outside the repo for that reason).

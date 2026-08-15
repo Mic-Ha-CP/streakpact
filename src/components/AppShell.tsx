@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { Calendar, CheckSquare, Home, LogOut, Wallet } from "lucide-react";
+import { Calendar, CheckSquare, Home, LogOut, ShoppingBag, Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useEquipped } from "@/hooks/useShop";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
@@ -12,16 +14,26 @@ const navItems = [
   { to: "/check-in", label: "打卡", icon: CheckSquare },
   { to: "/calendar", label: "周历", icon: Calendar },
   { to: "/ledger", label: "账本", icon: Wallet },
+  { to: "/shop", label: "商城", icon: ShoppingBag },
 ];
 
 export const AppShell = () => {
   const { userId: user, signOut } = useAuth();
+  // Equipped virtual items (P3): the title rides the header pill; the theme sets a skin
+  // attribute on <html> that index.css restyles (layered under next-themes' light/dark class).
+  const { title, theme } = useEquipped();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme) root.dataset.skin = theme;
+    else delete root.dataset.skin;
+  }, [theme]);
 
   return (
     <div className="min-h-screen bg-background pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* Top bar — pad the notch/status-bar inset so the header clears it in standalone PWA mode. */}
       <header className="sticky top-0 z-30 bg-background border-b border-border pt-[env(safe-area-inset-top)]">
-        <div className="container flex items-center justify-between h-14 px-4 md:px-8">
+        <div className="container relative flex items-center justify-between h-14 px-4 md:px-8">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary grid place-items-center text-primary-foreground font-bold text-sm">
               S
@@ -32,8 +44,8 @@ export const AppShell = () => {
             </div>
           </div>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
+          {/* Desktop nav — absolutely centered so a changing pill width can't shift it. */}
+          <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
             {navItems.map((n) => (
               <NavLink
                 key={n.to}
@@ -57,14 +69,16 @@ export const AppShell = () => {
             <NavLink
               to="/account"
               aria-label="账户"
+              title={title ? `${user} · ${title}` : user ?? undefined}
               className={cn(
-                "pill border transition-opacity hover:opacity-80",
+                "pill border transition-opacity hover:opacity-80 max-w-[9rem] whitespace-nowrap",
                 user === "CP"
                   ? "bg-cp-soft text-cp border-cp/20"
                   : "bg-jx-soft text-jx border-jx/20",
               )}
             >
-              {user}
+              <span className="shrink-0">{user}</span>
+              {title && <span className="font-normal opacity-80 min-w-0 truncate">· {title}</span>}
             </NavLink>
             <ThemeToggle />
             <button
@@ -84,7 +98,7 @@ export const AppShell = () => {
 
       {/* Bottom nav (mobile) — pad the home-indicator inset so iOS's bar doesn't cover the icons. */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background border-t border-border pb-[env(safe-area-inset-bottom)]">
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {navItems.map((n) => (
             <NavLink
               key={n.to}

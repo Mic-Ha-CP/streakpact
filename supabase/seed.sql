@@ -90,3 +90,25 @@ begin
     end if;
   end loop;
 end $$;
+
+-- --- shop catalog v1 (P3, D12) ----------------------------------------------
+-- Unified catalog, unified price for both users (D3). ALL text is GENERIC placeholder.
+-- On PROD this catalog is seeded by hand (see docs/NOTES.md) — these INSERTs are local-only.
+-- kind: 'redemption' (→ reward_ledger pending on buy) | 'title' / 'theme' (virtual, equip on buy).
+-- payload: title → the title text shown on the header pill; theme → a skin id (see index.css).
+insert into public.shop_items (key, name, description, kind, price, payload, repeatable, sort_order) values
+  ('title-early-bird', '称号 · 早起鸟',   '虚拟称号，佩戴后显示在头像旁',      'title',       50,  '早起鸟',   false, 1),
+  ('title-discipline', '称号 · 自律之光', '虚拟称号，佩戴后显示在头像旁',      'title',       65,  '自律之光', false, 2),
+  ('title-legend',     '称号 · 契约传奇', '虚拟称号，佩戴后显示在头像旁',      'title',       80,  '契约传奇', false, 3),
+  ('boba-voucher',     '奶茶券',         '单款大杯，线下兑现',                'redemption',  120, null,       false, 4),
+  ('theme-sakura',     '主题 · 樱粉',     '换一套界面配色，购买后立即生效',    'theme',       300, 'sakura',   false, 5),
+  ('takeout-voucher',  '外卖券',         '一顿外卖，线下兑现',                'redemption',  400, null,       false, 6),
+  ('big-spend',        '大额消费额度',   '大额奖励，可重复购买、线下合并兑现', 'redemption',  1200, null,      true,  7);
+
+-- --- test balance top-up (LOCAL ONLY) ---------------------------------------
+-- A big 'adjust' credit per user so every purchase path (外卖券 400 / 大额 1200) is
+-- reachable right after `db reset`. Balance = earnedCoins(...) + Σ coin_ledger, so a
+-- positive adjust row simply lifts the wallet. NEVER seed this on prod.
+insert into public.coin_ledger (user_id, amount, reason, source) values
+  ('11111111-1111-1111-1111-111111111111', 5000, 'adjust', '测试余额充值'),
+  ('22222222-2222-2222-2222-222222222222', 5000, 'adjust', '测试余额充值');

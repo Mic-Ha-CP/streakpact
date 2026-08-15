@@ -115,6 +115,51 @@
     /* Canvas gradient (Login bg): dark, not the light→white default. */
     --gradient-canvas: linear-gradient(180deg, hsl(217 33% 10%), hsl(217 33% 12%));
   }
+
+  /* ============================================================================
+     THEME SKINS (P3 shop, D12). An equipped theme sets [data-skin] on <html>
+     (AppShell); the default (no [data-skin]) is teal, defined in :root / .dark above.
+     Adding a new theme = ONE light block + ONE dark block that redefine the BRAND
+     TOKEN SET below (this is the foundation the future premium themes build on).
+
+     Brand token set (what a recolor theme MUST redefine — surfaces / success / danger /
+     borders and the JX identity accent stay put; CP tracks the brand because CP's accent
+     has always equalled the primary):
+        --primary  --primary-soft   --accent  --accent-soft   --ring
+        --cp  --cp-soft             --gradient-warm
+        --sidebar-primary  --sidebar-ring
+     A premium theme MAY additionally override surface tokens (--background/--card/…) —
+     the mechanism supports any token; the set above is just the minimum for a full recolor.
+
+     Specificity: `:root[data-skin="x"]` (0,1,1) outranks `.dark` (0,1,0), so a skin wins
+     in light mode. In dark mode BOTH `.dark` and the skin match, so EVERY token must be
+     set in the dark block too (`:root[data-skin="x"].dark`, 0,2,1) — otherwise a token
+     left out of the dark block keeps its light value. That's why each theme = two blocks.
+     ============================================================================ */
+  :root[data-skin="sakura"] {
+    --primary: 330 72% 52%;
+    --primary-soft: 330 72% 95%;
+    --accent: 330 72% 52%;
+    --accent-soft: 330 72% 95%;
+    --ring: 330 72% 52%;
+    --cp: 330 72% 52%;
+    --cp-soft: 330 72% 95%;
+    --gradient-warm: linear-gradient(135deg, hsl(330 72% 52%), hsl(330 68% 62%));
+    --sidebar-primary: 330 72% 52%;
+    --sidebar-ring: 330 72% 52%;
+  }
+  :root[data-skin="sakura"].dark {
+    --primary: 330 80% 64%;
+    --primary-soft: 330 40% 24%;
+    --accent: 330 80% 64%;
+    --accent-soft: 330 40% 24%;
+    --ring: 330 80% 64%;
+    --cp: 330 80% 64%;
+    --cp-soft: 330 40% 24%;
+    --gradient-warm: linear-gradient(135deg, hsl(330 80% 64%), hsl(330 72% 70%));
+    --sidebar-primary: 330 80% 64%;
+    --sidebar-ring: 330 80% 64%;
+  }
 }
 
 @layer base {
