@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/AppShell";
+import { ThemeChrome } from "@/components/ThemeChrome";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index.tsx";
@@ -27,6 +28,7 @@ const App = () => (
     <TooltipProvider>
       <Sonner position="bottom-right" closeButton />
       <AuthProvider>
+        <ThemeChrome />
         <BrowserRouter>
           <Routes>
           <Route path="/login" element={<Login />} />

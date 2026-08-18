@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { Calendar, CheckSquare, Home, LogOut, ShoppingBag, Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,15 +18,9 @@ const navItems = [
 
 export const AppShell = () => {
   const { userId: user, signOut } = useAuth();
-  // Equipped virtual items (P3): the title rides the header pill; the theme sets a skin
-  // attribute on <html> that index.css restyles (layered under next-themes' light/dark class).
-  const { title, theme } = useEquipped();
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme) root.dataset.skin = theme;
-    else delete root.dataset.skin;
-  }, [theme]);
+  // Equipped title rides the header pill. Skin application + theme-aware chrome (data-skin,
+  // theme-color, favicon) are owned by <ThemeChrome/> at the app root.
+  const { title } = useEquipped();
 
   return (
     <div className="min-h-screen bg-background pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-0">

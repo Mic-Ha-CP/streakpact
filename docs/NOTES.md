@@ -119,6 +119,11 @@ INSERTs live in `seed.sql`, local-only). After applying 006, seed the prod catal
 items per DECISIONS.md D12) via the SQL Editor — or the shop shows an empty catalog. `coin_ledger`
 already allows `reason='shop'` (from 005), so no change there.
 
+**✅ PROD FULLY LIVE (2026-08-19):** `006_shop.sql` + the 7-item catalog + the D11 catch-up SQL
+(`abort_requested_at` + `'aborted'` status) are all applied on prod. Prod = full **P1 + P2 + P3**.
+JX's deposit-declaration text had a typo, corrected **directly in the DB** (agreed one-off typo-fix
+path — challenge_members is user-owned data, no code/migration involved).
+
 ### Shop (P3) smoke test — local
 1. Login CP. 首页/账本 → 金币余额 visible; open 商城 (nav).
 2. Buy a **现实兑换** item (e.g. 奶茶券 120) → balance −120; a **pending** row appears in 账本
@@ -151,6 +156,19 @@ docker exec -e PGCONN="$DBURL" "$DB" sh -c 'pg_dump "$PGCONN" --schema=public --
 - **Restore** (recovery): the dump is plain SQL (CREATE TABLE + COPY). Restore into a fresh/empty
   project's `public` schema with `psql "$DBURL" < <backup-file>`. Test on a scratch DB before ever
   running it against a live one.
+
+## Theme-aware browser chrome (P3, 2026-08-19)
+`ThemeChrome` (mounted at the app root, `src/components/ThemeChrome.tsx`) owns runtime chrome:
+- Applies the equipped theme's `[data-skin]` to `<html>` (moved here from AppShell so every page,
+  incl. login-adjacent, reskins).
+- Sets `<meta name="theme-color">` to the **resolved `--primary`** (read live from the CSS var), so
+  the mobile address bar / PWA title bar follows teal-default vs sakura AND light/dark. Reading the
+  var means it auto-follows any future theme (incl. sakura v2) with no per-theme code. `index.html`
+  ships a pre-paint default + a dark fallback so the bar doesn't flash on load.
+- Swaps the tab **favicon** per theme (`/logo.svg` teal ↔ `/logo-sakura.svg` pink).
+- **Manifest icons stay theme-NEUTRAL by design — do NOT revisit.** An installed PWA's icons are
+  snapshotted by the OS at install time and cannot follow runtime theme switches (platform
+  limitation, all platforms). Only the live tab favicon + theme-color are themeable at runtime.
 
 ## Bugs / issues
 (add as you go)
