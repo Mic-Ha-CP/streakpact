@@ -16,6 +16,9 @@ import { Coins, Gift, BadgeCheck, Palette, Ticket, Info, Check, ChevronRight } f
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+/** Shelf order on the catalog — real-world rewards first, then the virtual items. */
+const KIND_ORDER = ["redemption", "title", "theme"] as const;
+
 const KIND_META: Record<string, { label: string; icon: typeof Gift }> = {
   redemption: { label: "现实兑换", icon: Ticket },
   title: { label: "称号", icon: BadgeCheck },
@@ -83,10 +86,22 @@ const Shop = () => {
         <ChevronRight className="w-4 h-4" />
       </Link>
 
-      {/* Catalog (mixed, sorted) */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {shop.items.map((item) => {
-          const meta = KIND_META[item.kind] ?? KIND_META.redemption;
+      {/* Catalog — shelved by kind. `shop.items` arrives ordered by sort_order and filter()
+          preserves it, so each shelf keeps the catalog's intended order. The per-card kind pill
+          is gone: the shelf header now says it. */}
+      {KIND_ORDER.map((kind) => {
+        const rows = shop.items.filter((i) => i.kind === kind);
+        if (rows.length === 0) return null;
+        const meta = KIND_META[kind];
+        const ShelfIcon = meta.icon;
+        return (
+          <div key={kind} className="space-y-2">
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+              <ShelfIcon className="w-3.5 h-3.5" />
+              {meta.label}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {rows.map((item) => {
           const Icon = meta.icon;
           const owned = !shop.purchasable(item);
           const affordable = shop.canAfford(item);
@@ -106,7 +121,6 @@ const Shop = () => {
                     <p className="text-xs text-muted-foreground mt-1 leading-snug">{item.description}</p>
                   )}
                 </div>
-                <span className="pill bg-muted text-muted-foreground shrink-0">{meta.label}</span>
               </div>
 
               <div className="mt-auto flex items-center justify-between">
@@ -134,8 +148,11 @@ const Shop = () => {
               </div>
             </div>
           );
-        })}
-      </div>
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       {/* Ongoing equip/switch of owned titles & themes lives on the Account page. */}
       <Link

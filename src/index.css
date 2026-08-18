@@ -53,6 +53,9 @@
     --radius: 0.5rem;                    /* 8px */
 
     /* Person accents */
+    /* Identity colors (theme contract §4): CP tracks the brand, JX stays low-salience in the
+       theme's own temperature family. The default is a COLD theme, so slate is the right quiet
+       neighbour here; warm themes must supply a warm equivalent (see sakura). */
     --cp: 173 84% 32%;                   /* teal */
     --cp-soft: 173 70% 94%;
     --jx: 215 25% 27%;                   /* slate */
@@ -122,16 +125,23 @@
      Adding a new theme = ONE light block + ONE dark block. This is the foundation the
      premium theme tier builds on.
 
-     THEME CONTRACT (upgraded at sakura v2 — "brand + 语义微调块"):
-       1. BRAND       --primary/-soft  --accent/-soft  --ring  --cp/-soft
+     THEME CONTRACT (v2 — "brand + 语义微调块"; identity colors added 2026-08-19):
+       1. BRAND       --primary/-soft  --accent/-soft  --ring
                       --gradient-warm  --sidebar-primary  --sidebar-ring
        2. SURFACES    --background --card --foreground --muted/-foreground --border
                       (+ the derived --popover/-foreground --input --secondary/-foreground/-soft)
        3. SEMANTICS   --success/-foreground/-soft  --danger/-foreground/-soft
                       — a theme MAY re-tint state colors; see the sakura note below.
-     NOT themed by design: --jx / --jx-soft (JX's identity accent must stay distinct from
-     whatever hue the brand takes), and --gradient-canvas (Login / ResetPassword are
-     pre-auth, where no skin is applied since the equipped theme needs a signed-in profile).
+       4. IDENTITY    --cp/-soft AND --jx/-soft — **every theme MUST define both.**
+                      The two must stay tellable apart at a glance, but they are NOT equals:
+                      CP tracks the brand (high salience, = --primary), while JX is deliberately
+                      LOW-SALIENCE — quieter than the brand color, yet in the THEME'S OWN
+                      TEMPERATURE FAMILY. A cold gray left un-themed reads as a foreign object
+                      floating on a warm ground (this was the one gap found in sakura v2's
+                      visual pass); the fix is a desaturated near-neutral drawn from the theme
+                      hue, not a saturated second accent competing with the brand.
+     NOT themed by design: --gradient-canvas (Login / ResetPassword are pre-auth, where no skin
+     is applied since the equipped theme needs a signed-in profile).
 
      Specificity: `:root[data-skin="x"]` (0,2,0) outranks `.dark` (0,1,0), so a skin wins in
      light mode. In dark mode BOTH `.dark` and the skin match, so EVERY token must be repeated
@@ -164,6 +174,9 @@
     --ring: 340 66% 55%;
     --cp: 340 66% 55%;
     --cp-soft: 340 65% 95%;
+    /* JX = rose-taupe: warm-neutral, deliberately quieter than CP's pink (see contract §4). */
+    --jx: 345 8% 52%;
+    --jx-soft: 345 10% 92%;
 
     --success: 350 65% 58%;
     --success-foreground: 0 0% 100%;
@@ -202,6 +215,9 @@
     --ring: 344 65% 64%;
     --cp: 344 65% 64%;
     --cp-soft: 344 30% 22%;
+    /* JX on warm black — same rose-taupe idea, lifted for the dark ground (contract §4). */
+    --jx: 345 10% 62%;
+    --jx-soft: 345 8% 24%;
 
     --success: 350 60% 68%;
     --success-foreground: 142 30% 10%;
