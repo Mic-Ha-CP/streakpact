@@ -83,9 +83,12 @@ pricing, where a bare theme sits at 300):
 
 | Tier | Contents | Indicative price |
 |---|---|---|
-| **Color theme** | tokens only (= sakura v2 today) | **300** |
-| **Full theme** | tokens + illustration set (a) + ambient effect (b) | **~500** |
+| **色彩版 · Color theme** | tokens only (= sakura v2 today) | **300** |
+| **豪华版 · Full theme** | tokens + illustration set (a) + ambient effect (b) | **~500** (upgrade from base: **+200**) |
 | *(later)* | + themed functional component (c) | above 500, once a carrier exists |
+
+See **"Deluxe upgrade"** at the end of this doc for how the two SKUs coexist without penalizing
+whoever bought the base theme first.
 
 The useful property: the tiers map to **real production cost** (art hours), not to invented
 scarcity — so the price difference is honest, and the ceiling rises naturally as art lands.
@@ -99,3 +102,38 @@ scarcity — so the price difference is honest, and the ceiling rises naturally 
 3. **(c) leave closed** until the timer feature exists.
 
 Tracked in ROADMAP as **"Sakura v2.5 — petals + hand-drawn accents (pending CP's art assets)"**.
+
+## Deluxe upgrade — how a decorated theme is sold (decided 2026-08-19)
+
+The question this settles: once sakura gains art + effects, what happens to someone who **already
+bought the plain 300 version**?
+
+**Model: the decorated theme is a SEPARATE SKU, and base owners pay only the difference.**
+
+- 色彩版 (palette only) stays **300** — it is not withdrawn or repriced.
+- 豪华版 (palette + illustrations + ambient effect) is a **distinct item at ~500**.
+- Whoever already owns the base pays the **difference — 200** — to upgrade.
+- Decorations are **never sold standalone.** They are meaningless without their palette (a petal
+  overlay on the teal default is not a product), so there is no "decoration pack" SKU.
+
+**Rationale**
+- **No devaluing early buyers.** Someone who bought at 300 is never worse off than a later buyer:
+  300 + 200 = 500, the same as buying 豪华版 outright. Buying early costs nothing extra — which
+  matters a lot in a **two-person economy** where "the other person got a better deal" is a real
+  social cost, not an abstract fairness concern.
+- **Price tracks real production cost.** The +200 buys the art hours, consistent with D12's
+  effort-pricing principle (and the reason the tier ladder is defensible rather than arbitrary).
+- **Coherence.** Bundling decorations to their palette keeps every purchase a complete look.
+
+**Implementation sketch** (NOT building this until art assets exist):
+- Catalog gains a deluxe row per decorated theme — same `kind: 'theme'`, its own `key`
+  (e.g. `theme-sakura-deluxe`), `price: 500`, and a `payload` naming the decorated skin.
+- The shop computes the shown price: **if the buyer already owns the base theme's `item_key`, display
+  and charge the difference (200)** instead of 500 — everything needed is already there, since
+  ownership is derived from `shop_redemptions` and each row snapshots `item_key` + `price`.
+- On purchase, the deluxe row supersedes the base for equipping (one equipped theme per user is
+  already enforced); the base redemption row stays as the purchase record — which is exactly what
+  makes the difference-pricing check work later.
+- Worth deciding at build time (deliberately open now): whether the two rows both appear on the
+  shelf, or the base row swaps into an "升级 +200" affordance once owned. The latter is likely
+  cleaner, but it's a UI call best made with the real catalog in front of us.

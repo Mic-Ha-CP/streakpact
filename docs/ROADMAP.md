@@ -55,13 +55,16 @@ Git history was audited clean (no secrets/emails; only CP/JX initials), so no re
 - [x] Toast position → bottom-right with close button
 - [x] Responsive width scaling for desktop
 
-## Phase 2: Supabase setup
-- [ ] Create Supabase project
-- [ ] Create tables per SUPABASE_SCHEMA.md
-- [ ] Enable RLS + create policies
-- [ ] Create 2 auth accounts (CP + JX)
-- [ ] Generate TypeScript types (`supabase gen types typescript`)
-- [ ] Test basic CRUD from Supabase dashboard
+## Phase 2: Supabase setup ✅ COMPLETE
+(Boxes ticked 2026-08-19 during housekeeping — these were done back in June but never checked off;
+prod has been live on Supabase since Phase 5.)
+- [x] Create Supabase project
+- [x] Create tables per SUPABASE_SCHEMA.md
+- [x] Enable RLS + create policies
+- [x] Create 2 auth accounts (CP + JX)
+- [x] Generate TypeScript types — hand-written `src/lib/database.types.ts`, kept in sync by hand
+      (regenerate via `supabase gen types` if it ever drifts)
+- [x] Test basic CRUD from Supabase dashboard
 
 **⚠ STOP: requires user to do manual Supabase dashboard steps.**
 **Claude Code should output clear instructions for what to create/click.**
@@ -199,7 +202,7 @@ ledger entries stay untouched as history. No backfill of challenges for past mon
 **P2/P3 tables (`coin_ledger`, `checkin_days`, `shop_items`, `shop_redemptions`) are NOT created in
 P1** — deferred until coin values are calibrated from the first real challenge.
 
-### P1 — Challenge core loop (发起 + 单层结算 + 押注记账)  · D1 D2 D4 D7 — ✅ BUILT (pending migration run + smoke test)
+### P1 — Challenge core loop (发起 + 单层结算 + 押注记账)  · D1 D2 D4 D7 — ✅ LIVE ON PROD
 - [x] `challenges` + `challenge_members` tables + RLS + `004_challenges.sql`. New-challenge init from
       next Monday (fixed 4 weeks), initiator + mode + optional `team_reward`, per-task total target,
       per-user deposit declaration. Pure logic in `src/data/challenge.ts` (+ unit tests).
@@ -222,7 +225,7 @@ P1** — deferred until coin values are calibrated from the first real challenge
       `edit_count` for challenge tasks. **Client-enforced** (trust-based per PROJECT_RIGOR — RLS guards
       ownership, not the time window).
 
-### P2 — Coins + 签到 + 补签扣币  · D5 D6 D8 — ✅ BUILT (local-verified; pending prod apply + smoke test)
+### P2 — Coins + 签到 + 补签扣币  · D5 D6 D8 — ✅ LIVE ON PROD
 - [x] `coin_ledger` + `checkin_days` tables + RLS (`005_coins_checkins.sql`). **Derived model:** balance
       = `earnedCoins(...)` + Σ coin_ledger.amount; `coin_ledger` holds only **spends** (earnings are a
       pure fn of the data, so undo/backfill/un-settle auto-correct). Pure math in `src/data/coins.ts`
@@ -244,9 +247,11 @@ P1** — deferred until coin values are calibrated from the first real challenge
 - **Local dev env** (Supabase CLI + Docker) set up — see docs/NOTES.md. Migrations 001→005 replay via
   `db reset`; seed users cp@/jx@test.local. All P1/P2 verified locally before this handoff.
 
-### P3 — Shop  · D3 / D12 — ✅ BUILT (local-verified; pending prod apply + smoke test)
+### P3 — Shop  · D3 / D12 — ✅ LIVE ON PROD (2026-08-19)
 Pricing + timer formula finalized in the 2026-08-14 grilling → **DECISIONS.md D12** (this is the
-source of truth for prices/tiers/lifecycle). Migration `006_shop.sql`.
+source of truth for prices/tiers/lifecycle). Migration `006_shop.sql` + the 7-item catalog applied to
+prod 2026-08-19, together with the D11 catch-up (`abort_requested_at` + `'aborted'`). Prod schema now
+matches the repo chain 001→006.
 - [x] `shop_items` (**unified catalog + unified price**, generic + personal mixed) + `shop_redemptions`
       (+ RLS + indexes). Seeded v1 catalog. `coin_ledger.reason` already allows `'shop'` (no delta).
 - [x] **Buy flow (D12):** spend via `coin_ledger` (negative, reason `'shop'`); **现实兑换** items
@@ -267,6 +272,34 @@ source of truth for prices/tiers/lifecycle). Migration `006_shop.sql`.
       non-aborted challenges** — cancelled-challenge orphan tasks can no longer leak coins.
       **Verified (g):** 打卡 earning is structurally challenge-gated (challenge tasks only); 签到 stays
       year-round by design.
+- [x] **Round-2 polish (2026-08-16):** negative-balance notice + red cue on all three balance readouts
+      (un-settle can legitimately push the balance negative once the +500 is spent; purchases stay
+      blocked); rules entry restyled as a real link; virtual-item management moved Shop → **Account**;
+      header pill truncated + desktop nav absolutely centered (no jitter on title switch); local seed
+      gets **+5000 test coins** per user; `coin_ledger` split into **spends (neg) vs adjustments (pos)**
+      so credits don't render as red spends.
+- [x] **Shop shelves (2026-08-19):** catalog grouped into **现实兑换 / 称号 / 主题** with small section
+      headers; `sort_order` preserved within each shelf; the per-card kind pill dropped (the shelf
+      header carries it).
+
+### Deferred items index (nothing here is committed work — a single place to find them)
+Everything the Periods & Gamify arc consciously **did not** build, so none of it gets re-litigated:
+- **Sakura v2.5** — petals + hand-drawn accents · *pending CP's art* (§ below).
+- **Challenge history view** — post-first-challenge (§ "Challenge history view").
+- **Deposit audit log** (trigger + append-only table) — D12 deferred: build on the **first real
+  correction need**, not before. Deposit text is edited directly in the DB today (agreed typo path).
+- **Avatar collection** — D12 deferred: only if virtual items show real purchase demand.
+- **Tool-type shop items** (e.g. auto-补签卡) — D12: **permanently excluded**.
+- **Approval-flow UI** for purchases — D12: **cut** (buyer is autonomous).
+- **Themed functional components** (clock-face) — blocked on the timer feature (THEME_DECORATIONS §c).
+- **JX pill contrast (measured 2026-08-19):** `text-jx` on `bg-jx-soft` sits at **3.28 : 1** light /
+  3.96 dark — under AA 4.5 for small text (PersonChip on Ledger rows, the person-switcher pills).
+  This is the *deliberate* cost of the low-salience identity rule (contract §4): desaturating JX
+  shrinks its contrast against its own tint. Readable, and it was accepted at the visual pass. If AA
+  is ever wanted there, darken light-mode `--jx` L **52% → ~44%** — saturation (8%) is what keeps it
+  quiet, not lightness, so it would stay just as recessive. One-line change, no code.
+- **Per-task 打卡 overlay on the 签到 calendar**, **Rewards month-switcher**, **Ledger polish**
+  (expiry_date / used_progress editable, mobile notes) — all still listed in their own sections below.
 
 ### Sakura v2 — ✅ SHIPPED 2026-08-19
 Owner-tuned in `docs/design/sakura-v2-colorcard.html` (interactive tuner, kept as the theme-authoring
@@ -278,6 +311,14 @@ upgraded** from "brand token block" to **brand + surfaces + semantics** (documen
 ride on icons (✓/✗) + numbers, with `--danger` separable at hue 12. That is a per-theme semantic
 choice and part of the contract — do not "fix" it back to green. Contrast-checked against the shipped
 teal default: sakura v2 is **equal or better on every measured pair in both modes**.
+
+**Identity colors added to the contract (§4, 2026-08-19).** The visual pass found one gap: `--jx` was
+never themed, so JX's slate stayed the only cold element on the warm ground (worst in dark). Now
+**every theme must define both `--cp` and `--jx`** — CP tracks the brand, JX stays **low-salience but
+in the theme's own temperature family**. Sakura gets a rose-taupe JX (light `345 8% 52%` / `345 10%
+92%`, dark `345 10% 62%` / `345 8% 24%`); the default teal keeps slate (correct quiet neighbour for a
+cold scheme). No code sweep was needed — every JX surface already routed through the tokens. See the
+measured pill-contrast trade-off in the deferred index above.
 
 ### Sakura v2.5 — petals + hand-drawn accents (deferred — pending CP's art assets)
 The **decoration layer** above the color layer. Full investigation in

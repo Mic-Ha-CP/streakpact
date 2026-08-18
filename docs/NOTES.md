@@ -1,35 +1,57 @@
 # Dev notes
 
-## Where we are (auto-generated 2026-06-02)
+## Where we are (updated 2026-08-19)
 
-Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`).
+Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`; CI = lint → typecheck
+→ test). Prod DB is on migrations **001→006** + the D11 catch-up. The app now runs the
+**challenge model** (Periods & Gamify) — the old month/week model is history-only (≤ 2026-06).
 
-### Done
-- Phase 1: Lovable UI prototype
-- Phase 2: Supabase setup (tables, RLS, auth, profiles)
-- Phase 3: Zustand → Supabase migration
-- UX pass: independent notes, EditableText, toasts, new-month carry-over, session
-- Phase 4: PWA (vite-plugin-pwa, placeholder icons from public/logo.svg)
-- Phase 5: Deployed to Vercel (HTTPS verified; RLS blocks anon reads)
-- Phase 6: Settlement + ledger automation (one-click settle → ledger; team-combined month)
-- Settlement **Phase A** (2026-07-02): settle **past** months/weeks (本月战况 month-nav + Ledger
-  未结算 banner) + preview-before-settle + week-level settle → ledger. **Weekly only** (monthly = Phase B).
+### Done — the Periods & Gamify arc is complete and live
+- **P1 · Challenge core loop** — opt-in 4-week Monday-aligned challenges, single-layer total-target
+  settlement, both-sides gate, deposit 记账, 中途修改 (D7), auto-void (D9), free pre-start edit (D10),
+  consensual 中止 (D11).
+- **P2 · Coins + 签到** — derived coin balance (earnings are a pure function of the data; `coin_ledger`
+  holds only spends/adjustments), daily 签到 + streak, 补签到 −20, coin section on the Ledger.
+- **P3 · Shop — LIVE ON PROD** — `shop_items` + `shop_redemptions` (006 + catalog applied
+  2026-08-19). Buy → coin spend; 现实兑换 items write a **pending** `reward_ledger` row (buyer marks
+  it used); 称号 / 主题 activate on purchase. Catalog **shelved by kind** (现实兑换 / 称号 / 主题).
+  Virtual-item management (佩戴 / 切换 / 卸下) lives on **Account**.
+- **金币规则说明 page** (`/coin-rules`) — earning rates, timer tiers, price list, ×10 exchange rule,
+  failure outcome, no-expiry/no-refund. Doubles as JX's informed-consent doc.
+- **Timer earning = 3-tier formula** (D12): ≤60 min → 1c/5min (max 12) · ≤120 → 1c/10min (max 6) ·
+  ≤180 → 1c/15min (max 4); **cap 22 per task per day — NOT a daily total.** 13 boundary tests locked.
+- **Sakura v2 theme** — full theme contract: **brand + surfaces + semantics + identity**. A theme is
+  one light block + one dark block in `src/index.css` (contract documented there). Deliberate
+  monochrome scheme (success is pink-family; state rides on ✓/✗ + numbers). Contrast-checked equal or
+  better than the teal default on every measured pair.
+- **Theme-aware browser chrome** — `<meta theme-color>` follows the resolved `--primary` (so it
+  tracks theme *and* light/dark), tab favicon swaps per theme. Manifest icons stay theme-neutral by
+  design (OS snapshots them at install; see the section below).
 
-### Ready to do next (re-ranked 2026-06-03 — see ROADMAP)
-- **Settlement Phase B (NEXT):** week-level check-in lock · un-settle wiring · monthly review gate ·
-  both-sides monthly team settlement + 等待对方结算 · home "both settled" banner · `settleMonth` rework
-  (+ decide `monthly_settlements.result` individual-vs-team). See ROADMAP "Settlement flow rework".
-- ✅ **Phase B un-settle prerequisite CLEARED (2026-07-02):** `migrations/003` DELETE policies confirmed
-  on the LIVE DB — `pg_policies` shows `weekly_settlements_delete_own`, `monthly_settlements_delete_own`,
-  `reward_ledger_delete_own` (+ tasks / daily_logs). Un-settle is unblocked for Phase B.
-- Log UI/UX issues into ### Open section below
-- Phase 7: in-app password reset (most useful profile piece; needs Auth Site URL set)
-- Phase 8: migrate historical Google Sheet check-ins (later, maybe)
-- Phase 9: profile features (display name, avatar)
-- Phase 10 (exploratory): multi-tenant / groups
-- Optional: real PWA branding (replace public/logo.svg); custom domain
+### In use — first real challenge
+- The **first challenge is running now** and **ends 2026-08-30 (Sun)**.
+- **Settlement opens Mon 2026-08-31.** This is the **next milestone**: the first *real* two-sided
+  settlement — both sides settle, the team result combines, the ledger + the +500 通关 grant write for
+  real. Everything up to now was smoke-tested on local fixtures.
+- Reminder: a new challenge can only start from the **both-settled** completion view, and start dates
+  are Monday-aligned — settle on 08-31 to start the next期 immediately; settle later and the earliest
+  start slides to the following Monday (intentional, see ROADMAP "Rule interaction").
 
-### How settlement works (Phase 6)
+### Next options — no commitments, pick when the time comes
+- **More shop items** — the catalog is data, not code: add rows to `shop_items` (prod SQL Editor). New
+  称号 need only a `payload`; a new 主题 needs a variable block in `index.css` first.
+- **Sakura v2.5 decorations** — petals + hand-drawn accents; **pending CP's art** (the petals half
+  needs no assets and could ship alone). See `docs/design/THEME_DECORATIONS.md`.
+- **Challenge history view** — after a challenge settles it disappears from the UI; only its ledger
+  rows remain. Best built right after the first settlement, when there's real history to show.
+- **GSheet history import** (Phase 8) — pre-cutover months only.
+- **Timer feature** (count-up / countdown) — also the missing carrier for themed functional
+  components (see THEME_DECORATIONS §c).
+
+### How settlement works (Phase 6) — ⚠ LEGACY (months ≤ 2026-06 only)
+> Superseded by the challenge model: there is **no weekly/monthly settle** anymore, just one
+> end-of-challenge settlement with a both-sides gate. Kept because the legacy month board (≤ 2026-06)
+> still behaves exactly as described below.
 - 本月战况 page shows a "待结算" section on your *own* panel once a week ends (Sunday passed)
   or the whole month ends. Click to settle: it reads your reward/penalty plan and writes a
   reward_ledger entry, then locks a settlement snapshot (🔒 已结算 marker).
