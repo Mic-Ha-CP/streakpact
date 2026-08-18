@@ -118,47 +118,109 @@
 
   /* ============================================================================
      THEME SKINS (P3 shop, D12). An equipped theme sets [data-skin] on <html>
-     (AppShell); the default (no [data-skin]) is teal, defined in :root / .dark above.
-     Adding a new theme = ONE light block + ONE dark block that redefine the BRAND
-     TOKEN SET below (this is the foundation the future premium themes build on).
+     (ThemeChrome); the default (no [data-skin]) is teal, defined in :root / .dark above.
+     Adding a new theme = ONE light block + ONE dark block. This is the foundation the
+     premium theme tier builds on.
 
-     Brand token set (what a recolor theme MUST redefine — surfaces / success / danger /
-     borders and the JX identity accent stay put; CP tracks the brand because CP's accent
-     has always equalled the primary):
-        --primary  --primary-soft   --accent  --accent-soft   --ring
-        --cp  --cp-soft             --gradient-warm
-        --sidebar-primary  --sidebar-ring
-     A premium theme MAY additionally override surface tokens (--background/--card/…) —
-     the mechanism supports any token; the set above is just the minimum for a full recolor.
+     THEME CONTRACT (upgraded at sakura v2 — "brand + 语义微调块"):
+       1. BRAND       --primary/-soft  --accent/-soft  --ring  --cp/-soft
+                      --gradient-warm  --sidebar-primary  --sidebar-ring
+       2. SURFACES    --background --card --foreground --muted/-foreground --border
+                      (+ the derived --popover/-foreground --input --secondary/-foreground/-soft)
+       3. SEMANTICS   --success/-foreground/-soft  --danger/-foreground/-soft
+                      — a theme MAY re-tint state colors; see the sakura note below.
+     NOT themed by design: --jx / --jx-soft (JX's identity accent must stay distinct from
+     whatever hue the brand takes), and --gradient-canvas (Login / ResetPassword are
+     pre-auth, where no skin is applied since the equipped theme needs a signed-in profile).
 
-     Specificity: `:root[data-skin="x"]` (0,1,1) outranks `.dark` (0,1,0), so a skin wins
-     in light mode. In dark mode BOTH `.dark` and the skin match, so EVERY token must be
-     set in the dark block too (`:root[data-skin="x"].dark`, 0,2,1) — otherwise a token
-     left out of the dark block keeps its light value. That's why each theme = two blocks.
+     Specificity: `:root[data-skin="x"]` (0,2,0) outranks `.dark` (0,1,0), so a skin wins in
+     light mode. In dark mode BOTH `.dark` and the skin match, so EVERY token must be repeated
+     in the dark block (`:root[data-skin="x"].dark`, 0,3,0) — a token left out of the dark
+     block keeps its LIGHT value. That's why each theme is two complete blocks.
      ============================================================================ */
+
+  /* --- sakura v2 (2026-08-19) · 昼樱 -------------------------------------------
+     Values tuned by the owner in docs/design/sakura-v2-colorcard.html.
+     DELIBERATE MONOCHROME SCHEME: --success is in the PINK family, not green. State
+     semantics are carried by icons (✓ / ✗) + numbers rather than hue, and --danger stays
+     separable at hue 12 (orange-red). This is a per-theme semantic choice and an explicit
+     part of the theme contract — do NOT "fix" success back to green here.
+     --popover / --input / --secondary* were not exposed by the tuner; they are DERIVED
+     using the same relationships the default scheme uses (popover = card, input = border,
+     secondary = secondary-soft = muted, secondary-foreground = foreground). */
   :root[data-skin="sakura"] {
-    --primary: 330 72% 52%;
-    --primary-soft: 330 72% 95%;
-    --accent: 330 72% 52%;
-    --accent-soft: 330 72% 95%;
-    --ring: 330 72% 52%;
-    --cp: 330 72% 52%;
-    --cp-soft: 330 72% 95%;
-    --gradient-warm: linear-gradient(135deg, hsl(330 72% 52%), hsl(330 68% 62%));
-    --sidebar-primary: 330 72% 52%;
-    --sidebar-ring: 330 72% 52%;
+    --background: 350 40% 96%;
+    --card: 350 50% 99%;
+    --foreground: 345 25% 22%;
+    --muted: 348 25% 93%;
+    --muted-foreground: 345 12% 45%;
+    --border: 348 20% 88%;
+
+    --primary: 340 66% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 340 65% 95%;
+    --accent: 340 66% 55%;
+    --accent-soft: 340 65% 95%;
+    --ring: 340 66% 55%;
+    --cp: 340 66% 55%;
+    --cp-soft: 340 65% 95%;
+
+    --success: 350 65% 58%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 350 30% 93%;
+    --danger: 12 80% 54%;
+    --danger-foreground: 0 0% 100%;
+    --danger-soft: 12 85% 95%;
+
+    --gradient-warm: linear-gradient(135deg, hsl(340 66% 55%), hsl(332 66% 63%));
+    --sidebar-primary: 340 66% 55%;
+    --sidebar-ring: 340 66% 55%;
+
+    /* derived — keep the scheme coherent in dropdowns / inputs / pills */
+    --popover: 350 50% 99%;
+    --popover-foreground: 345 25% 22%;
+    --input: 348 20% 88%;
+    --secondary: 348 25% 93%;
+    --secondary-foreground: 345 25% 22%;
+    --secondary-soft: 348 25% 93%;
   }
+
+  /* --- sakura v2 · 夜樱 (independently tuned: warm-black ground, desaturated pink) --- */
   :root[data-skin="sakura"].dark {
-    --primary: 330 80% 64%;
-    --primary-soft: 330 40% 24%;
-    --accent: 330 80% 64%;
-    --accent-soft: 330 40% 24%;
-    --ring: 330 80% 64%;
-    --cp: 330 80% 64%;
-    --cp-soft: 330 40% 24%;
-    --gradient-warm: linear-gradient(135deg, hsl(330 80% 64%), hsl(330 72% 70%));
-    --sidebar-primary: 330 80% 64%;
-    --sidebar-ring: 330 80% 64%;
+    --background: 330 30% 9%;
+    --card: 340 35% 12%;
+    --foreground: 345 30% 90%;
+    --muted: 344 20% 20%;
+    --muted-foreground: 340 8% 60%;
+    --border: 344 25% 26%;
+
+    --primary: 344 65% 64%;
+    --primary-foreground: 344 20% 10%;
+    --primary-soft: 344 35% 22%;
+    --accent: 344 65% 64%;
+    --accent-soft: 344 35% 22%;
+    --ring: 344 65% 64%;
+    --cp: 344 65% 64%;
+    --cp-soft: 344 30% 22%;
+
+    --success: 350 60% 68%;
+    --success-foreground: 142 30% 10%;
+    --success-soft: 350 50% 20%;
+    --danger: 12 85% 62%;
+    --danger-foreground: 12 30% 10%;
+    --danger-soft: 12 50% 18%;
+
+    --gradient-warm: linear-gradient(135deg, hsl(344 65% 64%), hsl(336 65% 72%));
+    --sidebar-primary: 344 65% 64%;
+    --sidebar-ring: 344 65% 64%;
+
+    /* derived — see the light block */
+    --popover: 340 35% 12%;
+    --popover-foreground: 345 30% 90%;
+    --input: 344 25% 26%;
+    --secondary: 344 20% 20%;
+    --secondary-foreground: 345 30% 90%;
+    --secondary-soft: 344 20% 20%;
   }
 }
 

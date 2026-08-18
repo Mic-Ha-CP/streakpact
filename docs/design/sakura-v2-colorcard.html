@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sakura v2 色卡 · 交互调色</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 20px 80px;
+    font-family: "Inter", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+    background: #ececef; color: #1e293b; line-height: 1.5;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .sub { color: #64748b; font-size: 14px; margin: 0 0 6px; }
+  .note { color: #475569; font-size: 13px; background: #fff; border: 1px solid #e2e8f0;
+          border-radius: 12px; padding: 12px 14px; margin: 14px 0 18px; }
+  .note b { color: #1e293b; }
+  .marker-p { color: #d97706; }   /* changed-from-proposal marker */
+
+  .toolbar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center;
+             gap: 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+             padding: 10px 14px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+  .toolbar label { font-size: 13px; color: #334155; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .toolbar .spacer { flex: 1; }
+  button { font-family: inherit; cursor: pointer; }
+  .btn-x { border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; border-radius: 8px;
+           padding: 6px 12px; font-size: 13px; font-weight: 600; }
+  .btn-x:hover { background: #f1f5f9; }
+  .btn-primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+  .btn-primary:hover { background: #1e293b; }
+
+  .modehead { font-size: 15px; font-weight: 800; margin: 24px 0 12px; display: flex; align-items: center; gap: 8px; }
+  .modehead .tag { font-size: 11px; font-weight: 600; color: #64748b; background: #fff;
+                   border: 1px solid #e2e8f0; border-radius: 999px; padding: 2px 8px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 820px) { .pair { grid-template-columns: 1fr; } }
+  .collabel { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+              color: #64748b; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+  .collabel .v2 { color: #be185d; }
+  .collabel .resetall { margin-left: auto; text-transform: none; letter-spacing: 0; }
+
+  /* ---- mock (uses the panel's own CSS vars) ---- */
+  .mock { border-radius: 18px; padding: 16px; border: 1px solid rgba(0,0,0,.06); background: hsl(var(--bg)); }
+  .card { background: hsl(var(--card)); border: 1px solid hsl(var(--border));
+          border-radius: 14px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .card .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .card .top .t { font-weight: 800; color: hsl(var(--fg)); font-size: 15px; }
+  .coin { font-weight: 800; color: hsl(var(--fg)); font-size: 15px; }
+  .coin small { color: hsl(var(--mutedFg)); font-weight: 500; font-size: 11px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+  .grow { flex: 1; min-width: 0; }
+  .item { color: hsl(var(--fg)); font-weight: 600; font-size: 14px; }
+  .price { color: hsl(var(--fg)); font-weight: 700; font-size: 13px; }
+  .btn { border: none; border-radius: 10px; padding: 7px 14px; font-weight: 700; font-size: 13px; cursor: default; }
+  .btn.grad { background: linear-gradient(135deg, hsl(var(--g1)), hsl(var(--g2))); color: hsl(var(--primaryFg)); }
+  .btn.sec { background: hsl(var(--muted)); color: hsl(var(--fg)); }
+  .btn.dis { background: hsl(var(--muted)); color: hsl(var(--mutedFg)); opacity: .7; }
+  .pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 10px;
+          font-size: 12px; font-weight: 600; background: hsl(var(--cpSoft)); color: hsl(var(--cp)); border: 1px solid hsl(var(--cp) / .2); }
+  .badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+  .badge.ok { background: hsl(var(--successSoft)); color: hsl(var(--success)); }
+  .badge.bad { background: hsl(var(--dangerSoft)); color: hsl(var(--danger)); }
+  .bar { height: 8px; border-radius: 999px; background: hsl(var(--muted)); overflow: hidden; }
+  .bar > span { display: block; height: 100%; width: 70%; background: hsl(var(--success)); border-radius: 999px; }
+  .dtext { color: hsl(var(--danger)); font-size: 12px; font-weight: 600; }
+
+  /* ---- legend ---- */
+  .legend { margin-top: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 10px; }
+  .legend h4 { margin: 2px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; }
+  /* static (v1) rows */
+  .lrow { display: grid; grid-template-columns: 18px 116px 1fr auto; gap: 8px; align-items: center;
+          font-size: 11.5px; padding: 2.5px 2px; }
+  .chip { width: 18px; height: 18px; border-radius: 5px; border: 1px solid rgba(0,0,0,.15); }
+  .vname { color: #334155; font-weight: 600; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .vhsl { color: #64748b; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .vhex { color: #0f172a; font-weight: 700; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .changed-v1 .vname::after { content: " ●"; color: #be185d; }
+  /* interactive (v2) token blocks */
+  .trow { padding: 6px 4px; border-radius: 8px; }
+  .trow + .trow { border-top: 1px solid #f1f5f9; }
+  .trow.dim { opacity: .5; }
+  .thead { display: grid; grid-template-columns: 18px 118px 1fr auto auto; gap: 8px; align-items: center; font-size: 11.5px; }
+  .thead .rst { border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; border-radius: 6px;
+                padding: 1px 7px; font-size: 10.5px; }
+  .thead .rst:hover { background: #f1f5f9; }
+  .thead .mk { color: #d97706; font-weight: 700; width: 10px; }
+  .sliders { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 5px; }
+  .sl { display: flex; align-items: center; gap: 5px; }
+  .sl span { font-size: 10px; color: #94a3b8; width: 9px; font-weight: 700; }
+  .sl input[type=range] { flex: 1; height: 4px; accent-color: #be185d; min-width: 0; }
+  .sl input[disabled] { accent-color: #cbd5e1; }
+
+  .exportwrap { margin-top: 26px; }
+  textarea { width: 100%; min-height: 220px; font-family: ui-monospace, Menlo, Consolas, monospace;
+             font-size: 12px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px;
+             background: #0f172a; color: #e2e8f0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>主题调色台 · sakura v2（已上线）</h1>
+  <p class="sub">右栏基线 = <b>线上实际值</b>（src/index.css）· 拖 H / S / L 实时调色 · 刷新即还原 · 导出可粘回</p>
+  <div class="note">
+    <b>用途</b>：sakura 微调 + 未来主题（v2.5 / 高阶付费档）的创作工具 —— 一个主题 = 一组 light + dark 变量块。
+    sakura 是<b>刻意的单色方案</b>：success 属粉色家族（非绿），状态语义靠 ✓/✗ 图标 + 数字承载，danger 留在 hue 12 保持可辨。
+    左栏 v1 为历史对照（只读）。<span class="marker-p">●</span> = 该 token 已被你调离线上值。
+    调完点<b>「导出全部」</b>，整段贴回即可写入主题块。
+  </div>
+
+  <div class="toolbar">
+    <label><input type="checkbox" id="lnkCp" checked /> 锁定 <code>--cp</code> = <code>--primary</code></label>
+    <label><input type="checkbox" id="lnkSoft" checked /> 软色（-soft）跟随主色相 H</label>
+    <span class="spacer"></span>
+    <button class="btn-x btn-primary" id="btnExport">导出全部（JSON）</button>
+  </div>
+
+  <div id="app"></div>
+
+  <div class="exportwrap" id="exportWrap" style="display:none">
+    <div class="collabel">导出 · light + dark（整段复制贴回）</div>
+    <textarea id="exportOut" readonly spellcheck="false"></textarea>
+  </div>
+</div>
+
+<script>
+// ---------- color utils ----------
+function hexFromHSL(h, s, l) {
+  h /= 360; s /= 100; l /= 100;
+  const f = (n) => {
+    const k = (n + h * 12) % 12;
+    const c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(255 * c).toString(16).padStart(2, "0");
+  };
+  return "#" + f(0) + f(8) + f(4);
+}
+const R = Math.round;
+function fmt(o) { return `${R(o.h)} ${R(o.s)}% ${R(o.l)}%`; }
+function hex(o) { return hexFromHSL(o.h, o.s, o.l); }
+function parse(str) { const m = str.match(/^([\d.]+) ([\d.]+)% ([\d.]+)%$/); return { h: +m[1], s: +m[2], l: +m[3] }; }
+function clone(o) { return { h: o.h, s: o.s, l: o.l }; }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function gradStops(p) { return { g1: clone(p), g2: { h: (p.h - 8 + 360) % 360, s: clamp(p.s, 0, 100), l: clamp(p.l + 8, 0, 92) } }; }
+
+// ---------- token definitions ----------
+// editable tokens get sliders; fixed ones (foregrounds) render in the mock + export only.
+const EDIT = ["bg","card","fg","muted","border","primary","primarySoft","cp","cpSoft","success","successSoft","danger","dangerSoft"];
+const FIXED = ["mutedFg","primaryFg","successFg","dangerFg"];
+const LABEL = {
+  bg:"--background", card:"--card", fg:"--foreground", muted:"--muted", border:"--border",
+  primary:"--primary", primarySoft:"--primary-soft", cp:"--cp", cpSoft:"--cp-soft",
+  success:"--success", successSoft:"--success-soft", danger:"--danger", dangerSoft:"--danger-soft",
+};
+const EXPORT_MAP = {
+  bg:"--background", card:"--card", fg:"--foreground", muted:"--muted", mutedFg:"--muted-foreground", border:"--border",
+  primary:"--primary", primaryFg:"--primary-foreground", primarySoft:"--primary-soft",
+  cp:"--cp", cpSoft:"--cp-soft",
+  success:"--success", successFg:"--success-foreground", successSoft:"--success-soft",
+  danger:"--danger", dangerFg:"--danger-foreground", dangerSoft:"--danger-soft",
+};
+const SOFT_PARENT = { primarySoft:"primary", cpSoft:"cp", successSoft:"success", dangerSoft:"danger" };
+
+// ---------- proposal baselines (immutable) ----------
+const STR = {
+  v1: {
+    light: { bg:"0 0% 100%", card:"210 20% 98%", fg:"217 33% 17%", muted:"210 20% 96%", mutedFg:"215 16% 47%", border:"214 32% 91%",
+      primary:"330 72% 52%", primaryFg:"0 0% 100%", primarySoft:"330 72% 95%", cp:"330 72% 52%", cpSoft:"330 72% 95%",
+      success:"160 84% 39%", successFg:"0 0% 100%", successSoft:"160 70% 94%", danger:"0 84% 60%", dangerFg:"0 0% 100%", dangerSoft:"0 86% 96%" },
+    dark: { bg:"217 33% 10%", card:"217 33% 13%", fg:"210 20% 96%", muted:"217 20% 18%", mutedFg:"215 16% 65%", border:"217 20% 22%",
+      primary:"330 80% 64%", primaryFg:"217 33% 10%", primarySoft:"330 40% 24%", cp:"330 80% 64%", cpSoft:"330 40% 24%",
+      success:"160 70% 45%", successFg:"0 0% 100%", successSoft:"160 45% 15%", danger:"0 80% 60%", dangerFg:"0 0% 100%", dangerSoft:"0 45% 18%" },
+  },
+  // v2 = the SHIPPED sakura values (src/index.css). Baseline for further tuning / new themes.
+  v2: {
+    light: { bg:"350 40% 96%", card:"350 50% 99%", fg:"345 25% 22%", muted:"348 25% 93%", mutedFg:"345 12% 45%", border:"348 20% 88%",
+      primary:"340 66% 55%", primaryFg:"0 0% 100%", primarySoft:"340 65% 95%", cp:"340 66% 55%", cpSoft:"340 65% 95%",
+      success:"350 65% 58%", successFg:"0 0% 100%", successSoft:"350 30% 93%", danger:"12 80% 54%", dangerFg:"0 0% 100%", dangerSoft:"12 85% 95%" },
+    dark: { bg:"330 30% 9%", card:"340 35% 12%", fg:"345 30% 90%", muted:"344 20% 20%", mutedFg:"340 8% 60%", border:"344 25% 26%",
+      primary:"344 65% 64%", primaryFg:"344 20% 10%", primarySoft:"344 35% 22%", cp:"344 65% 64%", cpSoft:"344 30% 22%",
+      success:"350 60% 68%", successFg:"142 30% 10%", successSoft:"350 50% 20%", danger:"12 85% 62%", dangerFg:"12 30% 10%", dangerSoft:"12 50% 18%" },
+  },
+};
+function toObjSet(strset) { const o = {}; for (const k in strset) o[k] = parse(strset[k]); return o; }
+const PROPOSAL = { light: toObjSet(STR.v2.light), dark: toObjSet(STR.v2.dark) };   // immutable baseline
+const V1 = { light: toObjSet(STR.v1.light), dark: toObjSet(STR.v1.dark) };
+const state = { light: JSON.parse(JSON.stringify(PROPOSAL.light)), dark: JSON.parse(JSON.stringify(PROPOSAL.dark)) };
+const links = { cpFollowsPrimary: true, softFollowsHue: true };
+const el = {}; // element refs: el[mode][token] = { chip, hsl, hex, mk, sliders:{h,s,l} }
+
+// ---------- mock ----------
+function allVars(set) {
+  const g = gradStops(set.primary);
+  const out = {};
+  for (const k of [...EDIT, ...FIXED]) out["--" + k] = fmt(set[k]);
+  out["--g1"] = fmt(g.g1); out["--g2"] = fmt(g.g2);
+  return out;
+}
+function mockHTML() {
+  return `<div class="card">
+    <div class="top"><span class="t">金币商城</span><span class="coin">1240 <small>金币</small></span></div>
+    <div class="row"><span class="grow item">奶茶券</span><span class="price">120</span>
+      <button class="btn grad">购买</button></div>
+    <div class="row"><button class="btn sec">取消</button><button class="btn dis">已拥有</button>
+      <span class="grow"></span><span class="pill">CP · 早起鸟</span></div>
+    <div class="row"><span class="badge ok">已达标 ✓</span><span class="grow bar"><span></span></span></div>
+    <div class="row"><span class="badge bad">余额为负</span><span class="dtext">撤销结算收回了通关奖励</span></div>
+  </div>`;
+}
+function applyMock(mode) {
+  const m = document.getElementById("mock-" + mode);
+  const vars = allVars(state[mode]);
+  for (const k in vars) m.style.setProperty(k, vars[k]);
+}
+
+// ---------- static v1 legend ----------
+function v1Legend(mode) {
+  const rows = EDIT.map((k) => {
+    const o = V1[mode][k];
+    const diff = fmt(o) !== fmt(PROPOSAL[mode][k]) ? " changed-v1" : "";
+    return `<div class="lrow${diff}"><span class="chip" style="background:hsl(${fmt(o)})"></span>
+      <span class="vname">${LABEL[k]}</span><span class="vhsl">${fmt(o)}</span><span class="vhex">${hex(o)}</span></div>`;
+  }).join("");
+  return `<div class="legend"><h4>v1 tokens（<span class="marker-p" style="color:#be185d">●</span> = v2 相对 v1 改动）</h4>${rows}</div>`;
+}
+
+// ---------- interactive v2 legend ----------
+function v2Legend(mode) {
+  const wrap = document.createElement("div");
+  wrap.className = "legend";
+  wrap.innerHTML = `<h4>v2 tokens · 拖动调色</h4>`;
+  el[mode] = {};
+  for (const k of EDIT) {
+    const o = state[mode][k];
+    const row = document.createElement("div");
+    row.className = "trow";
+    row.innerHTML = `
+      <div class="thead">
+        <span class="chip" data-r="chip"></span>
+        <span class="vname">${LABEL[k]}</span>
+        <span class="vhsl" data-r="hsl"></span>
+        <span class="vhex" data-r="hex"></span>
+        <span><span class="mk" data-r="mk"></span><button class="rst" data-r="rst">重置</button></span>
+      </div>
+      <div class="sliders">
+        <div class="sl"><span>H</span><input type="range" min="0" max="360" step="1" data-c="h"></div>
+        <div class="sl"><span>S</span><input type="range" min="0" max="100" step="1" data-c="s"></div>
+        <div class="sl"><span>L</span><input type="range" min="0" max="100" step="1" data-c="l"></div>
+      </div>`;
+    const q = (r) => row.querySelector(`[data-r="${r}"]`);
+    const sliders = {};
+    row.querySelectorAll('input[type=range]').forEach((inp) => {
+      const c = inp.dataset.c; sliders[c] = inp;
+      inp.value = o[c];
+      inp.addEventListener("input", () => onSlide(mode, k, c, +inp.value));
+    });
+    q("rst").addEventListener("click", () => resetToken(mode, k));
+    el[mode][k] = { chip: q("chip"), hsl: q("hsl"), hex: q("hex"), mk: q("mk"), row, sliders };
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+// ---------- update (no rebuild — mutate refs) ----------
+function refreshRow(mode, k) {
+  const o = state[mode][k], r = el[mode][k];
+  const str = fmt(o);
+  r.chip.style.background = "hsl(" + str + ")";
+  r.hsl.textContent = str;
+  r.hex.textContent = hex(o);
+  r.mk.textContent = str !== fmt(PROPOSAL[mode][k]) ? "●" : "";
+}
+function syncSliders(mode, k) {
+  const o = state[mode][k], s = el[mode][k].sliders;
+  s.h.value = R(o.h); s.s.value = R(o.s); s.l.value = R(o.l);
+}
+function setCpLinkedUI(mode) {
+  const r = el[mode].cp;
+  const dim = links.cpFollowsPrimary;
+  r.row.classList.toggle("dim", dim);
+  ["h","s","l"].forEach((c) => r.sliders[c].disabled = dim);
+}
+function onSlide(mode, k, c, v) {
+  if (links.cpFollowsPrimary && k === "cp") return; // cp is driven by primary
+  state[mode][k][c] = v;
+  // link: cp mirrors primary
+  if (links.cpFollowsPrimary && k === "primary") {
+    state[mode].cp = clone(state[mode].primary); syncSliders(mode, "cp"); refreshRow(mode, "cp");
+    if (links.softFollowsHue) { state[mode].cpSoft.h = state[mode].cp.h; syncSliders(mode, "cpSoft"); refreshRow(mode, "cpSoft"); }
+  }
+  // link: soft follows parent hue
+  if (links.softFollowsHue && c === "h") {
+    const soft = Object.keys(SOFT_PARENT).find((s) => SOFT_PARENT[s] === k);
+    if (soft) { state[mode][soft].h = v; syncSliders(mode, soft); refreshRow(mode, soft); }
+  }
+  refreshRow(mode, k);
+  applyMock(mode);
+}
+function resetToken(mode, k) {
+  state[mode][k] = clone(PROPOSAL[mode][k]);
+  syncSliders(mode, k); refreshRow(mode, k);
+  // keep linked children coherent
+  const soft = Object.keys(SOFT_PARENT).find((s) => SOFT_PARENT[s] === k);
+  if (links.softFollowsHue && soft) { state[mode][soft].h = state[mode][k].h; syncSliders(mode, soft); refreshRow(mode, soft); }
+  if (links.cpFollowsPrimary && k === "primary") { state[mode].cp = clone(state[mode].primary); syncSliders(mode, "cp"); refreshRow(mode, "cp"); }
+  applyMock(mode);
+}
+function resetAll(mode) {
+  for (const k of EDIT) { state[mode][k] = clone(PROPOSAL[mode][k]); syncSliders(mode, k); refreshRow(mode, k); }
+  applyMock(mode);
+}
+
+// ---------- build page ----------
+function buildPanel(mode, headline) {
+  const pair = document.createElement("div");
+  pair.className = "pair";
+  // v1 column (static)
+  const c1 = document.createElement("div");
+  c1.innerHTML = `<div class="collabel">v1 现状 <span style="color:#94a3b8">· 只读参照</span></div>
+    <div class="mock" id="mv1-${mode}">${mockHTML()}</div>${v1Legend(mode)}`;
+  const v1vars = allVars(V1[mode]);
+  // v2 column (interactive)
+  const c2 = document.createElement("div");
+  const head = document.createElement("div");
+  head.className = "collabel";
+  head.innerHTML = `<span class="v2">v2 提案</span><span style="color:#94a3b8">· ${headline}</span>
+    <button class="btn-x resetall" data-resetall>全部重置</button>`;
+  head.querySelector("[data-resetall]").addEventListener("click", () => resetAll(mode));
+  const mock = document.createElement("div");
+  mock.className = "mock"; mock.id = "mock-" + mode; mock.innerHTML = mockHTML();
+  c2.appendChild(head); c2.appendChild(mock); c2.appendChild(v2Legend(mode));
+  pair.appendChild(c1); pair.appendChild(c2);
+  // apply v1 vars to its mock
+  requestAnimationFrame(() => { const m1 = document.getElementById("mv1-" + mode); for (const kk in v1vars) m1.style.setProperty(kk, v1vars[kk]); });
+  return pair;
+}
+function build() {
+  const app = document.getElementById("app");
+  const h1 = document.createElement("div"); h1.className = "modehead"; h1.innerHTML = `☀️ 浅色 · 昼樱 <span class="tag">light</span>`;
+  const h2 = document.createElement("div"); h2.className = "modehead"; h2.innerHTML = `🌙 深色 · 夜樱 <span class="tag">dark</span>`;
+  app.appendChild(h1); app.appendChild(buildPanel("light", "cream ground + pink accent"));
+  app.appendChild(h2); app.appendChild(buildPanel("dark", "warm-black + muted pink"));
+  ["light","dark"].forEach((mode) => { for (const k of EDIT) refreshRow(mode, k); applyMock(mode); setCpLinkedUI(mode); });
+}
+
+// ---------- links + export ----------
+function buildExport(mode) {
+  const s = state[mode], o = {};
+  for (const k in EXPORT_MAP) o[EXPORT_MAP[k]] = fmt(s[k]);
+  o["--accent"] = fmt(s.primary); o["--accent-soft"] = fmt(s.primarySoft); o["--ring"] = fmt(s.primary);
+  o["--sidebar-primary"] = fmt(s.primary); o["--sidebar-ring"] = fmt(s.primary);
+  const g = gradStops(s.primary);
+  o["--gradient-warm"] = `linear-gradient(135deg, hsl(${fmt(g.g1)}), hsl(${fmt(g.g2)}))`;
+  return o;
+}
+document.getElementById("btnExport").addEventListener("click", () => {
+  const payload = { theme: "sakura", light: buildExport("light"), dark: buildExport("dark") };
+  const out = document.getElementById("exportOut");
+  out.value = JSON.stringify(payload, null, 2);
+  document.getElementById("exportWrap").style.display = "block";
+  out.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  out.focus(); out.select();
+});
+document.getElementById("lnkCp").addEventListener("change", (e) => {
+  links.cpFollowsPrimary = e.target.checked;
+  ["light","dark"].forEach((mode) => {
+    if (links.cpFollowsPrimary) {
+      state[mode].cp = clone(state[mode].primary); syncSliders(mode, "cp"); refreshRow(mode, "cp");
+      if (links.softFollowsHue) { state[mode].cpSoft.h = state[mode].cp.h; syncSliders(mode, "cpSoft"); refreshRow(mode, "cpSoft"); }
+      applyMock(mode);
+    }
+    setCpLinkedUI(mode);
+  });
+});
+document.getElementById("lnkSoft").addEventListener("change", (e) => {
+  links.softFollowsHue = e.target.checked;
+  if (links.softFollowsHue) ["light","dark"].forEach((mode) => {
+    for (const soft in SOFT_PARENT) { state[mode][soft].h = state[mode][SOFT_PARENT[soft]].h; syncSliders(mode, soft); refreshRow(mode, soft); }
+    applyMock(mode);
+  });
+});
+
+build();
+</script>
+</body>
+</html>

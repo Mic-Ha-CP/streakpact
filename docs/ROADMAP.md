@@ -268,7 +268,33 @@ source of truth for prices/tiers/lifecycle). Migration `006_shop.sql`.
       **Verified (g):** 打卡 earning is structurally challenge-gated (challenge tasks only); 签到 stays
       year-round by design.
 
-### Sakura v2 / premium theme design spec (deferred — post-P3)
+### Sakura v2 — ✅ SHIPPED 2026-08-19
+Owner-tuned in `docs/design/sakura-v2-colorcard.html` (interactive tuner, kept as the theme-authoring
+tool), written as the final `:root[data-skin="sakura"]` + `.dark` blocks in `src/index.css`. Delivers
+all three v2 recommendations below: surfaces → warm cream / warm-black (brand pink shrunk to CTA /
+active / small accents), semantic colors themed, dark independently tuned. **The theme contract was
+upgraded** from "brand token block" to **brand + surfaces + semantics** (documented in `index.css`).
+**Sakura is a deliberate MONOCHROME scheme — `--success` is pink-family, not green**; state semantics
+ride on icons (✓/✗) + numbers, with `--danger` separable at hue 12. That is a per-theme semantic
+choice and part of the contract — do not "fix" it back to green. Contrast-checked against the shipped
+teal default: sakura v2 is **equal or better on every measured pair in both modes**.
+
+### Sakura v2.5 — petals + hand-drawn accents (deferred — pending CP's art assets)
+The **decoration layer** above the color layer. Full investigation in
+**`docs/design/THEME_DECORATIONS.md`** (reference: Flat Tomato). Summary:
+- **Ambient petals** — pure CSS, <100 lines, no library. MUST honor `prefers-reduced-motion` (off,
+  not slower) and appear only on low-interaction surfaces (dashboard yes; check-in / form inputs no).
+  MID-HIGH value, no external dependency → the natural first step.
+- **Static illustrations** (sakura sprigs, corner motifs) — trivial technically (`background-image`
+  on the existing `[data-skin]` hook), **asset-bound**: CP draws them or we license real art —
+  **no generative AI**, per our ethics stance. HIGH value (dev × art crossover).
+- **Themed functional components** (clock-face style) — **blocked**: no carrier until the in-app
+  timer feature exists (see Future → "Expanded timer check-in"). Do not build before then.
+- **Tiering hook:** decoration completeness prices the premium tier — bare color theme **300** vs
+  full theme (art + effects) **~500**, per the D12 grill note. Tiers track real art cost, not
+  invented scarcity.
+
+### Premium theme design spec — the v2 recommendations (recorded 2026-08-14; v2 delivered them)
 The **token architecture** is the real deliverable of the P3 theme work: a theme = one light block +
 one dark block redefining the brand token set (`src/index.css`, contract documented there), so a new
 theme is a single reviewed variable block — the foundation the future ~500 premium tier needs. The
