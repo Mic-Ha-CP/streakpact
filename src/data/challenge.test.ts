@@ -7,6 +7,7 @@ import {
   challengeSpan,
   challengeStarted,
   challengeStatusForUser,
+  checkinOpenForUser,
   challengeWeeks,
   combineTeamChallenge,
   daysBetween,
@@ -177,5 +178,35 @@ describe("auto-void (D9, grace day)", () => {
     expect(autoVoidDue(START, addDays(START, 1), 1)).toBe(true); // day after start, only initiator
     expect(autoVoidDue(START, addDays(START, 1), 2)).toBe(false); // both joined
     expect(autoVoidDue(START, "2026-02-10", 1)).toBe(true); // running, partner never joined
+  });
+});
+
+describe("check-in stays open until the user SETTLES (not until the challenge ends)", () => {
+  // Settling is the lock; ending is not (D2). Dates stay span-bounded elsewhere.
+  it("allows backfill the day AFTER the challenge ended while unsettled", () => {
+    expect(challengeEnded(START, WEEKS, addDays(END, 1))).toBe(true); // it really has ended
+    expect(checkinOpenForUser(START, addDays(END, 1), false)).toBe(true);
+  });
+
+  it("stays open long after the end while still unsettled", () => {
+    expect(checkinOpenForUser(START, addDays(END, 30), false)).toBe(true);
+  });
+
+  it("blocks check-in once that user has settled", () => {
+    expect(checkinOpenForUser(START, addDays(END, 1), true)).toBe(false);
+    expect(checkinOpenForUser(START, END, true)).toBe(false); // even before the end
+  });
+
+  it("is per-user: my settling does not close my partner's check-in", () => {
+    const day = addDays(END, 1);
+    const mine = checkinOpenForUser(START, day, true); // I settled
+    const partner = checkinOpenForUser(START, day, false); // she has not
+    expect(mine).toBe(false);
+    expect(partner).toBe(true);
+  });
+
+  it("is still closed before the challenge starts", () => {
+    expect(checkinOpenForUser(START, addDays(START, -1), false)).toBe(false);
+    expect(checkinOpenForUser(START, START, false)).toBe(true);
   });
 });

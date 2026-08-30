@@ -210,3 +210,22 @@ export function midEditOpen(
 export function autoVoidDue(startDate: string, today: string, memberCount: number): boolean {
   return daysBetween(startDate, today) >= 1 && memberCount < 2;
 }
+
+/**
+ * Is check-in / 补签 still OPEN for a given user?
+ *
+ * **Settling is the lock — ending is not.** The challenge ending does NOT close data
+ * entry: per DECISIONS (D2, manual settlement), a user may freely backfill anywhere in
+ * the challenge span right up until THEY settle. That's the whole point of settlement
+ * being a deliberate, manual act — you finish the period, fix up the record, then lock
+ * it by settling.
+ *
+ * Strictly **per-user**: my settling locks only my own check-ins; my partner keeps
+ * backfilling until she settles. Un-settling (撤销结算, no time limit) reopens it.
+ *
+ * Callers still bound the date picker to the challenge span [start, end] — this only
+ * governs whether entry is open at all, never which dates are legal.
+ */
+export function checkinOpenForUser(startDate: string, today: string, settled: boolean): boolean {
+  return challengeStarted(startDate, today) && !settled;
+}

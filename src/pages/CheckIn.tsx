@@ -5,6 +5,7 @@ import { useChallenge } from "@/hooks/useChallenge";
 import {
   challengeSpan,
   challengeStarted,
+  checkinOpenForUser,
   challengeWeeks,
   totalProgress,
 } from "@/data/challenge";
@@ -218,11 +219,13 @@ const CheckIn = () => {
     );
   }
 
-  // Running (or ended-but-editable). Check-in dates are bounded to the span, up to today.
+  // Running OR ended-but-unsettled: check-in / 补签 stays open until I SETTLE — ending is
+  // not the lock (D2). Dates stay bounded to the challenge span, up to today.
   const maxDate = strMin(today, end);
   const curDate = date >= start && date <= maxDate ? date : maxDate;
   const isPast = curDate < today;
-  const editable = active === me;
+  const mySettled = !!c.myMember?.result;
+  const editable = active === me && checkinOpenForUser(start, today, mySettled);
   const tasks = c.tasksFor(active);
   const wk = challengeWeeks(start, ch.weeks).find((w) => curDate >= w.startDate && curDate <= w.endDate);
 
@@ -252,9 +255,14 @@ const CheckIn = () => {
         ))}
       </div>
 
-      {!editable && (
+      {active !== me && (
         <div className="text-xs text-muted-foreground bg-muted/40 rounded-xl px-3 py-2">
           正在查看 {active} 的打卡（只读）。只能为自己打卡。
+        </div>
+      )}
+      {active === me && mySettled && (
+        <div className="text-xs text-secondary-foreground bg-secondary-soft/70 rounded-xl px-3 py-2">
+          你已结算本期，打卡记录已锁定（只读）。如需修改，先在首页「撤销结算」——撤销无时间限制。
         </div>
       )}
 

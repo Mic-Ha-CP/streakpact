@@ -5,6 +5,7 @@ import { useChallengeSettlement } from "@/hooks/useChallengeSettlement";
 import {
   challengeSpan,
   challengeStarted,
+  checkinOpenForUser,
   midEditOpen,
   preStartEditable,
   nextMondayOnOrAfter,
@@ -348,8 +349,13 @@ export const ChallengeHome = () => {
   // so a rest week is a choice, not a surprise (challenge-to-challenge gap, ROADMAP).
   const nextStart = nextMondayOnOrAfter(today);
 
-  // check-in date (default = today, clamped into [start, min(end, today)])
-  const maxCheckin = ended ? end : strMin(today, end);
+  // Check-in / 补签 stays open until I SETTLE — ending is not the lock (D2). After the
+  // challenge ends I can still fix up the span (e.g. backfill the final Sunday on Monday
+  // morning); settling is what closes MY data. Per-user: this never affects my partner.
+  const myCheckinOpen = c.iJoined && checkinOpenForUser(start, today, s.mySettled);
+
+  // check-in date (default = latest editable day, clamped into [start, min(end, today)])
+  const maxCheckin = strMin(today, end);
   const checkinDate =
     selectedDate && selectedDate >= start && selectedDate <= maxCheckin ? selectedDate : maxCheckin;
 
@@ -557,8 +563,8 @@ export const ChallengeHome = () => {
           </div>
         )}
 
-        {/* date selector for check-in / 补签 (running only) */}
-        {c.iJoined && started && !ended && c.myTasks.length > 0 && (
+        {/* date selector for check-in / 补签 (open until I settle, not until the end) */}
+        {myCheckinOpen && c.myTasks.length > 0 && (
           <div className="flex items-center justify-between bg-muted/40 rounded-2xl p-2">
             <button onClick={() => stepDate(-1)} className="p-1.5 rounded-lg hover:bg-card" aria-label="前一天">
               <ChevronLeft className="w-4 h-4" />
@@ -590,7 +596,7 @@ export const ChallengeHome = () => {
                 user={me}
                 showPace={started && !ended}
               />
-              {started && !ended && (
+              {myCheckinOpen && (
                 <CheckinControls
                   task={t}
                   logs={c.logs}
@@ -622,6 +628,10 @@ export const ChallengeHome = () => {
           </div>
           <p className="text-sm text-muted-foreground">
             结算会锁定你的结果。团队奖惩在双方都结算后入账。
+          </p>
+          <p className="text-sm text-muted-foreground">
+            <b className="text-foreground">结算前仍可补记录</b>：本期日期（{start} ~ {end}）都还能改，
+            结算后才锁定。结算预览用的是最新数据。
           </p>
           <p className="text-xs text-muted-foreground">
             本期已结束 · 双方结算后可于 <b className="text-foreground">{nextStart}</b>（周一）立即开启下一期。
