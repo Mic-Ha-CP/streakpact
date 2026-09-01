@@ -184,10 +184,16 @@ export function useChallenge() {
   const myTasks = tasks.filter((t) => t.userId === userId);
   const tasksFor = (u: UserId) => tasks.filter((t) => t.userId === u);
 
-  // Auto-void (D9): start day arrived + partner never joined. Gate on members having
-  // loaded so we don't void prematurely while the second member row is still fetching.
+  // Auto-void (D9 as re-anchored by D13): partner never joined within the 组建期
+  // (SETUP_WINDOW_DAYS after initiation). Gate on members having loaded so we don't void
+  // prematurely while the second member row is still fetching.
+  // D13: anchored on INITIATION, not start_date — a this-week (backdated) start would
+  // otherwise satisfy the old start-based condition at creation and self-cancel.
+  // created_at is a UTC timestamptz; its date half is the anchor (see autoVoidDue notes).
   const voided =
-    !!challenge && !membersQ.isLoading && autoVoidDue(challenge.startDate, today, members.length);
+    !!challenge &&
+    !membersQ.isLoading &&
+    autoVoidDue(challenge.createdAt.slice(0, 10), today, members.length);
 
   // Consensual abort (D11): each side sets its own abort_requested_at. Exactly one set =
   // a pending request; both set = aborted (derived void, like auto-void).

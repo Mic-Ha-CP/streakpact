@@ -41,6 +41,11 @@ function isoDow(date: string): number {
 export function isMonday(date: string): boolean {
   return isoDow(date) === 1;
 }
+/** The Monday of the week containing `date` (returns `date` itself if already Monday). */
+export function mondayOfWeek(date: string): string {
+  return addDays(date, -(isoDow(date) - 1));
+}
+
 /** The first Monday on or after `date` (returns `date` itself if already Monday). */
 export function nextMondayOnOrAfter(date: string): string {
   const offset = (8 - isoDow(date)) % 7; // Mon→0, Tue→6, … Sun→1
@@ -172,11 +177,73 @@ export function paceExpected(
 }
 
 /**
+ * The 组建期 (setup window), D13. `SETUP_WINDOW_DAYS` is deliberately ONE constant
+ * driving TWO rules, so a single time frame explains both:
+ *   - auto-void: the partner must join within this window (`autoVoidDue`);
+ *   - free edits: both members may edit freely within it (`freeEditOpen`).
+ * Day 0 = the creation day; the window covers days 0..2 and closes on day +3 — exactly
+ * when an unjoined challenge would void. The joiner therefore ALWAYS lands inside it.
+ */
+export const SETUP_WINDOW_DAYS = 3;
+
+/** Is `today` still inside the challenge's setup window (组建期)? */
+export function withinSetupWindow(createdDate: string, today: string): boolean {
+  return daysBetween(createdDate, today) < SETUP_WINDOW_DAYS;
+}
+
+/**
  * Before the challenge starts, tasks are freely editable — no "one edit" is consumed
  * and no confirm is shown (D10). This is the scheduled-but-not-started window.
  */
 export function preStartEditable(startDate: string, today: string): boolean {
   return today < startDate;
+}
+
+/**
+ * Free (non-consuming) edits are open when EITHER condition holds — a strict SUPERSET
+ * of the old D10 rule, so nothing regresses:
+ *   - the challenge has not started yet (classic D10 pre-start freedom), OR
+ *   - we are still inside the 组建期 (D13 setup window).
+ *
+ * Why the OR matters: a Thursday create for next Monday is 4 days pre-start, which is
+ * LONGER than the 3-day setup window — a pure setup-window rule would have locked it on
+ * Sunday, *before the challenge even began*, regressing D10. Conversely a backdated
+ * (this-week) start is already "started" at creation, so only the setup window keeps it
+ * editable. Each clause covers the other's blind spot.
+ *
+ * Applies to BOTH members: the joiner fills tasks into someone else's frame and is the
+ * more rushed party, so she gets the same freedom — and since joining is only possible
+ * inside the setup window, she is always inside it when she joins (D13).
+ */
+export function freeEditOpen(startDate: string, createdDate: string, today: string): boolean {
+  return !challengeStarted(startDate, today) || withinSetupWindow(createdDate, today);
+}
+
+export interface StartChoices {
+  /** This week's Monday — offered only when initiating Mon–Wed; else null. */
+  thisWeek: string | null;
+  /** The next Monday strictly after this week's (always available). */
+  nextMonday: string;
+}
+
+/**
+ * Start-day options at creation (D13). Initiating Mon–Wed offers a CHOICE: start this
+ * week (start_date = this week's Monday, up to 2 days in the past) or next Monday.
+ * Thu–Sun offers next Monday only (unchanged). `start_date` is always a Monday, so all
+ * week math / settlement / pace are untouched.
+ */
+export function startChoicesFor(today: string): StartChoices {
+  const thisMonday = mondayOfWeek(today);
+  const canStartThisWeek = isoDow(today) <= 3; // Mon(1) Tue(2) Wed(3)
+  return {
+    thisWeek: canStartThisWeek ? thisMonday : null,
+    nextMonday: addDays(thisMonday, 7),
+  };
+}
+
+/** How many days of the challenge are already in the past at `today` (0 if not backdated). */
+export function daysMissedAtStart(startDate: string, today: string): number {
+  return Math.max(0, daysBetween(startDate, today));
 }
 
 /**
@@ -198,17 +265,24 @@ export function midEditOpen(
 }
 
 /**
- * A duo challenge auto-voids (D9) once its start day has PASSED and the partner never
- * joined (only the initiator has a member row → memberCount < 2). Detected on load; the
- * initiator's client writes status='cancelled' and both UIs derive dormant.
+ * A duo challenge auto-voids once the partner has not joined within the 组建期 — i.e.
+ * `SETUP_WINDOW_DAYS` after INITIATION (D13 re-anchors D9, which keyed off `start_date`).
  *
- * Grace day (timezone fairness): we require the day AFTER start (`daysBetween >= 1`),
- * not `today >= start`, so a timezone-behind partner still gets essentially their whole
- * start day to join. The initiator evaluates on their own device clock, so a residual
- * ≤~7h edge remains for the worst sub-case — accepted for a 2-user app (see D9 note).
+ * Why re-anchored: under D13 a challenge may start on THIS week's Monday, i.e. already
+ * in the past at creation. Keyed off `start_date` the void condition would be satisfied
+ * the instant the challenge was created, and the initiator's own client would cancel it
+ * seconds later. Anchoring on creation makes the join deadline independent of the
+ * chosen start day — and reuses the exact same window as free edits.
+ *
+ * Timezone grace is preserved by the window's size: `created_at` is stored UTC while
+ * `today` is the device's local date, so the derived created-date can skew by up to a
+ * day — with a 3-day window the partner still always gets ~2 full days (D9 note).
+ *
+ * Detected on load; the initiator's client writes status='cancelled' and both UIs derive
+ * dormant.
  */
-export function autoVoidDue(startDate: string, today: string, memberCount: number): boolean {
-  return daysBetween(startDate, today) >= 1 && memberCount < 2;
+export function autoVoidDue(createdDate: string, today: string, memberCount: number): boolean {
+  return daysBetween(createdDate, today) >= SETUP_WINDOW_DAYS && memberCount < 2;
 }
 
 /**

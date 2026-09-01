@@ -7,6 +7,11 @@ import {
   challengeSpan,
   challengeStarted,
   challengeStatusForUser,
+  daysMissedAtStart,
+  freeEditOpen,
+  mondayOfWeek,
+  startChoicesFor,
+  withinSetupWindow,
   checkinOpenForUser,
   challengeWeeks,
   combineTeamChallenge,
@@ -171,16 +176,6 @@ describe("edit windows (D7 / D10)", () => {
   });
 });
 
-describe("auto-void (D9, grace day)", () => {
-  it("only voids from the day AFTER start (grace for a timezone-behind partner)", () => {
-    expect(autoVoidDue(START, "2026-01-30", 1)).toBe(false); // before start
-    expect(autoVoidDue(START, START, 1)).toBe(false); // start day itself — grace, partner keeps their day
-    expect(autoVoidDue(START, addDays(START, 1), 1)).toBe(true); // day after start, only initiator
-    expect(autoVoidDue(START, addDays(START, 1), 2)).toBe(false); // both joined
-    expect(autoVoidDue(START, "2026-02-10", 1)).toBe(true); // running, partner never joined
-  });
-});
-
 describe("check-in stays open until the user SETTLES (not until the challenge ends)", () => {
   // Settling is the lock; ending is not (D2). Dates stay span-bounded elsewhere.
   it("allows backfill the day AFTER the challenge ended while unsettled", () => {
@@ -208,5 +203,106 @@ describe("check-in stays open until the user SETTLES (not until the challenge en
   it("is still closed before the challenge starts", () => {
     expect(checkinOpenForUser(START, addDays(START, -1), false)).toBe(false);
     expect(checkinOpenForUser(START, START, false)).toBe(true);
+  });
+});
+
+// ── D13: grace-window start ────────────────────────────────────────────────────
+// START (2026-02-02) is a Monday. Weekdays below are relative to it.
+const MON = START, TUE = addDays(START, 1), WED = addDays(START, 2);
+const THU = addDays(START, 3), SUN = addDays(START, 6);
+
+describe("mondayOfWeek", () => {
+  it("returns the Monday of the containing week for every weekday", () => {
+    for (let i = 0; i < 7; i++) expect(mondayOfWeek(addDays(START, i))).toBe(START);
+  });
+  it("is identity on a Monday", () => expect(mondayOfWeek(MON)).toBe(MON));
+});
+
+describe("startChoicesFor (D13 ①)", () => {
+  it("Mon–Wed offers this week (backdated 0–2 days) AND next Monday", () => {
+    expect(startChoicesFor(MON)).toEqual({ thisWeek: MON, nextMonday: addDays(MON, 7) });
+    expect(startChoicesFor(TUE)).toEqual({ thisWeek: MON, nextMonday: addDays(MON, 7) });
+    expect(startChoicesFor(WED)).toEqual({ thisWeek: MON, nextMonday: addDays(MON, 7) });
+  });
+  it("Thu–Sun offers next Monday only (unchanged behaviour)", () => {
+    for (const d of [THU, addDays(START, 4), addDays(START, 5), SUN]) {
+      expect(startChoicesFor(d).thisWeek).toBeNull();
+      expect(startChoicesFor(d).nextMonday).toBe(addDays(MON, 7));
+    }
+  });
+  it("every offered start is a Monday (week math stays intact)", () => {
+    for (let i = 0; i < 7; i++) {
+      const ch = startChoicesFor(addDays(START, i));
+      if (ch.thisWeek) expect(isMonday(ch.thisWeek)).toBe(true);
+      expect(isMonday(ch.nextMonday)).toBe(true);
+    }
+  });
+});
+
+describe("daysMissedAtStart", () => {
+  it("0 for a same-day (Monday) start, 2 for a Wednesday backdate", () => {
+    expect(daysMissedAtStart(MON, MON)).toBe(0);
+    expect(daysMissedAtStart(MON, WED)).toBe(2);
+  });
+  it("never negative for a future start", () => {
+    expect(daysMissedAtStart(addDays(MON, 7), WED)).toBe(0);
+  });
+});
+
+describe("auto-void re-anchored to created_at (D13 ③ amends D9)", () => {
+  const CREATED = WED; // initiated Wednesday
+  it("does NOT void while inside the setup window, even with a backdated start", () => {
+    // THE BLOCKER: start is 2 days in the past at creation — must not self-void.
+    expect(autoVoidDue(CREATED, CREATED, 1)).toBe(false);
+    expect(autoVoidDue(CREATED, addDays(CREATED, 2), 1)).toBe(false);
+  });
+  it("voids once the partner has not joined for SETUP_WINDOW_DAYS after initiation", () => {
+    expect(autoVoidDue(CREATED, addDays(CREATED, 3), 1)).toBe(true);
+    expect(autoVoidDue(CREATED, addDays(CREATED, 9), 1)).toBe(true);
+  });
+  it("never voids once both members joined", () => {
+    expect(autoVoidDue(CREATED, addDays(CREATED, 30), 2)).toBe(false);
+  });
+  it("is independent of start_date (a past start does not accelerate it)", () => {
+    // same created date, whether the challenge starts this week or next Monday
+    expect(autoVoidDue(CREATED, addDays(CREATED, 2), 1)).toBe(false);
+  });
+});
+
+describe("setup window + free edits (D13 ①/②)", () => {
+  const CREATED = WED;
+  it("withinSetupWindow covers days 0–2 and closes on day +3", () => {
+    expect(withinSetupWindow(CREATED, CREATED)).toBe(true);
+    expect(withinSetupWindow(CREATED, addDays(CREATED, 2))).toBe(true);
+    expect(withinSetupWindow(CREATED, addDays(CREATED, 3))).toBe(false);
+  });
+
+  it("backdated (this-week) start: BOTH sides edit free inside the window", () => {
+    // started already (start=Mon, today=Wed) yet still free — setup window carries it
+    expect(challengeStarted(MON, CREATED)).toBe(true);
+    expect(freeEditOpen(MON, CREATED, CREATED)).toBe(true);
+    // the joiner arriving 2 days after creation is still free (she is the rushed party)
+    expect(freeEditOpen(MON, CREATED, addDays(CREATED, 2))).toBe(true);
+  });
+
+  it("locks on day +4 (both sides) — 执行期 begins, D7 takes over", () => {
+    expect(freeEditOpen(MON, CREATED, addDays(CREATED, 3))).toBe(false);
+    // D7's one mid-challenge edit is still available and undiluted
+    expect(midEditOpen(MON, WEEKS, addDays(CREATED, 3), null)).toBe(true);
+  });
+
+  it("REGRESSION — Thu create for next Monday keeps free edits through ALL pre-start days", () => {
+    // 4 days pre-start > the 3-day setup window: a pure setup-window rule would have
+    // locked on Sunday, BEFORE the challenge began. The OR clause must prevent that.
+    const created = THU;
+    const start = addDays(MON, 7); // next Monday
+    expect(daysBetween(created, start)).toBe(4);
+    expect(withinSetupWindow(created, addDays(created, 3))).toBe(false); // window closed…
+    expect(freeEditOpen(start, created, addDays(created, 3))).toBe(true); // …still free (Sun)
+    expect(freeEditOpen(start, created, start)).toBe(false); // locks when it actually starts
+  });
+
+  it("check-in opens immediately on a backdated start (D13 × the settle-lock fix)", () => {
+    expect(checkinOpenForUser(MON, CREATED, false)).toBe(true);
   });
 });

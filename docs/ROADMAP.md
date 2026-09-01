@@ -395,6 +395,36 @@ deferred to the premium tier. Priority recommendations for v2 / premium authorin
       to a single ended-unsettled challenge (the two-active seed was itself the orphan).
 - [x] **撤销结算 no time limit** made explicit in the design doc (D2).
 
+### Grace-window challenge start (D13) — ✅ SHIPPED 2026-09-02
+Directly softens the start-timing friction described in the section below. Design approved over two
+rounds; **full rule + rejected alternatives recorded as DRAFT D13** in `docs/design/PERIODS_AND_GAMIFY.md`.
+- Initiating **Mon–Wed** offers a choice: **start this week** (`start_date` = this week's Monday, up
+  to 2 days in the past) or next Monday. **Default = this week.** Thu–Sun: next Monday only
+  (unchanged). `start_date` stays a Monday, so week math / settlement / pace are untouched.
+- Missed days are covered by the existing **free task 补签** — verified fully decoupled from the
+  20-coin 签到补签 (separate tables, separate code path).
+- **Amends D9:** auto-void re-anchors from `start_date` to **`created_at` + 3 days**. This is a HARD
+  PREREQUISITE, not a companion change — see the investigation note below.
+- **Rejected (do not re-propose):** a 24h join window (wrong for a fixed two-person cadence);
+  auto-settle after N days (conflicts with manual + snapshot + undoable settlement, and would
+  auto-execute deposit verdicts). Replacement for the latter: an escalating home banner
+  「已结束 N 天未结算」.
+- **Setup window (组建期):** free edits for BOTH members for `SETUP_WINDOW_DAYS` (3) after creation —
+  ONE constant drives both the join deadline and the free-edit window, so a single time frame explains
+  both rules and the joiner is always inside it. Rule is `freeEditOpen = (not started) OR (in setup
+  window)` — a strict superset of D10, because a Thu-create-for-next-Monday is 4 pre-start days and a
+  pure setup window would have locked it on Sunday, *before* the challenge began.
+- No schema change: `challenges.created_at` already existed and was already mapped.
+- Browser-verified end to end with a dev-only `?today=` override (`import.meta.env.DEV`-guarded, and
+  confirmed absent from the prod bundle).
+
+### Follow-up: `challengeSource` collision (out of D13 scope)
+`challengeSource(startDate)` = `"${start_date} 挑战"` and `reward_ledger` has `unique(user_id, source)`
+(002). Create → abort → recreate on the SAME Monday would collide at settlement. Pre-existing (already
+possible via create → cancel → recreate the same day); D13's this-week option makes reusing a given
+Monday marginally likelier. Fix would be to include the challenge id in the source, which changes
+existing ledger matching — needs care, so it is deliberately deferred, not silently absorbed.
+
 ### Rule interaction: challenge-to-challenge timing (surfaced 2026-07-31 — intentional, do NOT "fix")
 A challenge ends Sunday; settlement opens Monday; a new challenge must start on a **Monday** with both
 sides settled. So **zero gap happens only if both settle on that first Monday.** Settle on Tuesday and the

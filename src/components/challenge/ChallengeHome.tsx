@@ -7,7 +7,9 @@ import {
   challengeStarted,
   checkinOpenForUser,
   midEditOpen,
-  preStartEditable,
+  freeEditOpen,
+  startChoicesFor,
+  daysMissedAtStart,
   nextMondayOnOrAfter,
   paceExpected,
   totalProgress,
@@ -198,17 +200,26 @@ export const ChallengeHome = () => {
 
   const [formMode, setFormMode] = useState<FormMode>(null);
   const [selectedDate, setSelectedDate] = useState("");
+  // D13: chosen start day for a NEW challenge ("" = use the default).
+  const [pickedStart, setPickedStart] = useState("");
   const [settleOpen, setSettleOpen] = useState(false);
 
   // ---- Form overlay (create / join / edit) -----------------------------------
   if (formMode) {
-    const start = nextMondayOnOrAfter(today);
+    // D13: initiating Mon–Wed offers a choice; default = start THIS week (backdated up to
+    // 2 days). Thu–Sun keeps the old behaviour (next Monday only).
+    const choices = startChoicesFor(today);
+    const defaultStart = choices.thisWeek ?? choices.nextMonday;
+    const start = pickedStart || defaultStart;
     const closing = () => setFormMode(null);
     if (formMode === "create") {
       return (
         <ChallengeForm
           mode="create"
           startDate={start}
+          startChoices={choices}
+          onPickStart={setPickedStart}
+          daysMissed={daysMissedAtStart(start, today)}
           weeks={4}
           submitting={c.createChallenge.isPending}
           onCancel={closing}
@@ -218,6 +229,7 @@ export const ChallengeHome = () => {
               {
                 onSuccess: () => {
                   toast.success("挑战已发起 🎉");
+                  setPickedStart("");
                   closing();
                 },
                 onError: (e) => toast.error(`发起失败：${(e as Error).message}`),
@@ -231,6 +243,8 @@ export const ChallengeHome = () => {
       return (
         <ChallengeForm
           mode="join"
+          startDate={c.challenge?.startDate}
+          daysMissed={c.challenge ? daysMissedAtStart(c.challenge.startDate, today) : 0}
           submitting={c.joinChallenge.isPending}
           onCancel={closing}
           onSubmit={(r) =>
@@ -248,10 +262,15 @@ export const ChallengeHome = () => {
         />
       );
     }
-    // edit — before start it's free (tasks + deposit + team reward); after start it's the
-    // one shot (tasks only; deposit + team reward are locked).
-    const consumesEdit = c.challenge ? challengeStarted(c.challenge.startDate, today) : false;
-    const preStart = !consumesEdit;
+    // edit — FREE (tasks + deposit + team reward) while not started OR still inside the
+    // 组建期 (D13 setup window); after that it's the one shot (tasks only; deposit + team
+    // reward locked). `freeEdit` drives BOTH the "does this consume the D7 chance" call and
+    // the deposit/team-reward lock, so one rule governs both.
+    const freeEdit = c.challenge
+      ? freeEditOpen(c.challenge.startDate, c.challenge.createdAt.slice(0, 10), today)
+      : false;
+    const consumesEdit = !freeEdit;
+    const preStart = freeEdit;
     const iAmInitiator = c.challenge?.initiator === me;
     return (
       <ChallengeForm
@@ -305,12 +324,15 @@ export const ChallengeHome = () => {
 
   // ---- Dormant (no challenge, or one auto-voided / consensually aborted) ------
   if (!c.challenge || c.voided || c.aborted) {
-    const start = nextMondayOnOrAfter(today);
+    // D13: Mon–Wed can start THIS week, so the earliest start is not always next Monday.
+    const dormantChoices = startChoicesFor(today);
+    const start = dormantChoices.thisWeek ?? dormantChoices.nextMonday;
+    const canStartThisWeek = !!dormantChoices.thisWeek;
     return (
       <div className="bg-card rounded-3xl border border-border/60 shadow-card p-8 text-center space-y-4">
         {c.voided && (
           <div className="text-xs text-muted-foreground bg-muted/50 rounded-xl px-3 py-2">
-            上一个挑战到开赛日仍无人加入，已自动作废。
+            上一个挑战发起后 3 天内无人加入，已自动作废。
           </div>
         )}
         {c.aborted && (
@@ -325,7 +347,8 @@ export const ChallengeHome = () => {
           <h2 className="font-display font-extrabold text-xl">当前没有进行中的挑战</h2>
           <p className="text-sm text-muted-foreground">
             休眠中 · 零打卡义务。任一方都可发起一个 4 周挑战 —— 最早{" "}
-            <b className="text-foreground">{start}</b>（周一）开始。歇一阵再来也没问题。
+            <b className="text-foreground">{start}</b>（周一）开始
+            {canStartThisWeek ? "（本周一起算，已过去的天数可补签）" : ""}。歇一阵再来也没问题。
           </p>
         </div>
         <Button onClick={() => setFormMode("create")} className="rounded-xl">
@@ -341,7 +364,8 @@ export const ChallengeHome = () => {
   const started = challengeStarted(start, today);
   const ended = s.ended;
   const isInitiator = ch.initiator === me;
-  const canEditFree = c.iJoined && !ended && preStartEditable(start, today);
+  const canEditFree =
+    c.iJoined && !ended && freeEditOpen(start, ch.createdAt.slice(0, 10), today);
   const canEditMid =
     c.iJoined && !ended && midEditOpen(start, ch.weeks, today, c.myMember?.editedAt ?? null);
   const canEdit = canEditFree || canEditMid;

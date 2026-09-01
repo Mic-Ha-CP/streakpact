@@ -41,7 +41,12 @@ export interface ChallengeFormResult {
 interface Props {
   mode: "create" | "join" | "edit";
   editFree?: boolean; // edit mode: true = pre-start free edit (no chance consumed)
-  startDate?: string; // create: shown read-only
+  startDate?: string; // create/join: the challenge's start (create = the chosen one)
+  /** create only (D13): the two start options, when a choice exists. */
+  startChoices?: { thisWeek: string | null; nextMonday: string };
+  onPickStart?: (d: string) => void;
+  /** How many challenge days are already past at `today` (backdated this-week start). */
+  daysMissed?: number;
   weeks?: number;
   initialTasks?: Row[];
   initialDeposit?: DepositInput;
@@ -69,6 +74,9 @@ export const ChallengeForm = ({
   mode,
   editFree = false,
   startDate,
+  startChoices,
+  onPickStart,
+  daysMissed = 0,
   weeks = 4,
   initialTasks,
   initialDeposit,
@@ -130,7 +138,7 @@ export const ChallengeForm = ({
       : mode === "join"
         ? "加入挑战"
         : editFree
-          ? "修改任务（开赛前 · 可自由改）"
+          ? "修改任务（可自由改）"
           : "修改任务（本期唯一机会）";
 
   return (
@@ -144,10 +152,49 @@ export const ChallengeForm = ({
         )}
       </div>
 
+      {/* D13 start-day choice — only when initiating Mon–Wed (both options exist). */}
+      {mode === "create" && startChoices?.thisWeek && onPickStart && (
+        <div className="space-y-2">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+            开赛日
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { d: startChoices.thisWeek, label: "本周开始", sub: "本周一起算" },
+              { d: startChoices.nextMonday, label: "下周一开始", sub: "从头开始" },
+            ].map((opt) => (
+              <button
+                key={opt.d}
+                type="button"
+                onClick={() => onPickStart(opt.d!)}
+                className={cn(
+                  "rounded-2xl border-2 p-3 text-left transition-colors",
+                  startDate === opt.d
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-card hover:border-foreground/30",
+                )}
+              >
+                <div className="font-bold text-sm">{opt.label}</div>
+                <div className="text-[11px] text-muted-foreground tabular-nums">{opt.d}</div>
+                <div className="text-[11px] text-muted-foreground">{opt.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Backdated start: say plainly how many days are already gone and that they're fixable. */}
+      {startDate && daysMissed > 0 && (
+        <div className="text-xs text-secondary-foreground bg-secondary-soft/70 rounded-xl px-3 py-2">
+          从 <b>{startDate}</b>（本周一）开始 · 已过去 <b>{daysMissed}</b> 天，可补签
+          <span className="text-muted-foreground">（打卡补签免费，不扣金币）</span>
+        </div>
+      )}
+
       {mode === "edit" && (
         <p className="text-xs text-muted-foreground">
           {editFree
-            ? "开赛前可自由修改任务，不消耗本期唯一修改机会。删除任务会一并删除其打卡记录，且至少保留 1 个任务。"
+            ? "开赛前 / 组建期内可自由修改，不消耗本期唯一修改机会。删除任务会一并删除其打卡记录，且至少保留 1 个任务。"
             : "一次过修改全部任务，仅本期一次、且仅限前半期。删除任务会一并删除其打卡记录，且至少保留 1 个任务。"}
         </p>
       )}

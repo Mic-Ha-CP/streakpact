@@ -1,7 +1,22 @@
 // Real (system-clock) date helpers, replacing the old hardcoded demo constants.
 
 /** Local date as YYYY-MM-DD. */
+/**
+ * DEV-ONLY "today" override: append `?today=YYYY-MM-DD` to the URL to pin the app's
+ * notion of today. Date-dependent flows (challenge start choice, setup window,
+ * auto-void, backfill bounds) are otherwise only testable by changing the system clock.
+ *
+ * Guarded by `import.meta.env.DEV`, so it is compiled out of production builds and can
+ * never take effect on prod. Read once at module load — reload the page to change it.
+ */
+const DEV_TODAY: string | null = (() => {
+  if (!import.meta.env.DEV || typeof window === "undefined") return null;
+  const q = new URLSearchParams(window.location.search).get("today");
+  return q && /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : null;
+})();
+
 export function todayISO(d: Date = new Date()): string {
+  if (DEV_TODAY) return DEV_TODAY;
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
