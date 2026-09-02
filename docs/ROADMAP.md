@@ -282,6 +282,14 @@ matches the repo chain 001→006.
       headers; `sort_order` preserved within each shelf; the per-card kind pill dropped (the shelf
       header carries it).
 
+### Milestone: first real settlement — ✅ 2026-08-31
+The core loop ran end to end on real data for the first time. Both sides passed → **team success**;
+**deposits released, not executed** (250 MYR each — correct per D4, a deposit is a declaration);
+**+500 通关 each**. `team_reward` was blank and the settlement handled it cleanly — **verified in
+prod: zero `reward_ledger` rows** for that source (`warrantedFor` returns null on a blank reward, so
+nothing phantom was written). Challenge 2 started the *same* Monday (2026-08-31 → 09-27) — the
+zero-gap case the "challenge-to-challenge timing" note describes.
+
 ### Deferred items index (nothing here is committed work — a single place to find them)
 Everything the Periods & Gamify arc consciously **did not** build, so none of it gets re-litigated:
 - **Sakura v2.5** — petals + hand-drawn accents · *pending CP's art* (§ below).
@@ -298,6 +306,16 @@ Everything the Periods & Gamify arc consciously **did not** build, so none of it
   shrinks its contrast against its own tint. Readable, and it was accepted at the visual pass. If AA
   is ever wanted there, darken light-mode `--jx` L **52% → ~44%** — saturation (8%) is what keeps it
   quiet, not lightness, so it would stay just as recessive. One-line change, no code.
+- **⚠ `team_reward` ledger path is UNTESTED and unexercised.** `combineTeamChallenge` (the verdict)
+  is unit-covered, but **`warrantedFor`** — which decides what actually lands in `reward_ledger`
+  (team reward on success / deposit_execution on failure / nothing) — lives inside
+  `useChallengeSettlement` with **no unit test**, and real data has only ever run the *blank*-reward
+  and *success* branches. The **filled**-team_reward and **failure**→penalty paths have never
+  executed. Fix: extract `warrantedFor` as a pure function + test all four branches. Small, and worth
+  doing before a challenge is ever run with a team reward set.
+- **Shop restock** — first-challenge economy shows coins accumulating faster than the catalog can
+  absorb (see the analysis in the 2026-09-02 session): no repeatable sink between 补签 20 and 大额
+  1200, and only the theme has ever sold. Proposal pending owner review.
 - **Per-task 打卡 overlay on the 签到 calendar**, **Rewards month-switcher**, **Ledger polish**
   (expiry_date / used_progress editable, mobile notes) — all still listed in their own sections below.
 

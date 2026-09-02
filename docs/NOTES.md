@@ -1,6 +1,6 @@
 # Dev notes
 
-## Where we are (updated 2026-08-19)
+## Where we are (updated 2026-09-02)
 
 Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`; CI = lint → typecheck
 → test). Prod DB is on migrations **001→006** + the D11 catch-up. The app now runs the
@@ -24,26 +24,39 @@ Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`; C
   one light block + one dark block in `src/index.css` (contract documented there). Deliberate
   monochrome scheme (success is pink-family; state rides on ✓/✗ + numbers). Contrast-checked equal or
   better than the teal default on every measured pair.
+- **D13 grace-window start (2026-09-02)** — initiating Mon–Wed can start THIS week (start_date =
+  this week's Monday, backdated ≤2 days); missed days covered by the free task 补签. Introduces the
+  **组建期 / setup window**: ONE constant (`SETUP_WINDOW_DAYS = 3`, anchored on `created_at`) drives
+  BOTH the partner's join deadline (auto-void, re-anchored from `start_date`) AND a free-edit window
+  for both members. Free edits = `(not started) OR (within setup window)` — a superset of D10.
+  Dev-only `?today=YYYY-MM-DD` override exists for testing date-dependent flows.
 - **Theme-aware browser chrome** — `<meta theme-color>` follows the resolved `--primary` (so it
   tracks theme *and* light/dark), tab favicon swaps per theme. Manifest icons stay theme-neutral by
   design (OS snapshots them at install; see the section below).
 
-### In use — first real challenge
-- The **first challenge is running now** and **ends 2026-08-30 (Sun)**.
-- **Settlement opens Mon 2026-08-31.** This is the **next milestone**: the first *real* two-sided
-  settlement — both sides settle, the team result combines, the ledger + the +500 通关 grant write for
-  real. Everything up to now was smoke-tested on local fixtures.
-- Reminder: a new challenge can only start from the **both-settled** completion view, and start dates
-  are Monday-aligned — settle on 08-31 to start the next期 immediately; settle later and the earliest
-  start slides to the following Monday (intentional, see ROADMAP "Rule interaction").
+### Milestone — FIRST REAL SETTLEMENT COMPLETED (2026-08-31) ✅
+The core loop has now run end-to-end on real data:
+- **Both sides passed → team success.** CP and JX each settled 2026-08-31; both `result='success'`.
+- **Deposits released, NOT executed** (250 MYR each) — correct per D4: a deposit is a *declaration*;
+  on success it simply lifts. No penalty rows were written.
+- **+500 通关 each** granted (derived from `result='success'`, no hook).
+- **`team_reward` was left blank** (it is optional) and the settlement handled that cleanly —
+  **verified in prod: zero `reward_ledger` rows** for that challenge's source. `warrantedFor` returns
+  null when a team reward is blank, so nothing phantom/empty was written. ⚠ See the coverage gap in
+  ROADMAP's deferred index: the **filled**-team_reward path still has no unit test and has never run
+  on real data.
+
+### In use — challenge 2 running
+- **2026-08-31 → 2026-09-27** (started the same Monday settlement opened — zero gap, the good case).
+- D13 grace-window start is live, so a future challenge can also begin on the *current* week's Monday.
 
 ### Next options — no commitments, pick when the time comes
 - **More shop items** — the catalog is data, not code: add rows to `shop_items` (prod SQL Editor). New
   称号 need only a `payload`; a new 主题 needs a variable block in `index.css` first.
 - **Sakura v2.5 decorations** — petals + hand-drawn accents; **pending CP's art** (the petals half
   needs no assets and could ship alone). See `docs/design/THEME_DECORATIONS.md`.
-- **Challenge history view** — after a challenge settles it disappears from the UI; only its ledger
-  rows remain. Best built right after the first settlement, when there's real history to show.
+- ~~**Challenge history view**~~ — ✅ BUILT 2026-09-02 (往期挑战 on the home page) now that real
+  settled history exists.
 - **GSheet history import** (Phase 8) — pre-cutover months only.
 - **Timer feature** (count-up / countdown) — also the missing carrier for themed functional
   components (see THEME_DECORATIONS §c).

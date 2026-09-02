@@ -11,6 +11,7 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { WeekBadge } from "@/components/WeekBadge";
 import { ChallengeHome } from "@/components/challenge/ChallengeHome";
 import { CoinCheckinStrip } from "@/components/challenge/CoinCheckinStrip";
+import { ChallengeHistory } from "@/components/challenge/ChallengeHistory";
 import {
   WEEK_LABELS,
   dayToWeek,
@@ -286,6 +287,7 @@ const Index = () => {
     <div className="space-y-5 max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto">
       <CoinCheckinStrip />
       <ChallengeHome />
+      <ChallengeHistory />
 
       <details className="bg-card rounded-2xl border border-border/60 shadow-card overflow-hidden">
         <summary className="cursor-pointer select-none px-4 py-3 text-sm font-bold text-muted-foreground flex items-center gap-2 hover:bg-muted/40">
