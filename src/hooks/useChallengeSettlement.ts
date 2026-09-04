@@ -7,7 +7,9 @@ import {
   challengeEnded,
   challengeResultForUser,
   combineTeamChallenge,
+  warrantedLedger,
   type ChallengeResult,
+  type WarrantedLedger,
 } from "@/data/challenge";
 import type { Challenge, ChallengeMember, DailyLog, RewardType, Task } from "@/data/models";
 import type { TablesInsert } from "@/lib/database.types";
@@ -91,15 +93,10 @@ export function useChallengeSettlement(
   });
   const myLedgerExists = myLedgerQ.data ?? false;
 
-  /** The ledger row my side warrants for a decided team result, or null. */
-  const warrantedFor = (team: ChallengeResult | null): { type: RewardType; content: string } | null => {
-    if (!challenge) return null;
-    if (team === "success" && challenge.teamReward?.trim())
-      return { type: "reward", content: challenge.teamReward.trim() };
-    if (team === "failure" && myMember?.depositExecution?.trim())
-      return { type: "penalty", content: myMember.depositExecution.trim() };
-    return null;
-  };
+  /** The ledger row my side warrants for a decided team result, or null.
+   *  Thin binding over the pure `warrantedLedger` (tested in challenge.test.ts). */
+  const warrantedFor = (team: ChallengeResult | null): WarrantedLedger | null =>
+    challenge ? warrantedLedger(team, challenge.teamReward, myMember?.depositExecution) : null;
 
   const ledgerExists = async (): Promise<boolean> => {
     const { data, error } = await supabase

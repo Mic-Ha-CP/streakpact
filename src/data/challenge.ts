@@ -6,7 +6,7 @@
 //
 // Kept separate from calc.ts, which stays the legacy month-anchored settlement logic.
 
-import type { DailyLog, Task } from "./models";
+import type { DailyLog, RewardType, Task } from "./models";
 import { logsForTaskInRange } from "./calc";
 
 // --- UTC-based date helpers (DST-safe day math on YYYY-MM-DD strings) ----------
@@ -158,6 +158,42 @@ export function combineTeamChallenge(
   if (a === null || b === null) return null;
   if (a === "failure" || b === "failure") return "failure";
   return "success";
+}
+
+/** A reward_ledger row one member's side warrants for a decided team result. */
+export interface WarrantedLedger {
+  type: RewardType;
+  content: string;
+}
+
+/**
+ * What (if anything) MY side of a settled challenge owes the reward ledger (D2).
+ *
+ * Pure by design: this decides what actually lands in `reward_ledger`, and until it was
+ * extracted only the *verdict* (`combineTeamChallenge`) was covered by tests while the
+ * write itself was untested hook-internal code. Real usage has so far exercised only the
+ * success + blank-reward branch, so the other three exist purely on the strength of these
+ * tests — keep them that way.
+ *
+ * Rules, per user:
+ *   - team success + a team_reward set  → a `reward` row carrying the team reward;
+ *   - team failure + MY deposit_execution set → a `penalty` row carrying MY execution
+ *     (the team shares the verdict, D2 — but each side pays its OWN forfeit);
+ *   - anything else (undecided team, blank/whitespace text) → no row at all.
+ *
+ * Blank-vs-null is deliberately collapsed: an all-whitespace field means "we didn't agree
+ * on one", never an empty ledger entry.
+ */
+export function warrantedLedger(
+  team: ChallengeResult | null,
+  teamReward: string | null | undefined,
+  myDepositExecution: string | null | undefined,
+): WarrantedLedger | null {
+  if (team === "success" && teamReward?.trim())
+    return { type: "reward", content: teamReward.trim() };
+  if (team === "failure" && myDepositExecution?.trim())
+    return { type: "penalty", content: myDepositExecution.trim() };
+  return null;
 }
 
 /**

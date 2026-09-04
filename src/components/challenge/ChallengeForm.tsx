@@ -376,19 +376,26 @@ export const ChallengeForm = ({
         </div>
       )}
 
-      {/* Team reward (create / pre-start edit by initiator) */}
+      {/* Team reward — collapsed by default. It is genuinely optional (the first real
+          challenge shipped with it blank) but sat in the flow like a required field and
+          stalled initiation. Folded away; opens itself when one is already set. */}
       {showTeamReward && (
-        <div className="space-y-2">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
-            团队奖励（可选）
+        <details className="rounded-xl border border-border/60 bg-muted/20" open={!!initialTeamReward.trim()}>
+          <summary className="cursor-pointer select-none px-3 py-2 text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
+            可选：团队奖励
+          </summary>
+          <div className="px-3 pb-3 space-y-1.5">
+            <Input
+              value={teamReward}
+              onChange={(e) => setTeamReward(e.target.value)}
+              placeholder="想不到就留空 —— 通关本身已有 +500 和押注解除"
+              className="rounded-xl"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              双方都通关时的共享奖励（例：一起吃大餐），会记入双方账本待手动执行。
+            </p>
           </div>
-          <Input
-            value={teamReward}
-            onChange={(e) => setTeamReward(e.target.value)}
-            placeholder="双方都通关时的共享奖励（例：一起吃大餐）"
-            className="rounded-xl"
-          />
-        </div>
+        </details>
       )}
 
       <div className="flex gap-2 pt-1">

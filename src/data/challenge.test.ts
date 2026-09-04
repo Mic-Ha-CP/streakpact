@@ -15,6 +15,7 @@ import {
   checkinOpenForUser,
   challengeWeeks,
   combineTeamChallenge,
+  warrantedLedger,
   daysBetween,
   isMonday,
   midEditOpen,
@@ -304,5 +305,62 @@ describe("setup window + free edits (D13 ①/②)", () => {
 
   it("check-in opens immediately on a backdated start (D13 × the settle-lock fix)", () => {
     expect(checkinOpenForUser(MON, CREATED, false)).toBe(true);
+  });
+});
+
+// The ledger write is the one settlement path real usage has barely touched: in the
+// first real challenge the team reward was blank, so only branch ① has ever executed
+// against live data. ②–④ are covered here or nowhere.
+describe("warrantedLedger — what a settled challenge writes to the ledger", () => {
+  it("① team success + blank team reward → nothing (the ONLY branch prod has run)", () => {
+    expect(warrantedLedger("success", null, "跑十公里")).toBeNull();
+    expect(warrantedLedger("success", "", "跑十公里")).toBeNull();
+    expect(warrantedLedger("success", "   ", "跑十公里")).toBeNull();
+  });
+
+  it("② team success + a team reward → a reward row, trimmed", () => {
+    expect(warrantedLedger("success", "  一起吃顿好的  ", null)).toEqual({
+      type: "reward",
+      content: "一起吃顿好的",
+    });
+  });
+
+  it("③ team failure + MY deposit execution → a penalty row carrying MY forfeit", () => {
+    expect(warrantedLedger("failure", "一起吃顿好的", "  发朋友圈道歉  ")).toEqual({
+      type: "penalty",
+      content: "发朋友圈道歉",
+    });
+  });
+
+  it("③b team failure + blank deposit execution → nothing", () => {
+    expect(warrantedLedger("failure", "一起吃顿好的", null)).toBeNull();
+    expect(warrantedLedger("failure", null, "  ")).toBeNull();
+  });
+
+  it("④ undecided team (partner not settled) → nothing, whatever the texts say", () => {
+    expect(warrantedLedger(null, "一起吃顿好的", "发朋友圈道歉")).toBeNull();
+  });
+
+  it("a mixed team (one side failed) drags BOTH to the penalty branch (D2)", () => {
+    // The verdict and the ledger must agree: success+failure combines to "failure",
+    // and each side then writes its own penalty — not the reward.
+    const team = combineTeamChallenge("success", "failure");
+    expect(team).toBe("failure");
+    expect(warrantedLedger(team, "一起吃顿好的", "我请客")).toEqual({
+      type: "penalty",
+      content: "我请客",
+    });
+  });
+
+  it("each side writes its OWN execution, so the two rows differ", () => {
+    const team = combineTeamChallenge("failure", "failure");
+    expect(warrantedLedger(team, null, "CP 的惩罚")).toEqual({
+      type: "penalty",
+      content: "CP 的惩罚",
+    });
+    expect(warrantedLedger(team, null, "JX 的惩罚")).toEqual({
+      type: "penalty",
+      content: "JX 的惩罚",
+    });
   });
 });

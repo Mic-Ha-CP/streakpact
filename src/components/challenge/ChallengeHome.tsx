@@ -14,6 +14,7 @@ import {
   paceExpected,
   totalProgress,
 } from "@/data/challenge";
+import { COINS } from "@/data/coinRules";
 import { todayISO, weekdayCN } from "@/lib/dates";
 import { unitLabel, type DailyLog, type Task, type UserId } from "@/data/models";
 import { ChallengeForm } from "@/components/challenge/ChallengeForm";
@@ -41,11 +42,45 @@ import {
   Hourglass,
   CheckCircle2,
   XCircle,
+  ShieldCheck,
+  Coins,
 } from "lucide-react";
 import { cn, NO_SPIN } from "@/lib/utils";
 import { toast } from "sonner";
 
 const strMin = (a: string, b: string) => (a < b ? a : b);
+
+/**
+ * The victory acknowledgment. A successful settlement used to be silent about the
+ * deposit — it simply stopped being rendered, so the thing you were actually afraid of
+ * losing disappeared without ever being declared safe. This says it out loud once, in the
+ * moment; ChallengeHistory is the durable record.
+ */
+const VictoryAck = ({
+  coins,
+  stakes,
+}: {
+  coins: number;
+  stakes: { userId: UserId; stake: string }[];
+}) => {
+  // Two identical stakes (the usual case — the pair agree on one number) read as one fact.
+  const same = stakes.length === 2 && stakes[0].stake === stakes[1].stake;
+  const text = same
+    ? stakes[0].stake
+    : stakes.map((s) => `${s.userId} ${s.stake}`).join(" / ");
+  return (
+    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+      <span className="pill bg-success text-success-foreground">
+        <Coins className="w-3 h-3" /> 通关 +{coins} 金币
+      </span>
+      {stakes.length > 0 && (
+        <span className="pill bg-success-soft text-success">
+          <ShieldCheck className="w-3 h-3" /> 押注已解除 · {text} 未执行
+        </span>
+      )}
+    </div>
+  );
+};
 
 /** Read-only total-target progress for one task, with an optional pace reference. */
 const TaskProgress = ({
@@ -685,6 +720,10 @@ export const ChallengeHome = () => {
     }
     // both settled
     const teamWin = s.teamSettled === "success";
+    // A win used to end in silence: the deposit simply stopped being mentioned. Name it.
+    const releasedStakes = c.members
+      .filter((m) => m.depositStake?.trim())
+      .map((m) => ({ userId: m.userId, stake: m.depositStake!.trim() }));
     return (
       <div
         className={cn(
@@ -706,6 +745,7 @@ export const ChallengeHome = () => {
               : "双方都通关（本期未设团队奖励）。"
             : "失败方的押注惩罚已按各自声明记入账本，待手动执行。"}
         </p>
+        {teamWin && <VictoryAck coins={COINS.challengeSuccess} stakes={releasedStakes} />}
         <p className="text-xs text-muted-foreground pt-1">
           下一期最早可于 <b className="text-foreground">{nextStart}</b>（周一）开始。
         </p>
