@@ -1,6 +1,6 @@
 # Dev notes
 
-## Where we are (updated 2026-09-02)
+## Where we are (updated 2026-09-04)
 
 Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`; CI = lint → typecheck
 → test). Prod DB is on migrations **001→006** + the D11 catch-up. The app now runs the
@@ -41,18 +41,36 @@ The core loop has now run end-to-end on real data:
   on success it simply lifts. No penalty rows were written.
 - **+500 通关 each** granted (derived from `result='success'`, no hook).
 - **`team_reward` was left blank** (it is optional) and the settlement handled that cleanly —
-  **verified in prod: zero `reward_ledger` rows** for that challenge's source. `warrantedFor` returns
-  null when a team reward is blank, so nothing phantom/empty was written. ⚠ See the coverage gap in
-  ROADMAP's deferred index: the **filled**-team_reward path still has no unit test and has never run
-  on real data.
+  **verified in prod: zero `reward_ledger` rows** for that challenge's source — nothing phantom or
+  empty was written. The coverage gap that verification exposed is now **closed** (2026-09-04): the
+  decision is the pure `warrantedLedger()` in `src/data/challenge.ts` with all four branches tested,
+  since the filled-reward and failure→penalty paths had never executed anywhere.
 
 ### In use — challenge 2 running
 - **2026-08-31 → 2026-09-27** (started the same Monday settlement opened — zero gap, the good case).
 - D13 grace-window start is live, so a future challenge can also begin on the *current* week's Monday.
 
+### Post-settlement polish (2026-09-04)
+- **Victory is acknowledged.** A win used to be silent about the deposit — it simply stopped being
+  rendered. The both-settled strip now says **+500** and「押注已解除 · <押注> 未执行」outright;
+  往期挑战 remains the durable record.
+- **`team_reward` is collapsed** into an optional disclosure in the create form (closed unless one is
+  set), placeholder「想不到就留空 —— 通关本身已有 +500 和押注解除」. It is optional in the schema but
+  was reading as required and stalling initiation.
+- **Shop restock reviewed → one addition only: a new theme「橙白」** (300). Four other proposals were
+  rejected; reasons are in ROADMAP's deferred index. The reason underneath them all: in a month of
+  real use **only the theme ever sold** (2 purchases, both 樱粉) — titles at 50–80 coins went
+  untouched because they are *invisible*, not because they are expensive.
+- **Next arc recorded, not started: `docs/design/IDENTITY_AND_COSMETICS.md`** — profile page, title
+  slots, earned achievements, frames/avatars, more themes, style themes. To be grilled before any of
+  it is built.
+
 ### Next options — no commitments, pick when the time comes
+- **主题「橙白」** — color card ready (`docs/design/orange-white-colorcard.html`), awaiting the
+  owner's tuning pass; then the `index.css` block + one `shop_items` row (300, kind `theme`).
 - **More shop items** — the catalog is data, not code: add rows to `shop_items` (prod SQL Editor). New
-  称号 need only a `payload`; a new 主题 needs a variable block in `index.css` first.
+  称号 need only a `payload`; a new 主题 needs a variable block in `index.css` first. But see the
+  restock review before adding more: cheap items are not the constraint.
 - **Sakura v2.5 decorations** — petals + hand-drawn accents; **pending CP's art** (the petals half
   needs no assets and could ship alone). See `docs/design/THEME_DECORATIONS.md`.
 - ~~**Challenge history view**~~ — ✅ BUILT 2026-09-02 (往期挑战 on the home page) now that real
