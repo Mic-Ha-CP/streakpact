@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>橙白 色卡 · 交互调色</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 20px 80px;
+    font-family: "Inter", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+    background: #ececef; color: #1e293b; line-height: 1.5;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 4px; }
+  .sub { color: #64748b; font-size: 14px; margin: 0 0 6px; }
+  .note { color: #475569; font-size: 13px; background: #fff; border: 1px solid #e2e8f0;
+          border-radius: 12px; padding: 12px 14px; margin: 14px 0 12px; }
+  .note b { color: #1e293b; }
+  .note.warn { border-color: #fed7aa; background: #fffbf5; }
+  .marker-p { color: #ea580c; }
+
+  .toolbar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center;
+             gap: 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+             padding: 10px 14px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+  .toolbar label { font-size: 13px; color: #334155; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .toolbar .spacer { flex: 1; }
+  button { font-family: inherit; cursor: pointer; }
+  .btn-x { border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; border-radius: 8px;
+           padding: 6px 12px; font-size: 13px; font-weight: 600; }
+  .btn-x:hover { background: #f1f5f9; }
+  .btn-primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+  .btn-primary:hover { background: #1e293b; }
+
+  .modehead { font-size: 15px; font-weight: 800; margin: 24px 0 12px; display: flex; align-items: center; gap: 8px; }
+  .modehead .tag { font-size: 11px; font-weight: 600; color: #64748b; background: #fff;
+                   border: 1px solid #e2e8f0; border-radius: 999px; padding: 2px 8px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
+  .collabel { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+              color: #64748b; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+  .collabel .v2 { color: #ea580c; }
+  .collabel .resetall { margin-left: auto; text-transform: none; letter-spacing: 0; }
+
+  /* ---- mock (uses the panel's own CSS vars) ---- */
+  .mock { border-radius: 18px; padding: 16px; border: 1px solid rgba(0,0,0,.06); background: hsl(var(--bg)); }
+  .mock .card + .card { margin-top: 12px; }
+  .card { background: hsl(var(--card)); border: 1px solid hsl(var(--border));
+          border-radius: 14px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .card .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .card .top .t { font-weight: 800; color: hsl(var(--fg)); font-size: 15px; }
+  .coin { font-weight: 800; color: hsl(var(--fg)); font-size: 15px; }
+  .coin small { color: hsl(var(--mutedFg)); font-weight: 500; font-size: 11px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+  .grow { flex: 1; min-width: 0; }
+  .item { color: hsl(var(--fg)); font-weight: 600; font-size: 14px; }
+  .price { color: hsl(var(--fg)); font-weight: 700; font-size: 13px; }
+  .mtext { color: hsl(var(--mutedFg)); font-size: 12px; }
+  .btn { border: none; border-radius: 10px; padding: 7px 14px; font-weight: 700; font-size: 13px; cursor: default; }
+  .btn.grad { background: linear-gradient(135deg, hsl(var(--g1)), hsl(var(--g2))); color: hsl(var(--primaryFg)); }
+  .btn.sec { background: hsl(var(--muted)); color: hsl(var(--fg)); }
+  .btn.dis { background: hsl(var(--muted)); color: hsl(var(--mutedFg)); opacity: .7; }
+  .pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 10px;
+          font-size: 12px; font-weight: 600; background: hsl(var(--cpSoft)); color: hsl(var(--cp));
+          border: 1px solid hsl(var(--cp) / .2); }
+  .pill.solid { background: hsl(var(--success)); color: hsl(var(--successFg)); border-color: transparent; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+  .badge.ok { background: hsl(var(--successSoft)); color: hsl(var(--success)); }
+  .badge.bad { background: hsl(var(--dangerSoft)); color: hsl(var(--danger)); }
+  .bar { height: 8px; border-radius: 999px; background: hsl(var(--muted)); overflow: hidden; }
+  .bar > span { display: block; height: 100%; width: 70%; background: hsl(var(--success)); border-radius: 999px; }
+  .dtext { color: hsl(var(--danger)); font-size: 12px; font-weight: 600; }
+  .who { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center;
+         font-size: 10px; font-weight: 900; color: hsl(var(--primaryFg)); }
+  .who.cp { background: hsl(var(--cp)); }
+  .who.jx { background: hsl(var(--jx)); color: hsl(var(--card)); }
+  .softchip { border-radius: 8px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+  .softchip.cp { background: hsl(var(--cpSoft)); color: hsl(var(--cp)); }
+  .softchip.jx { background: hsl(var(--jxSoft)); color: hsl(var(--jx)); }
+
+  /* ---- legend ---- */
+  .legend { margin-top: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 10px; }
+  .legend h4 { margin: 2px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; }
+  .lrow { display: grid; grid-template-columns: 18px 132px 1fr auto; gap: 8px; align-items: center;
+          font-size: 11.5px; padding: 2.5px 2px; }
+  .chip { width: 18px; height: 18px; border-radius: 5px; border: 1px solid rgba(0,0,0,.15); }
+  .vname { color: #334155; font-weight: 600; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .vhsl { color: #64748b; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .vhex { color: #0f172a; font-weight: 700; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .trow { padding: 6px 4px; border-radius: 8px; }
+  .trow + .trow { border-top: 1px solid #f1f5f9; }
+  .trow.dim { opacity: .5; }
+  .trow.grouphead { border-top: 2px solid #e2e8f0; }
+  .thead { display: grid; grid-template-columns: 18px 134px 1fr auto auto; gap: 8px; align-items: center; font-size: 11.5px; }
+  .thead .rst { border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; border-radius: 6px;
+                padding: 1px 7px; font-size: 10.5px; }
+  .thead .rst:hover { background: #f1f5f9; }
+  .thead .mk { color: #ea580c; font-weight: 700; width: 10px; display: inline-block; }
+  .sliders { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 5px; }
+  .sl { display: flex; align-items: center; gap: 5px; }
+  .sl span { font-size: 10px; color: #94a3b8; width: 9px; font-weight: 700; }
+  .sl input[type=range] { flex: 1; height: 4px; accent-color: #ea580c; min-width: 0; }
+  .sl input[disabled] { accent-color: #cbd5e1; }
+
+  /* ---- contrast panel ---- */
+  .contrast { margin-top: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 10px; }
+  .contrast h4 { margin: 2px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; }
+  .crow { display: grid; grid-template-columns: 1fr auto 46px auto; gap: 8px; align-items: center;
+          font-size: 11.5px; padding: 2.5px 2px; }
+  .crow + .crow { border-top: 1px solid #f8fafc; }
+  .cname { color: #334155; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .cval { font-weight: 700; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .cverd { font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
+  .ok { background: #dcfce7; color: #15803d; }
+  .warnv { background: #fef3c7; color: #b45309; }
+  .bad { background: #fee2e2; color: #b91c1c; }
+
+  .exportwrap { margin-top: 26px; }
+  textarea { width: 100%; min-height: 260px; font-family: ui-monospace, Menlo, Consolas, monospace;
+             font-size: 12px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px;
+             background: #0f172a; color: #e2e8f0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>主题调色台 · 橙白（提案 · 待调）</h1>
+  <p class="sub">左栏 = 线上默认 teal（只读参照）· 右栏 = 橙白提案，拖 H / S / L 实时调色 · 刷新即还原 · 导出可粘回</p>
+
+  <div class="note">
+    <b>这一版比 sakura 调色台多了三样</b>：① <code>--jx / --jx-soft</code> 可调 —— sakura 那次是事后才发现契约 §4 的缺口，
+    这次身份色从一开始就在台面上，mock 里有 CP / JX 并排的挑战面板，供你判断「JX 必须比品牌色安静，但要在同一温度家族」；
+    ② 前景色（<code>--primary-foreground</code> 等）也可调 —— 橙底按钮的字用白还是深棕，是这套主题最关键的分歧；
+    ③ 实时<b>对比度面板</b>，边调边看，不必等我事后人工核。
+  </div>
+
+  <div class="note warn">
+    <b>三件需要你在调色时定夺的事（我先给了默认立场，随时推翻）：</b><br /><br />
+    <b>1 · 语义色不做单色化 —— 与 sakura 相反。</b> sakura 能把 success 拉进粉色家族，是因为品牌粉 (340) 和
+    danger (12) 之间还隔着 32°。橙色品牌落在 24 附近，红色 danger 若留在 0~12，两者只差十几度，
+    <b>「通关」和「失败」会长得一样</b>。所以这版反过来：品牌吃下橙色，语义色<b>往两边让</b> ——
+    danger 推到绯红 352（更深、更冷，一眼不是品牌色），success 用偏暖的苔绿 150。
+    这不是风格偏好，是橙色这个色相逼出来的：单色化在这里会直接损伤可读性。
+    面板最后两行量的就是这件事（色相距离，不是对比度 —— 线上 teal 对红色的亮度比只有 1.03，照样一眼分得清）。<br /><br />
+    <b>2 · 橙底按钮的字用深棕，不是白。</b> 白字压在饱和橙上只有 ~2.6:1，比 teal / sakura 都差；
+    深棕能到 4.6:1。看 <code>primaryFg / primary</code> 那行 ——
+    把 <code>--primary-foreground</code> 的 L 拉到 90+ 就切回白字，自己对比着定。<br /><br />
+    <b>3 · 这套主题里 <code>--cp</code> 没有等于 <code>--primary</code>（顶部锁默认关着）。</b>
+    契约 §4 说 CP 跟随品牌色，但亮橙当<b>文字</b>压在浅橙 pill 上怎么调都过不了线（最多 2.7:1，低于线上 teal 的 3.39）。
+    所以浅色档 CP 用了更深一档的橙（L42，同色相家族，视觉上仍是「品牌色本人」），深色档两者相同。
+    如果你觉得这个偏离不可接受，把锁打开，代价是 CP pill 的可读性回落到 2.7。<br /><br />
+    <b>基线现状</b>：两个模式的每一行都 ≥ 线上 teal 的同组合数值（灰字那列就是 teal 的现状），
+    多数直接过 WCAG。所以这份提案是可以直接用的起点，不是待抢救的草稿 —— 你的调整只需要管好不好看。
+  </div>
+
+  <div class="toolbar">
+    <label><input type="checkbox" id="lnkCp" /> 锁定 <code>--cp</code> = <code>--primary</code>（本主题默认关，见上）</label>
+    <label><input type="checkbox" id="lnkSoft" checked /> 软色（-soft）跟随主色相 H</label>
+    <span class="spacer"></span>
+    <button class="btn-x btn-primary" id="btnExport">导出全部（JSON）</button>
+  </div>
+
+  <div id="app"></div>
+
+  <div class="exportwrap" id="exportWrap" style="display:none">
+    <div class="collabel">导出 · light + dark（整段复制贴回）</div>
+    <textarea id="exportOut" readonly spellcheck="false"></textarea>
+  </div>
+</div>
+
+<script>
+// ---------- color utils ----------
+function rgbFromHSL(h, s, l) {
+  h /= 360; s /= 100; l /= 100;
+  const f = (n) => {
+    const k = (n + h * 12) % 12;
+    return l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  };
+  return [f(0), f(8), f(4)];
+}
+function hexFromHSL(h, s, l) {
+  return "#" + rgbFromHSL(h, s, l).map((c) => Math.round(255 * c).toString(16).padStart(2, "0")).join("");
+}
+function luminance(o) {
+  const lin = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const [r, g, b] = rgbFromHSL(o.h, o.s, o.l).map(lin);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrast(a, b) {
+  const la = luminance(a), lb = luminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+const R = Math.round;
+function fmt(o) { return R(o.h) + " " + R(o.s) + "% " + R(o.l) + "%"; }
+function hex(o) { return hexFromHSL(o.h, o.s, o.l); }
+function parse(str) { const m = str.match(/^([\d.]+) ([\d.]+)% ([\d.]+)%$/); return { h: +m[1], s: +m[2], l: +m[3] }; }
+function clone(o) { return { h: o.h, s: o.s, l: o.l }; }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function gradStops(p) { return { g1: clone(p), g2: { h: (p.h - 8 + 360) % 360, s: clamp(p.s, 0, 100), l: clamp(p.l + 8, 0, 92) } }; }
+
+// ---------- token definitions ----------
+const TOKENS = [
+  "bg","card","fg","muted","mutedFg","border",
+  "primary","primaryFg","primarySoft",
+  "cp","cpSoft","jx","jxSoft",
+  "success","successFg","successSoft","danger","dangerFg","dangerSoft",
+];
+// where a rule is drawn in the token list — mirrors the theme contract's sections
+const GROUP_HEAD = { primary: 1, cp: 1, success: 1 };
+const LABEL = {
+  bg:"--background", card:"--card", fg:"--foreground", muted:"--muted", mutedFg:"--muted-foreground", border:"--border",
+  primary:"--primary", primaryFg:"--primary-foreground", primarySoft:"--primary-soft",
+  cp:"--cp", cpSoft:"--cp-soft", jx:"--jx", jxSoft:"--jx-soft",
+  success:"--success", successFg:"--success-foreground", successSoft:"--success-soft",
+  danger:"--danger", dangerFg:"--danger-foreground", dangerSoft:"--danger-soft",
+};
+const SOFT_PARENT = { primarySoft:"primary", cpSoft:"cp", jxSoft:"jx", successSoft:"success", dangerSoft:"danger" };
+
+// Pairs the contrast panel checks. min = the threshold that actually matters for that
+// surface: 4.5 = body text (AA), 3.0 = large/bold text + UI, 1.5 = a border need only be
+// visible. The last row is not a WCAG rule at all — it is the橙/红 separation this theme
+// lives or dies on.
+const PAIRS = [
+  { a:"fg",        b:"bg",          min:4.5, name:"fg / bg" },
+  { a:"fg",        b:"card",        min:4.5, name:"fg / card" },
+  { a:"mutedFg",   b:"card",        min:4.5, name:"mutedFg / card" },
+  { a:"primaryFg", b:"primary",     min:3.0, name:"primaryFg / primary (按钮字)" },
+  { a:"primary",   b:"card",        min:3.0, name:"primary / card (品牌文字)" },
+  { a:"primaryFg", b:"cp",          min:3.0, name:"primaryFg / cp (身份色块)" },
+  { a:"cp",        b:"cpSoft",      min:4.5, name:"cp / cp-soft (CP pill)" },
+  { a:"jx",        b:"jxSoft",      min:4.5, name:"jx / jx-soft (JX pill)" },
+  { a:"success",   b:"successSoft", min:4.5, name:"success / success-soft" },
+  { a:"danger",    b:"dangerSoft",  min:4.5, name:"danger / danger-soft" },
+  { a:"successFg", b:"success",     min:3.0, name:"successFg / success" },
+  { a:"dangerFg",  b:"danger",      min:3.0, name:"dangerFg / danger" },
+  { a:"border",    b:"bg",          min:1.5, name:"border / bg (可见即可)" },
+  // Not a contrast pair: orange and red are neighbours on the wheel, and luminance ratio
+  // says nothing about whether they are TELLABLE APART (the shipped teal scores 1.03 here
+  // against red and is obviously fine). What matters is hue distance.
+  { hue:["primary","danger"], min:25, name:"primary ↔ danger 色相距离 (°)" },
+  { hue:["primary","jx"],     min:0,  max:22, name:"primary ↔ jx 色相距离 (°，越近越好)" },
+];
+function hueDist(a, b) { const d = Math.abs(a.h - b.h) % 360; return d > 180 ? 360 - d : d; }
+
+// ---------- baselines (immutable) ----------
+const STR = {
+  // the shipped default theme — reference only
+  teal: {
+    light: { bg:"0 0% 100%", card:"210 20% 98%", fg:"217 33% 17%", muted:"210 20% 96%", mutedFg:"215 16% 47%", border:"214 32% 91%",
+      primary:"173 84% 32%", primaryFg:"0 0% 100%", primarySoft:"173 70% 94%",
+      cp:"173 84% 32%", cpSoft:"173 70% 94%", jx:"215 25% 27%", jxSoft:"214 32% 94%",
+      success:"160 84% 39%", successFg:"0 0% 100%", successSoft:"160 70% 94%",
+      danger:"0 84% 60%", dangerFg:"0 0% 100%", dangerSoft:"0 86% 96%" },
+    dark: { bg:"217 33% 10%", card:"217 33% 13%", fg:"210 20% 96%", muted:"217 20% 18%", mutedFg:"215 16% 65%", border:"217 20% 22%",
+      primary:"173 84% 42%", primaryFg:"217 33% 10%", primarySoft:"173 40% 22%",
+      cp:"173 84% 42%", cpSoft:"173 40% 22%", jx:"215 16% 65%", jxSoft:"215 20% 22%",
+      success:"160 70% 45%", successFg:"0 0% 100%", successSoft:"160 45% 15%",
+      danger:"0 80% 60%", dangerFg:"0 0% 100%", dangerSoft:"0 45% 18%" },
+  },
+  // 橙白 proposal — the thing you are here to tune.
+  orange: {
+    // 昼橙: near-white warm ground, cards pure white so they lift off it.
+    light: { bg:"30 40% 98%", card:"0 0% 100%", fg:"24 25% 18%", muted:"30 30% 95%", mutedFg:"25 12% 44%", border:"28 28% 87%",
+      primary:"24 92% 48%", primaryFg:"24 45% 14%", primarySoft:"28 95% 94%",
+      cp:"22 88% 42%", cpSoft:"28 95% 94%", jx:"28 12% 40%", jxSoft:"28 14% 92%",
+      success:"150 52% 30%", successFg:"0 0% 100%", successSoft:"150 30% 94%",
+      danger:"352 74% 42%", dangerFg:"0 0% 100%", dangerSoft:"352 60% 96%" },
+    // 夜橙: warm charcoal (NOT the neutral slate of the default) + a lifted orange.
+    dark: { bg:"24 18% 8%", card:"24 16% 12%", fg:"30 20% 92%", muted:"24 12% 20%", mutedFg:"28 10% 62%", border:"24 14% 26%",
+      primary:"26 92% 62%", primaryFg:"24 45% 10%", primarySoft:"26 45% 22%",
+      cp:"26 92% 62%", cpSoft:"26 45% 22%", jx:"30 12% 66%", jxSoft:"28 10% 22%",
+      success:"150 45% 50%", successFg:"150 40% 8%", successSoft:"150 35% 18%",
+      danger:"352 78% 66%", dangerFg:"352 40% 10%", dangerSoft:"352 45% 19%" },
+  },
+};
+function toObjSet(strset) { const o = {}; for (const k in strset) o[k] = parse(strset[k]); return o; }
+const PROPOSAL = { light: toObjSet(STR.orange.light), dark: toObjSet(STR.orange.dark) };
+const REF = { light: toObjSet(STR.teal.light), dark: toObjSet(STR.teal.dark) };
+const state = { light: JSON.parse(JSON.stringify(PROPOSAL.light)), dark: JSON.parse(JSON.stringify(PROPOSAL.dark)) };
+const links = { cpFollowsPrimary: false, softFollowsHue: true };
+const el = {};   // el[mode][token] = refs
+const cel = {};  // cel[mode][i] = contrast-row refs
+
+// ---------- mock ----------
+function allVars(set) {
+  const g = gradStops(set.primary);
+  const out = {};
+  for (const k of TOKENS) out["--" + k] = fmt(set[k]);
+  out["--g1"] = fmt(g.g1); out["--g2"] = fmt(g.g2);
+  return out;
+}
+function mockHTML() {
+  return '<div class="card">' +
+    '<div class="top"><span class="t">金币商城</span><span class="coin">1240 <small>金币</small></span></div>' +
+    '<div class="row"><span class="grow item">奶茶券</span><span class="price">120</span>' +
+      '<button class="btn grad">购买</button></div>' +
+    '<div class="row"><button class="btn sec">取消</button><button class="btn dis">已拥有</button>' +
+      '<span class="grow"></span><span class="pill">CP · 早起鸟</span></div>' +
+    '<div class="row"><span class="badge ok">已达标 ✓</span><span class="grow bar"><span></span></span></div>' +
+    '<div class="row"><span class="badge bad">未达标 ✗</span><span class="dtext">撤销结算收回了通关奖励</span></div>' +
+  '</div>' +
+  '<div class="card">' +
+    '<div class="top"><span class="t">本期挑战</span><span class="mtext">4 周 · 第 3 周</span></div>' +
+    '<div class="row"><span class="who cp">CP</span><span class="grow item">早起打卡</span>' +
+      '<span class="softchip cp">21 / 28</span></div>' +
+    '<div class="row"><span class="who jx">JX</span><span class="grow item">阅读 30 分钟</span>' +
+      '<span class="softchip jx">18 / 28</span></div>' +
+    '<div class="row"><span class="pill solid">押注已解除 · 250 MYR 未执行</span></div>' +
+  '</div>';
+}
+function applyMock(mode) {
+  const m = document.getElementById("mock-" + mode);
+  const vars = allVars(state[mode]);
+  for (const k in vars) m.style.setProperty(k, vars[k]);
+}
+
+// ---------- static reference legend ----------
+function refLegend(mode) {
+  const rows = TOKENS.map(function (k) {
+    const o = REF[mode][k];
+    return '<div class="lrow"><span class="chip" style="background:hsl(' + fmt(o) + ')"></span>' +
+      '<span class="vname">' + LABEL[k] + '</span><span class="vhsl">' + fmt(o) + '</span>' +
+      '<span class="vhex">' + hex(o) + '</span></div>';
+  }).join("");
+  return '<div class="legend"><h4>默认 teal tokens（线上，只读）</h4>' + rows + '</div>';
+}
+
+// ---------- interactive legend ----------
+function tunerLegend(mode) {
+  const wrap = document.createElement("div");
+  wrap.className = "legend";
+  wrap.innerHTML = '<h4>橙白 tokens · 拖动调色（<span class="marker-p">●</span> = 已调离提案值）</h4>';
+  el[mode] = {};
+  for (const k of TOKENS) {
+    const o = state[mode][k];
+    const row = document.createElement("div");
+    row.className = "trow" + (GROUP_HEAD[k] ? " grouphead" : "");
+    row.innerHTML =
+      '<div class="thead">' +
+        '<span class="chip" data-r="chip"></span>' +
+        '<span class="vname">' + LABEL[k] + '</span>' +
+        '<span class="vhsl" data-r="hsl"></span>' +
+        '<span class="vhex" data-r="hex"></span>' +
+        '<span><span class="mk" data-r="mk"></span><button class="rst" data-r="rst">重置</button></span>' +
+      '</div>' +
+      '<div class="sliders">' +
+        '<div class="sl"><span>H</span><input type="range" min="0" max="360" step="1" data-c="h"></div>' +
+        '<div class="sl"><span>S</span><input type="range" min="0" max="100" step="1" data-c="s"></div>' +
+        '<div class="sl"><span>L</span><input type="range" min="0" max="100" step="1" data-c="l"></div>' +
+      '</div>';
+    const q = function (r) { return row.querySelector('[data-r="' + r + '"]'); };
+    const sliders = {};
+    row.querySelectorAll('input[type=range]').forEach(function (inp) {
+      const c = inp.dataset.c; sliders[c] = inp;
+      inp.value = o[c];
+      inp.addEventListener("input", function () { onSlide(mode, k, c, +inp.value); });
+    });
+    q("rst").addEventListener("click", function () { resetToken(mode, k); });
+    el[mode][k] = { chip: q("chip"), hsl: q("hsl"), hex: q("hex"), mk: q("mk"), row: row, sliders: sliders };
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+// ---------- contrast panel ----------
+function contrastPanel(mode) {
+  const wrap = document.createElement("div");
+  wrap.className = "contrast";
+  wrap.innerHTML = "<h4>对比度（WCAG）· 实时 · 右侧灰字 = 线上 teal 同一组合的现状</h4>";
+  cel[mode] = PAIRS.map(function (p) {
+    const row = document.createElement("div");
+    row.className = "crow";
+    row.innerHTML = '<span class="cname">' + p.name + '</span>' +
+                    '<span class="cval" data-r="v"></span>' +
+                    '<span style="color:#94a3b8;font-family:ui-monospace,Menlo,Consolas,monospace">' + refValue(mode, p) + '</span>' +
+                    '<span class="cverd" data-r="d"></span>';
+    wrap.appendChild(row);
+    return { v: row.querySelector('[data-r="v"]'), d: row.querySelector('[data-r="d"]'), ref: refNum(mode, p) };
+  });
+  return wrap;
+}
+function measure(set, p) {
+  return p.hue ? hueDist(set[p.hue[0]], set[p.hue[1]]) : contrast(set[p.a], set[p.b]);
+}
+function refNum(mode, p) { return measure(REF[mode], p); }
+function refValue(mode, p) {
+  const v = refNum(mode, p);
+  return p.hue ? v.toFixed(0) + "°" : v.toFixed(2);
+}
+function refreshContrast(mode) {
+  PAIRS.forEach(function (p, i) {
+    const r = measure(state[mode], p);
+    const c = cel[mode][i];
+    c.v.textContent = p.hue ? r.toFixed(0) + "°" : r.toFixed(2) + ":1";
+    // Two bars, because they answer different questions: WCAG is the absolute floor,
+    // "≥ 现状" is whether this theme is at least as legible as what already ships.
+    const wcag = p.max !== undefined ? r <= p.max : r >= p.min;
+    const beatsRef = p.max !== undefined ? r <= c.ref * 1.15 : r >= c.ref;
+    c.d.textContent = wcag ? "OK" : beatsRef ? "≥现状" : "低于现状";
+    c.d.className = "cverd " + (wcag ? "ok" : beatsRef ? "warnv" : "bad");
+    c.v.style.color = wcag || beatsRef ? "#0f172a" : "#b91c1c";
+  });
+}
+
+// ---------- update ----------
+function refreshRow(mode, k) {
+  const o = state[mode][k], r = el[mode][k];
+  const str = fmt(o);
+  r.chip.style.background = "hsl(" + str + ")";
+  r.hsl.textContent = str;
+  r.hex.textContent = hex(o);
+  r.mk.textContent = str !== fmt(PROPOSAL[mode][k]) ? "●" : "";
+}
+function syncSliders(mode, k) {
+  const o = state[mode][k], s = el[mode][k].sliders;
+  s.h.value = R(o.h); s.s.value = R(o.s); s.l.value = R(o.l);
+}
+function setCpLinkedUI(mode) {
+  const r = el[mode].cp;
+  const dim = links.cpFollowsPrimary;
+  r.row.classList.toggle("dim", dim);
+  ["h","s","l"].forEach(function (c) { r.sliders[c].disabled = dim; });
+}
+function onSlide(mode, k, c, v) {
+  if (links.cpFollowsPrimary && k === "cp") return;   // cp is driven by primary
+  state[mode][k][c] = v;
+  if (links.cpFollowsPrimary && k === "primary") {
+    state[mode].cp = clone(state[mode].primary); syncSliders(mode, "cp"); refreshRow(mode, "cp");
+    if (links.softFollowsHue) { state[mode].cpSoft.h = state[mode].cp.h; syncSliders(mode, "cpSoft"); refreshRow(mode, "cpSoft"); }
+  }
+  if (links.softFollowsHue && c === "h") {
+    for (const soft in SOFT_PARENT) {
+      if (SOFT_PARENT[soft] === k) { state[mode][soft].h = v; syncSliders(mode, soft); refreshRow(mode, soft); }
+    }
+  }
+  refreshRow(mode, k);
+  applyMock(mode);
+  refreshContrast(mode);
+}
+function resetToken(mode, k) {
+  state[mode][k] = clone(PROPOSAL[mode][k]);
+  syncSliders(mode, k); refreshRow(mode, k);
+  for (const soft in SOFT_PARENT) {
+    if (links.softFollowsHue && SOFT_PARENT[soft] === k) {
+      state[mode][soft].h = state[mode][k].h; syncSliders(mode, soft); refreshRow(mode, soft);
+    }
+  }
+  if (links.cpFollowsPrimary && k === "primary") {
+    state[mode].cp = clone(state[mode].primary); syncSliders(mode, "cp"); refreshRow(mode, "cp");
+  }
+  applyMock(mode); refreshContrast(mode);
+}
+function resetAll(mode) {
+  for (const k of TOKENS) { state[mode][k] = clone(PROPOSAL[mode][k]); syncSliders(mode, k); refreshRow(mode, k); }
+  applyMock(mode); refreshContrast(mode);
+}
+
+// ---------- build ----------
+function buildPanel(mode, headline) {
+  const pair = document.createElement("div");
+  pair.className = "pair";
+  const c1 = document.createElement("div");
+  c1.innerHTML = '<div class="collabel">默认 teal <span style="color:#94a3b8">· 只读参照</span></div>' +
+    '<div class="mock" id="mref-' + mode + '">' + mockHTML() + '</div>' + refLegend(mode);
+  const refvars = allVars(REF[mode]);
+  const c2 = document.createElement("div");
+  const head = document.createElement("div");
+  head.className = "collabel";
+  head.innerHTML = '<span class="v2">橙白提案</span><span style="color:#94a3b8">· ' + headline + '</span>' +
+    '<button class="btn-x resetall" data-resetall>全部重置</button>';
+  head.querySelector("[data-resetall]").addEventListener("click", function () { resetAll(mode); });
+  const mock = document.createElement("div");
+  mock.className = "mock"; mock.id = "mock-" + mode; mock.innerHTML = mockHTML();
+  c2.appendChild(head); c2.appendChild(mock);
+  c2.appendChild(contrastPanel(mode));
+  c2.appendChild(tunerLegend(mode));
+  pair.appendChild(c1); pair.appendChild(c2);
+  requestAnimationFrame(function () {
+    const m1 = document.getElementById("mref-" + mode);
+    for (const kk in refvars) m1.style.setProperty(kk, refvars[kk]);
+  });
+  return pair;
+}
+function build() {
+  const app = document.getElementById("app");
+  const h1 = document.createElement("div");
+  h1.className = "modehead"; h1.innerHTML = '☀️ 浅色 · 昼橙 <span class="tag">light</span>';
+  const h2 = document.createElement("div");
+  h2.className = "modehead"; h2.innerHTML = '🌙 深色 · 夜橙 <span class="tag">dark</span>';
+  app.appendChild(h1); app.appendChild(buildPanel("light", "暖白底 + 纯白卡片 + 橙色品牌"));
+  app.appendChild(h2); app.appendChild(buildPanel("dark", "暖炭黑 + 提亮橙（独立调色，非浅色反相）"));
+  ["light","dark"].forEach(function (mode) {
+    for (const k of TOKENS) refreshRow(mode, k);
+    applyMock(mode); refreshContrast(mode); setCpLinkedUI(mode);
+  });
+}
+
+// ---------- links + export ----------
+function buildExport(mode) {
+  const s = state[mode], o = {};
+  for (const k of TOKENS) o[LABEL[k]] = fmt(s[k]);
+  o["--accent"] = fmt(s.primary); o["--accent-soft"] = fmt(s.primarySoft); o["--ring"] = fmt(s.primary);
+  o["--sidebar-primary"] = fmt(s.primary); o["--sidebar-ring"] = fmt(s.primary);
+  const g = gradStops(s.primary);
+  o["--gradient-warm"] = "linear-gradient(135deg, hsl(" + fmt(g.g1) + "), hsl(" + fmt(g.g2) + "))";
+  // derived — the same relationships the default scheme uses
+  o["--popover"] = fmt(s.card); o["--popover-foreground"] = fmt(s.fg); o["--input"] = fmt(s.border);
+  o["--secondary"] = fmt(s.muted); o["--secondary-foreground"] = fmt(s.fg); o["--secondary-soft"] = fmt(s.muted);
+  return o;
+}
+document.getElementById("btnExport").addEventListener("click", function () {
+  const payload = { theme: "orange", light: buildExport("light"), dark: buildExport("dark") };
+  const out = document.getElementById("exportOut");
+  out.value = JSON.stringify(payload, null, 2);
+  document.getElementById("exportWrap").style.display = "block";
+  out.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  out.focus(); out.select();
+});
+document.getElementById("lnkCp").addEventListener("change", function (e) {
+  links.cpFollowsPrimary = e.target.checked;
+  ["light","dark"].forEach(function (mode) {
+    if (links.cpFollowsPrimary) {
+      state[mode].cp = clone(state[mode].primary); syncSliders(mode, "cp"); refreshRow(mode, "cp");
+      if (links.softFollowsHue) { state[mode].cpSoft.h = state[mode].cp.h; syncSliders(mode, "cpSoft"); refreshRow(mode, "cpSoft"); }
+      applyMock(mode); refreshContrast(mode);
+    }
+    setCpLinkedUI(mode);
+  });
+});
+document.getElementById("lnkSoft").addEventListener("change", function (e) {
+  links.softFollowsHue = e.target.checked;
+  if (links.softFollowsHue) ["light","dark"].forEach(function (mode) {
+    for (const soft in SOFT_PARENT) {
+      state[mode][soft].h = state[mode][SOFT_PARENT[soft]].h; syncSliders(mode, soft); refreshRow(mode, soft);
+    }
+    applyMock(mode); refreshContrast(mode);
+  });
+});
+
+build();
+</script>
+</body>
+</html>

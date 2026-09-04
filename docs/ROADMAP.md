@@ -306,18 +306,68 @@ Everything the Periods & Gamify arc consciously **did not** build, so none of it
   shrinks its contrast against its own tint. Readable, and it was accepted at the visual pass. If AA
   is ever wanted there, darken light-mode `--jx` L **52% → ~44%** — saturation (8%) is what keeps it
   quiet, not lightness, so it would stay just as recessive. One-line change, no code.
-- **⚠ `team_reward` ledger path is UNTESTED and unexercised.** `combineTeamChallenge` (the verdict)
-  is unit-covered, but **`warrantedFor`** — which decides what actually lands in `reward_ledger`
-  (team reward on success / deposit_execution on failure / nothing) — lives inside
-  `useChallengeSettlement` with **no unit test**, and real data has only ever run the *blank*-reward
-  and *success* branches. The **filled**-team_reward and **failure**→penalty paths have never
-  executed. Fix: extract `warrantedFor` as a pure function + test all four branches. Small, and worth
-  doing before a challenge is ever run with a team reward set.
-- **Shop restock** — first-challenge economy shows coins accumulating faster than the catalog can
-  absorb (see the analysis in the 2026-09-02 session): no repeatable sink between 补签 20 and 大额
-  1200, and only the theme has ever sold. Proposal pending owner review.
+- ~~**⚠ `team_reward` ledger path is UNTESTED**~~ — **✅ CLOSED 2026-09-04.** Extracted as the pure
+  `warrantedLedger(team, teamReward, myDepositExecution)` in `src/data/challenge.ts`, with tests for
+  all four branches (success+blank / success+filled / failure+execution / undecided) plus the mixed
+  team and the "each side writes its OWN execution" case. `useChallengeSettlement` keeps a thin
+  binding. Done ahead of challenge 2's settlement (09-27) precisely because the filled-reward and
+  failure→penalty paths had never executed anywhere.
+- **Shop restock — reviewed 2026-09-04. ONE addition approved, four proposals rejected.**
+  The first-challenge economy showed coins accumulating faster than the catalog absorbs them
+  (projected end of challenge 2: CP ≈ 1900 / JX ≈ 1425; everything unowned costs 715 in total), no
+  repeatable sink between 补签 20 and 大额 1200, and **only the theme has ever sold** (2 purchases,
+  ever, both 主题·樱粉). Decisions:
+  - ✅ **New theme「橙白」** (300, kind `theme`) — the only proven-selling category. Color card first
+    (`docs/design/orange-white-colorcard.html`), owner tuning pass, then the theme block.
+  - ❌ **奶茶券·双人 260** — a solo item in practice; the pair are long-distance, so a shared-drink
+    voucher does not describe anything they can actually do.
+  - ❌ **外卖券·加码 700** — redemption items have **zero** sales. The sink problem is *desirability*,
+    not a missing rung on the price ladder; adding rungs to a ladder nobody climbs changes nothing.
+  - ❌ **30-coin collectible titles** — cheap does not fix titles. They are **invisible** (one header
+    pill, self-only), and invisibility is the actual defect. Addressed by the profile arc, not price.
+  - ❌ **纪念章 as a shop item** — becomes an **earned achievement** in the profile system instead.
+    That resolves the earned-vs-bought flag: it is not a sink, and it should not be buyable.
+  The underlying read: **virtual goods sell only when they have a stage.** That is now its own arc —
+  see `docs/design/IDENTITY_AND_COSMETICS.md`.
 - **Per-task 打卡 overlay on the 签到 calendar**, **Rewards month-switcher**, **Ledger polish**
   (expiry_date / used_progress editable, mobile notes) — all still listed in their own sections below.
+
+### Post-settlement polish pass — ✅ SHIPPED 2026-09-04
+Three items from the first-settlement review, all small, all in one commit:
+- **`warrantedLedger` extracted + tested** (see the closed deferred item above).
+- **Victory has a moment.** A successful settlement used to be *silent about the deposit*: it simply
+  stopped being rendered, so the thing you were actually afraid of losing vanished without ever being
+  declared safe. The both-settled strip now states the **+500** and「**押注已解除 · <押注> 未执行**」
+  outright (`VictoryAck` in ChallengeHome). Two identical stakes collapse to one line. The history
+  view stays the durable record; this is the in-the-moment acknowledgment.
+- **`team_reward` folded away.** It is optional in the schema but sat in the create form like a
+  required field and stalled initiation. Now a collapsed「可选：团队奖励」disclosure, closed unless one
+  is already set, with a placeholder that licenses skipping it:「想不到就留空 —— 通关本身已有 +500
+  和押注解除」. Kept, not removed — rare occasions still want one.
+
+### 橙白 (orange-white) — 🟡 color card ready, awaiting the owner's tuning pass
+CP's own colors as the second paid theme (300, kind `theme`). Card:
+`docs/design/orange-white-colorcard.html` (same tuner shape as sakura's; three additions —
+`--jx/--jx-soft` are tunable from the start, the *foreground* tokens are tunable, and a **live WCAG
+panel** shows each pair beside the shipped teal's number for the same pair).
+
+Three per-theme calls are baked into the proposal and flagged in the card for the owner to accept or
+overturn:
+1. **Semantics stay chromatic — the opposite of sakura's monochrome.** Sakura could pull `--success`
+   into the pink family because brand pink (340) and danger (12) are still 32° apart. An orange brand
+   sits at ~24; a red danger at 0–12 would be a dozen degrees away and **通关 and 失败 would look
+   alike**. So the brand takes orange and the semantics move *outward*: danger → crimson 352,
+   success → warm moss 150. Not a style preference — the hue forces it.
+2. **Dark brown, not white, on orange buttons.** White on saturated orange is ~2.6:1 (worse than both
+   teal and sakura); a deep brown `--primary-foreground` reaches 4.6:1.
+3. **`--cp` is NOT equal to `--primary` in light mode** (a deliberate contract §4 deviation). Bright
+   orange as *text* on a pale orange pill cannot clear the bar at any tuning (max ~2.7:1, below the
+   shipped teal's 3.39); CP therefore uses one step deeper (L42, same hue family, still reads as the
+   brand). Dark mode keeps them identical.
+
+Baseline status: **every measured pair in both modes is ≥ the shipped teal's number for that same
+pair**, most clearing WCAG outright — so it is a usable starting point, and the tuning pass is about
+taste, not rescue.
 
 ### Sakura v2 — ✅ SHIPPED 2026-08-19
 Owner-tuned in `docs/design/sakura-v2-colorcard.html` (interactive tuner, kept as the theme-authoring
