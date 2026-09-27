@@ -1,5 +1,6 @@
 import { useChallengeHistory, type HistoryEntry, type HistoryMember } from "@/hooks/useChallengeHistory";
 import { unitLabel } from "@/data/models";
+import { totalWeeks } from "@/data/challenge";
 import { History, Check, X, ShieldCheck, Skull, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -109,7 +110,9 @@ export const ChallengeHistory = () => {
                 {e.start} → {e.end}
               </span>
               <span className="text-[11px] text-muted-foreground">
-                {e.challenge.weeks} 周 · 发起人 {e.challenge.initiator}
+                {totalWeeks(e.challenge.weeks, e.challenge.extendedDays)} 周
+                {e.challenge.extendedDays > 0 && `（${e.challenge.weeks} 周 + 延期）`} · 发起人{" "}
+                {e.challenge.initiator}
               </span>
               <span className="ml-auto">
                 <TeamVerdict e={e} />

@@ -7,6 +7,7 @@ import {
   challengeStarted,
   checkinOpenForUser,
   challengeWeeks,
+  totalWeeks,
   totalProgress,
 } from "@/data/challenge";
 import { todayISO, weekdayCN } from "@/lib/dates";
@@ -202,7 +203,7 @@ const CheckIn = () => {
 
   const ch = c.challenge;
   const start = ch.startDate;
-  const { end } = challengeSpan(start, ch.weeks);
+  const { end } = challengeSpan(start, ch.weeks, ch.extendedDays);
   const started = challengeStarted(start, today);
 
   // Not started yet (scheduled).
@@ -227,7 +228,9 @@ const CheckIn = () => {
   const mySettled = !!c.myMember?.result;
   const editable = active === me && checkinOpenForUser(start, today, mySettled);
   const tasks = c.tasksFor(active);
-  const wk = challengeWeeks(start, ch.weeks).find((w) => curDate >= w.startDate && curDate <= w.endDate);
+  const wk = challengeWeeks(start, ch.weeks, ch.extendedDays).find(
+    (w) => curDate >= w.startDate && curDate <= w.endDate,
+  );
 
   const logsFor = (taskId: string) => c.logs.filter((l) => l.taskId === taskId && l.date === curDate);
 
@@ -282,7 +285,14 @@ const CheckIn = () => {
             <span className="text-muted-foreground"> · {weekdayCN(curDate)}</span>
           </div>
           <div className="flex items-center justify-center gap-1.5 mt-1">
-            {wk && <span className="pill bg-primary/10 text-primary">第 {wk.index} 周 / 共 {ch.weeks} 周</span>}
+            {wk && (
+              <span className="pill bg-primary/10 text-primary">
+                第 {wk.index} 周 / 共 {totalWeeks(ch.weeks, ch.extendedDays)} 周
+              </span>
+            )}
+            {ch.extendedDays > 0 && curDate > challengeSpan(start, ch.weeks, 0).end && (
+              <span className="pill bg-secondary-soft text-secondary-foreground">延期期间</span>
+            )}
             {isPast && (
               <span className="pill bg-secondary-soft text-secondary-foreground">
                 <History className="w-3 h-3" /> 补签
@@ -311,7 +321,7 @@ const CheckIn = () => {
         {tasks.map((t) => {
           const rows = logsFor(t.id);
           const noteText = rows.find((r) => r.value === 0)?.note ?? "";
-          const total = totalProgress(t, c.logs, start, ch.weeks);
+          const total = totalProgress(t, c.logs, start, ch.weeks, ch.extendedDays);
           const setNoteFor = (note: string) => c.setNote.mutate({ taskId: t.id, date: curDate, note });
 
           if (t.type === "count") {

@@ -21,6 +21,10 @@ function toChallenge(row: Tables<"challenges">, p: ProfileMaps): Challenge {
     id: row.id,
     startDate: row.start_date,
     weeks: row.weeks,
+    // `?? 0` is load-bearing, not defensive noise: `select("*")` simply omits the column
+    // on a database that has not run migration 007 yet, so this keeps the deploy safe in
+    // EITHER order (code first or SQL first) instead of feeding undefined into day math.
+    extendedDays: row.extended_days ?? 0,
     initiator: p.byId[row.initiator],
     mode: row.mode as Challenge["mode"],
     teamReward: row.team_reward,

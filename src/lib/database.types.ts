@@ -311,6 +311,7 @@ export type Database = {
           id: string;
           start_date: string;
           weeks: number;
+          extended_days: number;
           initiator: string;
           mode: string;
           team_reward: string | null;
@@ -321,6 +322,7 @@ export type Database = {
           id?: string;
           start_date: string;
           weeks?: number;
+          extended_days?: number;
           initiator: string;
           mode?: string;
           team_reward?: string | null;
@@ -331,6 +333,7 @@ export type Database = {
           id?: string;
           start_date?: string;
           weeks?: number;
+          extended_days?: number;
           initiator?: string;
           mode?: string;
           team_reward?: string | null;

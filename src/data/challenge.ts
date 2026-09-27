@@ -58,18 +58,51 @@ export interface ChallengeWeek {
   endDate: string; // Sunday
 }
 
-/** The `weeks` Mon–Sun weeks of a challenge starting at `startDate` (a Monday). */
-export function challengeWeeks(startDate: string, weeks: number): ChallengeWeek[] {
-  return Array.from({ length: weeks }, (_, i) => ({
-    index: i + 1,
-    startDate: addDays(startDate, i * 7),
-    endDate: addDays(startDate, i * 7 + 6),
-  }));
+/**
+ * How many days the challenge actually runs, extension included (D14).
+ *
+ * The end date is DERIVED everywhere — never stored — so this is the single place the
+ * duration is defined, and every consumer below routes through it. `extendedDays` is a
+ * non-negative multiple of 7 (enforced by the DB CHECK in 007), which is what keeps the
+ * span Mon–Sun aligned: `weeks` stays the ORIGINAL agreement and the extension is a
+ * separate, visible fact rather than a rewrite of it.
+ */
+export function challengeDays(weeks: number, extendedDays: number): number {
+  return weeks * 7 + extendedDays;
 }
 
+/** Total weeks including any extension — what the UI means by 共 N 周. */
+export function totalWeeks(weeks: number, extendedDays: number): number {
+  return Math.ceil(challengeDays(weeks, extendedDays) / 7);
+}
+
+/**
+ * The Mon–Sun weeks of a challenge starting at `startDate` (a Monday), extension
+ * included — so an extended challenge really has a 第 5 周 rather than a stretch of days
+ * that belong to no week. The final week is clamped to the span end, which only matters
+ * if a non-multiple-of-7 extension ever slips past the DB CHECK.
+ */
+export function challengeWeeks(
+  startDate: string,
+  weeks: number,
+  extendedDays: number,
+): ChallengeWeek[] {
+  const { end } = challengeSpan(startDate, weeks, extendedDays);
+  return Array.from({ length: totalWeeks(weeks, extendedDays) }, (_, i) => ({
+    index: i + 1,
+    startDate: addDays(startDate, i * 7),
+    endDate: strMin(addDays(startDate, i * 7 + 6), end),
+  }));
+}
+const strMin = (a: string, b: string) => (a < b ? a : b);
+
 /** [start, end] span of the whole challenge (end = the last Sunday). */
-export function challengeSpan(startDate: string, weeks: number): { start: string; end: string } {
-  return { start: startDate, end: addDays(startDate, weeks * 7 - 1) };
+export function challengeSpan(
+  startDate: string,
+  weeks: number,
+  extendedDays: number,
+): { start: string; end: string } {
+  return { start: startDate, end: addDays(startDate, challengeDays(weeks, extendedDays) - 1) };
 }
 
 /** Has the challenge started (today on/after the start)? */
@@ -77,9 +110,14 @@ export function challengeStarted(startDate: string, today: string): boolean {
   return today >= startDate;
 }
 
-/** Has the challenge ended (today after the last day)? */
-export function challengeEnded(startDate: string, weeks: number, today: string): boolean {
-  return today > challengeSpan(startDate, weeks).end;
+/** Has the challenge ended (today after the last day)? Honours the extension. */
+export function challengeEnded(
+  startDate: string,
+  weeks: number,
+  extendedDays: number,
+  today: string,
+): boolean {
+  return today > challengeSpan(startDate, weeks, extendedDays).end;
 }
 
 /**
@@ -92,8 +130,9 @@ export function totalProgress(
   logs: DailyLog[],
   startDate: string,
   weeks: number,
+  extendedDays: number,
 ): number {
-  const { start, end } = challengeSpan(startDate, weeks);
+  const { start, end } = challengeSpan(startDate, weeks, extendedDays);
   const ls = logsForTaskInRange(logs, task.id, start, end);
   if (task.type === "count")
     return new Set(ls.filter((l) => l.value > 0).map((l) => l.date)).size;
@@ -106,8 +145,9 @@ export function taskPassed(
   logs: DailyLog[],
   startDate: string,
   weeks: number,
+  extendedDays: number,
 ): boolean {
-  return totalProgress(task, logs, startDate, weeks) >= task.target;
+  return totalProgress(task, logs, startDate, weeks, extendedDays) >= task.target;
 }
 
 export type ChallengeResult = "success" | "failure";
@@ -124,11 +164,12 @@ export function challengeStatusForUser(
   logs: DailyLog[],
   startDate: string,
   weeks: number,
+  extendedDays: number,
   today: string,
 ): ChallengeUserStatus {
   if (tasks.length === 0) return "in-progress";
-  const allPass = tasks.every((t) => taskPassed(t, logs, startDate, weeks));
-  if (challengeEnded(startDate, weeks, today)) return allPass ? "success" : "failure";
+  const allPass = tasks.every((t) => taskPassed(t, logs, startDate, weeks, extendedDays));
+  if (challengeEnded(startDate, weeks, extendedDays, today)) return allPass ? "success" : "failure";
   return allPass ? "success" : "in-progress";
 }
 
@@ -142,9 +183,12 @@ export function challengeResultForUser(
   logs: DailyLog[],
   startDate: string,
   weeks: number,
+  extendedDays: number,
 ): ChallengeResult | null {
   if (tasks.length === 0) return null;
-  return tasks.every((t) => taskPassed(t, logs, startDate, weeks)) ? "success" : "failure";
+  return tasks.every((t) => taskPassed(t, logs, startDate, weeks, extendedDays))
+    ? "success"
+    : "failure";
 }
 
 /**
@@ -205,9 +249,10 @@ export function paceExpected(
   task: Task,
   startDate: string,
   weeks: number,
+  extendedDays: number,
   today: string,
 ): number {
-  const totalDays = weeks * 7;
+  const totalDays = challengeDays(weeks, extendedDays);
   const elapsed = Math.max(0, Math.min(totalDays, daysBetween(startDate, today) + 1));
   return (task.target * elapsed) / totalDays;
 }
@@ -287,6 +332,12 @@ export function daysMissedAtStart(startDate: string, today: string): number {
  * started, through the FIRST HALF of the run (4 weeks → first 2 weeks / 14 days), and
  * only if not yet used (`editedAt` null). Pre-start edits are free (see
  * `preStartEditable`) and do NOT consume this one.
+ *
+ * **Deliberately ignores the D14 extension** — note the absent `extendedDays` parameter.
+ * An extension renegotiates TIME, never the GOAL. Half of an *extended* run is 17 days,
+ * so honouring the extension here could REOPEN an edit window that had already closed,
+ * letting someone extend in order to lower their target. That is precisely the stakes
+ * escape hatch D14 exists to avoid, so the window stays keyed to the original `weeks`.
  */
 export function midEditOpen(
   startDate: string,

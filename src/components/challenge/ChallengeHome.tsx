@@ -9,6 +9,7 @@ import {
   midEditOpen,
   freeEditOpen,
   startChoicesFor,
+  totalWeeks,
   daysMissedAtStart,
   nextMondayOnOrAfter,
   paceExpected,
@@ -44,6 +45,7 @@ import {
   XCircle,
   ShieldCheck,
   Coins,
+  CalendarPlus,
 } from "lucide-react";
 import { cn, NO_SPIN } from "@/lib/utils";
 import { toast } from "sonner";
@@ -88,6 +90,7 @@ const TaskProgress = ({
   logs,
   start,
   weeks,
+  extendedDays,
   today,
   user,
   showPace,
@@ -96,13 +99,16 @@ const TaskProgress = ({
   logs: DailyLog[];
   start: string;
   weeks: number;
+  extendedDays: number;
   today: string;
   user: UserId;
   showPace: boolean;
 }) => {
-  const v = totalProgress(task, logs, start, weeks);
+  const v = totalProgress(task, logs, start, weeks, extendedDays);
   const passed = v >= task.target;
-  const pace = showPace ? Math.round(paceExpected(task, start, weeks, today)) : null;
+  // The pace line stretches over the EXTENDED span, so an extension visibly relaxes the
+  // daily reference rather than leaving it pointing at the original deadline.
+  const pace = showPace ? Math.round(paceExpected(task, start, weeks, extendedDays, today)) : null;
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-sm">
@@ -395,7 +401,7 @@ export const ChallengeHome = () => {
 
   // ---- Active challenge ------------------------------------------------------
   const ch = c.challenge;
-  const { start, end } = { start: ch.startDate, end: challengeSpan(ch.startDate, ch.weeks).end };
+  const { start, end } = challengeSpan(ch.startDate, ch.weeks, ch.extendedDays);
   const started = challengeStarted(start, today);
   const ended = s.ended;
   const isInitiator = ch.initiator === me;
@@ -438,9 +444,15 @@ export const ChallengeHome = () => {
             {!started && <span className="pill bg-secondary-soft text-secondary-foreground">未开始</span>}
             {started && !ended && <span className="pill bg-success-soft text-success">进行中</span>}
             {ended && <span className="pill bg-muted text-muted-foreground">已结束</span>}
+            {ch.extendedDays > 0 && (
+              <span className="pill bg-secondary-soft text-secondary-foreground">
+                <CalendarPlus className="w-3 h-3" /> 已延期 +{ch.extendedDays / 7} 周
+              </span>
+            )}
           </div>
           <div className="text-xs text-muted-foreground">
-            {start} → {end} · {ch.weeks} 周 · 发起人 {ch.initiator}
+            {start} → {end} · {totalWeeks(ch.weeks, ch.extendedDays)} 周
+            {ch.extendedDays > 0 && `（原 ${ch.weeks} 周）`} · 发起人 {ch.initiator}
           </div>
           {ch.teamReward && (
             <div className="text-xs text-muted-foreground">
@@ -565,6 +577,7 @@ export const ChallengeHome = () => {
             logs={c.logs}
             start={start}
             weeks={ch.weeks}
+            extendedDays={ch.extendedDays}
             today={today}
             user={partner}
             showPace={started && !ended}
@@ -651,6 +664,7 @@ export const ChallengeHome = () => {
                 logs={c.logs}
                 start={start}
                 weeks={ch.weeks}
+                extendedDays={ch.extendedDays}
                 today={today}
                 user={me}
                 showPace={started && !ended}

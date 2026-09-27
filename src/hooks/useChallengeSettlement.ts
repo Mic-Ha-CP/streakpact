@@ -55,14 +55,16 @@ export function useChallengeSettlement(
 
   const start = challenge?.startDate ?? "";
   const weeks = challenge?.weeks ?? 4;
+  const extendedDays = challenge?.extendedDays ?? 0;
   const source = challenge ? challengeSource(start) : "";
-  const ended = challenge ? challengeEnded(start, weeks, today) : false;
+  // Extension-aware: 结算 must not open while the extended run is still going.
+  const ended = challenge ? challengeEnded(start, weeks, extendedDays, today) : false;
 
   const myMember = members.find((m) => m.userId === userId) ?? null;
   const partnerMember = members.find((m) => m.userId !== userId) ?? null;
 
-  const myLiveResult = challengeResultForUser(myTasks, logs, start, weeks);
-  const partnerLiveResult = challengeResultForUser(partnerTasks, logs, start, weeks);
+  const myLiveResult = challengeResultForUser(myTasks, logs, start, weeks, extendedDays);
+  const partnerLiveResult = challengeResultForUser(partnerTasks, logs, start, weeks, extendedDays);
 
   const mySettled = !!myMember?.result;
   const partnerSettled = !!partnerMember?.result;

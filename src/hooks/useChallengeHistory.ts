@@ -16,6 +16,7 @@ const toChallenge = (r: Tables<"challenges">, p: ProfileMaps): Challenge => ({
   id: r.id,
   startDate: r.start_date,
   weeks: r.weeks,
+  extendedDays: r.extended_days ?? 0, // see the note in useChallenge's mapper
   initiator: p.byId[r.initiator],
   mode: r.mode as Challenge["mode"],
   teamReward: r.team_reward,
@@ -137,7 +138,11 @@ export function useChallengeHistory() {
       }
 
       return past.map((challenge): HistoryEntry => {
-        const { start, end } = challengeSpan(challenge.startDate, challenge.weeks);
+        const { start, end } = challengeSpan(
+          challenge.startDate,
+          challenge.weeks,
+          challenge.extendedDays,
+        );
         const mine = members.filter((m) => m.challengeId === challenge.id);
         const voided = challenge.status === "cancelled" || challenge.status === "aborted";
         const team = voided
@@ -155,13 +160,25 @@ export function useChallengeHistory() {
           return {
             userId: m.userId,
             result: (m.result as ChallengeResult | null) ?? null,
-            liveResult: challengeResultForUser(myTasks, logs, challenge.startDate, challenge.weeks),
+            liveResult: challengeResultForUser(
+              myTasks,
+              logs,
+              challenge.startDate,
+              challenge.weeks,
+              challenge.extendedDays,
+            ),
             settledAt: m.settledAt,
             depositStake: m.depositStake,
             depositExecution: m.depositExecution,
             depositOutcome: voided ? "void" : team === "failure" ? "executed" : "released",
             tasks: myTasks.map((task) => {
-              const progress = progressFor(task, logs, challenge.startDate, challenge.weeks);
+              const progress = progressFor(
+                task,
+                logs,
+                challenge.startDate,
+                challenge.weeks,
+                challenge.extendedDays,
+              );
               return { task, progress, passed: progress >= task.target };
             }),
           };
@@ -184,8 +201,14 @@ export function useChallengeHistory() {
 }
 
 // -- helpers -------------------------------------------------------------------
-function progressFor(task: Task, logs: DailyLog[], start: string, weeks: number): number {
-  const { start: s, end } = challengeSpan(start, weeks);
+function progressFor(
+  task: Task,
+  logs: DailyLog[],
+  start: string,
+  weeks: number,
+  extendedDays: number,
+): number {
+  const { start: s, end } = challengeSpan(start, weeks, extendedDays);
   const ls = logs.filter((l) => l.taskId === task.id && l.date >= s && l.date <= end);
   if (task.type === "count") return new Set(ls.filter((l) => l.value > 0).map((l) => l.date)).size;
   return ls.reduce((sum, l) => sum + (l.value ?? 0), 0);

@@ -332,6 +332,40 @@ Everything the Periods & Gamify arc consciously **did not** build, so none of it
 - **Per-task 打卡 overlay on the 签到 calendar**, **Rewards month-switcher**, **Ledger polish**
   (expiry_date / used_progress editable, mobile notes) — all still listed in their own sections below.
 
+### Consensual extension (延期) — 🟡 D14 draft · schema shipped 2026-09-27, flow NOT built
+**Why it exists:** the first real-life stress test of the stakes mechanism (new job / travel /
+illness left one side short on a timer task). The only exits were **abort (nuclear** — the whole
+period voids, four tasks' worth of work with it) and **fail (harsh** — execute the deposit over
+something nobody is culpable for). Extension is the missing middle: it renegotiates **TIME, never
+the GOAL**, so commitment integrity survives — nothing undone is ever counted as done.
+
+**Shipped now (the patch):**
+- `007_challenge_extension.sql` — `challenges.extended_days integer not null default 0`, CHECK
+  `>= 0 and % 7 = 0`. `weeks` is never rewritten, so an extended 4-week challenge cannot be
+  mistaken later for one that was always 5 weeks.
+- The end date was **derived, not stored** (`start_date + weeks*7 - 1`), recomputed independently in
+  three places. `extendedDays` is now a **required** parameter on `challengeSpan` / `challengeEnded`
+  / `challengeWeeks` / `totalProgress` / `taskPassed` / `challengeStatusForUser` /
+  `challengeResultForUser` / `paceExpected` — deliberately required rather than defaulted, so the
+  compiler names every consumer instead of letting one silently keep the old end. It found 11 app
+  call sites.
+- `midEditOpen` **deliberately takes no `extendedDays`** (D14 ⑧): half of an extended run is 17 days,
+  so honouring the extension there would reopen a closed edit window and let someone extend in order
+  to cut their target. A test asserts the function's arity so the rule can't be quietly undone.
+- UI surfaces it: 已延期 +N 周 pill, `共 5 周（原 4 周）`, a 延期期间 marker on check-in days past the
+  original end, and the extension noted in 往期挑战.
+
+**Not built (needs grilling first):** the request/confirm flow itself — per-member
+`extension_agreed_at` mirroring D11's abort pattern. ⚠ Implementation note already found:
+`challenges_update_initiator` only lets the **initiator** write `challenges`, so a confirming
+non-initiator cannot perform the lazy write — either the initiator's client does it, or a narrow
+policy is needed. Until then, extensions are applied by hand in SQL (same trust-based path as the
+deposit-typo fix).
+
+**Rejected, recorded so it isn't re-raised:** 补签卡 / forgiveness card. Task backfill is already
+free (D13 ②), so such a card could only mean "count undone work as done" — the same stakes escape
+hatch that got "spend coins to edit your deposit" rejected in D12.
+
 ### Post-settlement polish pass — ✅ SHIPPED 2026-09-04
 Three items from the first-settlement review, all small, all in one commit:
 - **`warrantedLedger` extracted + tested** (see the closed deferred item above).

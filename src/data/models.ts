@@ -80,7 +80,8 @@ export type ChallengeResultValue = "success" | "failure";
 export interface Challenge {
   id: string;
   startDate: string; // YYYY-MM-DD (a Monday)
-  weeks: number; // fixed 4 in v1
+  weeks: number; // the ORIGINAL agreement — fixed 4 in v1; never rewritten by an extension
+  extendedDays: number; // D14 consensual extension, a multiple of 7 (0 = not extended)
   initiator: UserId;
   mode: ChallengeMode; // only "duo" used now
   teamReward: string | null; // optional shared success reward
