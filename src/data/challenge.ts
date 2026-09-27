@@ -105,6 +105,41 @@ export function challengeSpan(
   return { start: startDate, end: addDays(startDate, challengeDays(weeks, extendedDays) - 1) };
 }
 
+/**
+ * Which challenge is CURRENT — the one rule, shared by the dashboard and the history
+ * view so the two can never disagree about it.
+ *
+ * It has to be a rule rather than a status check because **a settled challenge keeps
+ * `status='active'`** by design (ended/settled are derived, never stored). Prod therefore
+ * routinely has two 'active' rows, and "current" means *the newest of them*, not "the
+ * active one".
+ *
+ * Why it is shared: the dashboard and 往期挑战 previously implemented this separately, and
+ * history defines "past" as "everything except current". Any drift between the two —
+ * including a non-deterministic tie-break — would leak the CURRENT challenge into 往期挑战,
+ * where it would show its own (possibly extended) week count against past challenges. That
+ * is exactly the symptom investigated on 2026-09-27; the data was innocent, but the
+ * duplication that could cause it was real, so it is gone.
+ *
+ * Ties on `startDate` are broken by `createdAt` so the answer is deterministic; a raw
+ * `order(start_date).limit(1)` left it to the planner.
+ */
+export function currentChallengeOf<
+  T extends { status: string; startDate: string; createdAt: string },
+>(all: T[]): T | null {
+  const active = all.filter((c) => c.status === "active");
+  if (active.length === 0) return null;
+  return active.reduce((best, c) =>
+    c.startDate !== best.startDate
+      ? c.startDate > best.startDate
+        ? c
+        : best
+      : c.createdAt > best.createdAt
+        ? c
+        : best,
+  );
+}
+
 /** Has the challenge started (today on/after the start)? */
 export function challengeStarted(startDate: string, today: string): boolean {
   return today >= startDate;

@@ -31,3 +31,8 @@ dev-dist
 *.njsproj
 *.sln
 *.sw?
+
+# Prod snapshots — REAL DATA. They live outside the repo (../../streakpact-backups),
+# but this belt-and-braces rule means a dump copied in here still cannot be committed.
+streakpact-backups/
+*prod-public-*.sql

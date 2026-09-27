@@ -5,6 +5,7 @@ import {
   challengeResultForUser,
   challengeSpan,
   combineTeamChallenge,
+  currentChallengeOf,
   type ChallengeResult,
 } from "@/data/challenge";
 import type { Challenge, ChallengeMember, DailyLog, Task, TaskType, UserId } from "@/data/models";
@@ -108,8 +109,8 @@ export function useChallengeHistory() {
       const all = (chRows ?? []).map((r) => toChallenge(r, p));
       if (all.length === 0) return [];
 
-      // Mirror useChallenge's current-challenge pick, then treat the rest as history.
-      const currentId = all.find((c) => c.status === "active")?.id ?? null;
+      // The SAME rule the dashboard uses (shared, not mirrored — see currentChallengeOf).
+      const currentId = currentChallengeOf(all)?.id ?? null;
       const past = all.filter((c) => c.id !== currentId);
       if (past.length === 0) return [];
       const ids = past.map((c) => c.id);

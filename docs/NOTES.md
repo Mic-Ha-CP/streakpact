@@ -1,6 +1,6 @@
 # Dev notes
 
-## Where we are (updated 2026-09-04)
+## Where we are (updated 2026-09-27)
 
 Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`; CI = lint → typecheck
 → test). Prod DB is on migrations **001→006** + the D11 catch-up. The app now runs the
@@ -64,6 +64,32 @@ The core loop has now run end-to-end on real data:
 - **Next arc recorded, not started: `docs/design/IDENTITY_AND_COSMETICS.md`** — profile page, title
   slots, earned achievements, frames/avatars, more themes, style themes. To be grilled before any of
   it is built.
+
+### Consensual extension (D14) — schema LIVE, UI not built (2026-09-27)
+Real-life disruption (new job / travel / illness) left one side short on a timer task in the
+**2026-08-31 challenge**; both agreed to +1 week. `challenges.extended_days` (migration 007,
+CHECK: non-negative multiple of 7) is live on prod and **every end-date consumer honours it** —
+the end date is derived (`start_date + weeks*7 + extended_days - 1`), never stored. `weeks`
+stays the original agreement so history cannot lie about what was signed up for.
+- **Current challenge now runs 2026-08-31 → 2026-10-04.** Applied by a one-off manual UPDATE
+  (see the prod-write rule above — logged as an exception, not a precedent).
+- `midEditOpen` deliberately ignores the extension: half of an extended run is 17 days, so
+  honouring it would reopen a closed edit window and let someone extend to lower their target.
+  A test asserts the function's arity so this cannot be quietly undone.
+- **The D14 request/confirm UI does not exist yet** — that is the next build.
+
+### 往期挑战 "5 weeks" report (2026-09-27) — investigated, NOT a bug
+Reported as the 08-03 challenge showing 5 weeks. Prod data is correct (only the 08-31 row has
+`extended_days = 7`; all three 08-03 rows are 0/4 weeks), the deployed bundle's logic is
+correct, and a local repro of the identical 4-row shape renders **4 周** on all three. The 3
+entries are **1 settled + 2 cancelled**, as expected.
+**What was fixed anyway:** the dashboard and the history view each had their *own* copy of the
+"which challenge is current" rule, and history defines "past" as "everything except current" —
+so any drift would leak the current (extended) challenge into 往期挑战 and show *its* week
+count there. That is the only mechanism that produces the reported symptom, so the rule is now
+one shared `currentChallengeOf()` in `src/data/challenge.ts`, with tests locking the real prod
+shape (three rows share a start_date; **two rows are `status='active'`** because a settled
+challenge keeps that status by design).
 
 ### Next options — no commitments, pick when the time comes
 - **主题「橙白」** — color card ready (`docs/design/orange-white-colorcard.html`), awaiting the
@@ -177,6 +203,29 @@ already allows `reason='shop'` (from 005), so no change there.
 JX's deposit-declaration text had a typo, corrected **directly in the DB** (agreed one-off typo-fix
 path — challenge_members is user-owned data, no code/migration involved).
 
+### What may touch prod (RULE — added 2026-09-27)
+**Prod receives only reviewed migrations and genuinely necessary data fixes.**
+**Feature behaviour is never enabled by editing prod data** — a flow is built and exercised
+through the UI locally first. A hand-written `UPDATE` that makes a feature *look* like it
+works leaves the real code path unexercised and turns prod into the test environment.
+
+Necessary data fix = correcting **wrong or missing data** (a typo; a value the UI cannot yet
+express and a user legitimately needs). Still: keyed to an explicit id, guarded so a re-run is
+a no-op, inside a transaction, with a verification `SELECT` before `COMMIT`.
+**Reads against prod are unrestricted** — it is writes that are constrained.
+
+Test: *would this still be needed if the feature were finished?* Yes → data fix. No → build it.
+
+**Exceptions on record (not precedents):**
+- **2026-09-27 · `challenges.extended_days = 7`** — the pair had agreed a one-week extension,
+  the deadline was that day, migration 007 existed but the **D14 request/confirm UI did not**.
+  Applied by hand. The correct end state is the D14 flow; once built, this `UPDATE` never needs
+  writing again. See `docs/design/PERIODS_AND_GAMIFY.md` D14 ⑩.
+- **2026-08-19 · JX's deposit text typo** — corrected directly in the DB; wrong data, no UI
+  for it. Fits "necessary data fix" rather than being an exception at all.
+
+See `docs/PROJECT_RIGOR.md` §3b for the same rule in the rigor profile.
+
 ### Shop (P3) smoke test — local
 1. Login CP. 首页/账本 → 金币余额 visible; open 商城 (nav).
 2. Buy a **现实兑换** item (e.g. 奶茶券 120) → balance −120; a **pending** row appears in 账本
@@ -209,6 +258,49 @@ docker exec -e PGCONN="$DBURL" "$DB" sh -c 'pg_dump "$PGCONN" --schema=public --
 - **Restore** (recovery): the dump is plain SQL (CREATE TABLE + COPY). Restore into a fresh/empty
   project's `public` schema with `psql "$DBURL" < <backup-file>`. Test on a scratch DB before ever
   running it against a live one.
+
+### Local dev on a PROD DATA COPY (added 2026-09-27)
+Reproduce bugs and exercise features against real data, locally. **Prod is only ever read**
+(`pg_dump`); nothing in this flow writes to it.
+
+```bash
+npm run db:snapshot   # dump prod's public schema → ../../streakpact-backups (REAL DATA)
+npm run db:load       # load the newest dump into the LOCAL stack
+npm run db:reset      # back to the clean migrations + seed fixture
+```
+`npm run db:load <path>` loads a specific dump instead of the newest. Both scripts need the
+local stack up (`npx supabase start`) — `pg_dump`/`psql` run inside its container, since the
+Windows host has no postgres client.
+
+**Where dumps live:** `C:/Users/Admin/Documents/Self_Learning/streakpact-backups`
+(override with `STREAKPACT_BACKUPS`). **Outside the repo, on purpose** — they contain real
+data. `.gitignore` also blocks `*prod-public-*.sql` and `streakpact-backups/` so a stray copy
+inside the repo still cannot be committed, and the loader refuses a dump that sits in the repo.
+
+**Auth — the one real decision.** The dump is `public`-only, so real `profiles.id` values
+arrive with no `auth.users` to hang off (`profiles.id` IS `auth.users.id`). Two options were
+possible: remap prod UUIDs to the seed's `1111…`/`2222…`, or keep the prod UUIDs and mint
+local accounts carrying them. **The loader does the latter.** Remapping would mean rewriting
+the user id across every table referencing profiles (tasks, daily_logs, challenge_members,
+challenges.initiator, reward_ledger, coin_ledger, checkin_days, shop_redemptions,
+settlements) — miss one FK and the copy is wrong in a way that still looks fine. Keeping the
+ids means **a row id you read in prod is the same id you read locally**, which is the point of
+having a copy.
+
+Log in locally as **cp@test.local / jx@test.local**, password **test1234** — synthetic
+credentials minted by the loader. No real email or password hash is ever copied into the
+local stack.
+
+**Two things the loader must do that are easy to miss** (both are handled, noted so nobody
+"simplifies" them away):
+- the dump is `--no-privileges`, so after loading it re-grants `anon`/`authenticated` on the
+  new tables; without that every request 401s behind an apparently healthy stack (RLS still
+  applies normally on top);
+- `drop schema public cascade` takes `handle_new_user` **and its trigger on `auth.users`**
+  with it, so the trigger is recreated afterwards.
+
+Verified 2026-09-27 end to end: 4 challenges / 20 tasks / 341 daily_logs loaded, both accounts
+authenticate, and PostgREST returns the real rows through RLS.
 
 ## Theme-aware browser chrome (P3, 2026-08-19)
 `ThemeChrome` (mounted at the app root, `src/components/ThemeChrome.tsx`) owns runtime chrome:

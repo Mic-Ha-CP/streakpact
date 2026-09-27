@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfiles, type ProfileMaps } from "@/hooks/useProfiles";
-import { autoVoidDue } from "@/data/challenge";
+import { autoVoidDue, currentChallengeOf } from "@/data/challenge";
 import { todayISO } from "@/lib/dates";
 import type {
   Challenge,
@@ -119,15 +119,14 @@ export function useChallenge() {
     queryKey: ["challenge", "current"],
     enabled: !!profiles,
     queryFn: async (): Promise<Challenge | null> => {
+      // No .limit(1): "current" is decided by `currentChallengeOf`, the same rule the
+      // history view uses, so the two cannot drift. There are only ever a handful of rows.
       const { data, error } = await supabase
         .from("challenges")
         .select("*")
-        .eq("status", "active")
-        .order("start_date", { ascending: false })
-        .limit(1);
+        .eq("status", "active");
       if (error) throw error;
-      const row = data?.[0];
-      return row ? toChallenge(row, profiles!) : null;
+      return currentChallengeOf((data ?? []).map((r) => toChallenge(r, profiles!)));
     },
   });
   const challenge = challengeQ.data ?? null;

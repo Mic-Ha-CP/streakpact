@@ -4,7 +4,7 @@
 > at the "Next review trigger" conditions below.
 
 ## Project: StreakPact — two-person accountability check-in PWA (CP + JX)
-## Last audited: 2026-07-02
+## Last audited: 2026-07-02 (§3b added 2026-09-27)
 ## Next review trigger: **any tier-changing event** —
 - it starts taking **money** (paid users / a client), OR
 - a **3rd user** is added / it goes **multi-tenant** (Roadmap Phase 10), OR
@@ -67,6 +67,32 @@ Rule: if any row is High, treat all Medium-tier actions as mandatory too.
 **Gaps found (be specific):** at audit time (2026-07-02), before this session's changes:
 - **No CI at all** — the calc/dates regression tests only ran when someone remembered `npm test`; nothing stood between `git push` and live prod. → **Closed** by `.github/workflows/ci.yml`.
 - **No typecheck in the pipeline** — `vite build` uses SWC (transpiles, does not type-check) and there was no `tsc` script, so a type error could reach prod. → **Closed** by the `typecheck` script (`tsc -b`, which follows the project references; a plain `tsc --noEmit` would check nothing because root `tsconfig.json` has `"files": []`) wired into CI.
+
+### 3b. What may touch prod (rule, added 2026-09-27)
+
+**Prod receives only two things: reviewed migrations, and data fixes that are genuinely
+necessary.** Nothing else.
+
+- **Feature behaviour is never enabled by editing prod data.** If a feature needs a flow,
+  the flow gets built and exercised **through the UI locally** first. A hand-written
+  `UPDATE` that makes a feature appear to work is not a shipped feature — it is prod
+  standing in for a test environment, and it leaves the real code path unexercised.
+- **A necessary data fix** is one that corrects *wrong or missing data* (a typo, a value
+  the UI cannot yet express and that a user legitimately needs). It is still written
+  keyed to an explicit id, guarded so a re-run is a no-op, and run inside a transaction
+  with a verification `SELECT` before `COMMIT`.
+- **Reads against prod are unrestricted** — investigation, verification, economy reports.
+  Writes are the constrained act.
+
+**The one exception on record — 2026-09-27, `challenges.extended_days = 7`.** The pair had
+agreed to a one-week extension; the deadline was *that day*; migration 007 existed but the
+D14 request/confirm UI did not. So the extension was applied by hand. It is logged here as
+an **exception, not a precedent**: the correct end state is the D14 flow, after which an
+extension is a thing two people do in the app, and this `UPDATE` never needs writing again.
+The same reasoning covers the earlier deposit-typo fix (correcting wrong data, no UI for it).
+
+**Test of whether a prod write is allowed:** *would this still be needed if the feature
+were finished?* If yes, it is a data fix. If no, build the feature.
 
 ---
 

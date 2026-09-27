@@ -290,6 +290,13 @@ prod: zero `reward_ledger` rows** for that source (`warrantedFor` returns null o
 nothing phantom was written). Challenge 2 started the *same* Monday (2026-08-31 → 09-27) — the
 zero-gap case the "challenge-to-challenge timing" note describes.
 
+### Local dev on a prod data copy — ✅ SHIPPED 2026-09-27
+`npm run db:snapshot` / `db:load` / `db:reset` (`scripts/*.mjs`). Prod is read-only (`pg_dump`);
+dumps live outside the repo and are gitignored twice over. Real profile UUIDs are kept and local
+accounts are minted to carry them, rather than remapping ids across nine FK tables. Written in
+Node, not bash, because the repo checks out CRLF and a `.sh` would break in Git Bash. Full detail
+in NOTES.
+
 ### Deferred items index (nothing here is committed work — a single place to find them)
 Everything the Periods & Gamify arc consciously **did not** build, so none of it gets re-litigated:
 - **Sakura v2.5** — petals + hand-drawn accents · *pending CP's art* (§ below).
@@ -355,12 +362,12 @@ the GOAL**, so commitment integrity survives — nothing undone is ever counted 
 - UI surfaces it: 已延期 +N 周 pill, `共 5 周（原 4 周）`, a 延期期间 marker on check-in days past the
   original end, and the extension noted in 往期挑战.
 
-**Not built (needs grilling first):** the request/confirm flow itself — per-member
-`extension_agreed_at` mirroring D11's abort pattern. ⚠ Implementation note already found:
-`challenges_update_initiator` only lets the **initiator** write `challenges`, so a confirming
-non-initiator cannot perform the lazy write — either the initiator's client does it, or a narrow
-policy is needed. Until then, extensions are applied by hand in SQL (same trust-based path as the
-deposit-typo fix).
+**Not built — NEXT BUILD, plan approved pending owner OK (2026-09-27):** the request/confirm
+flow — per-member `extension_agreed_at` mirroring D11's abort pattern exactly. The RLS question is
+resolved: each member writes only their **own** `challenge_members` row, both UIs derive "extended"
+from the two member rows, and the **initiator's** client lazily persists `extended_days` — the same
+shape as D11's lazy `status='aborted'` write, so **no new RLS policy**. Until it ships, extensions
+are applied by hand in SQL (logged as an exception in PROJECT_RIGOR §3b).
 
 **Rejected, recorded so it isn't re-raised:** 补签卡 / forgiveness card. Task backfill is already
 free (D13 ②), so such a card could only mean "count undone work as done" — the same stakes escape

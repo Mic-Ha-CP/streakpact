@@ -5,6 +5,7 @@ import {
   challengeEnded,
   challengeResultForUser,
   challengeSpan,
+  currentChallengeOf,
   challengeDays,
   totalWeeks,
   challengeStarted,
@@ -448,5 +449,46 @@ describe("consensual extension (D14 draft)", () => {
     // midEditOpen takes no extendedDays at all — that absence is the guarantee, so the
     // only way this can regress is by someone adding the parameter.
     expect(midEditOpen.length).toBe(4);
+  });
+});
+
+// Locks the real prod shape as of 2026-09-27, because it is the shape that makes this
+// rule non-obvious: THREE rows share a start_date and TWO rows are 'active' (a settled
+// challenge keeps status='active' by design).
+describe("currentChallengeOf — one rule for 当前挑战 vs 往期挑战", () => {
+  const prodShape = [
+    { id: "cur", status: "active", startDate: "2026-08-31", createdAt: "2026-08-31T14:27:55Z" },
+    { id: "settled", status: "active", startDate: "2026-08-03", createdAt: "2026-07-30T22:00:06Z" },
+    { id: "void-b", status: "cancelled", startDate: "2026-08-03", createdAt: "2026-07-28T18:30:20Z" },
+    { id: "void-a", status: "cancelled", startDate: "2026-08-03", createdAt: "2026-07-28T17:59:31Z" },
+  ];
+
+  it("picks the NEWEST active, not merely 'the active one'", () => {
+    expect(currentChallengeOf(prodShape)?.id).toBe("cur");
+    // The settled August challenge is still status='active' and must NOT win...
+    expect(currentChallengeOf(prodShape)?.id).not.toBe("settled");
+    // ...but it IS past, so 往期挑战 shows it plus the two voided ones: 3 entries.
+    const past = prodShape.filter((c) => c.id !== currentChallengeOf(prodShape)?.id);
+    expect(past.map((c) => c.id)).toEqual(["settled", "void-b", "void-a"]);
+  });
+
+  it("is order-independent — the answer cannot depend on how the rows arrived", () => {
+    const shuffled = [prodShape[2], prodShape[0], prodShape[3], prodShape[1]];
+    expect(currentChallengeOf(shuffled)?.id).toBe("cur");
+    expect(currentChallengeOf([...prodShape].reverse())?.id).toBe("cur");
+  });
+
+  it("breaks a same-start_date tie by createdAt instead of leaving it to the planner", () => {
+    const tied = [
+      { id: "older", status: "active", startDate: "2026-08-31", createdAt: "2026-08-25T00:00:00Z" },
+      { id: "newer", status: "active", startDate: "2026-08-31", createdAt: "2026-08-30T00:00:00Z" },
+    ];
+    expect(currentChallengeOf(tied)?.id).toBe("newer");
+    expect(currentChallengeOf([...tied].reverse())?.id).toBe("newer");
+  });
+
+  it("returns null when nothing is active (dormant), ignoring cancelled/aborted", () => {
+    expect(currentChallengeOf([])).toBeNull();
+    expect(currentChallengeOf(prodShape.filter((c) => c.status !== "active"))).toBeNull();
   });
 });
