@@ -362,7 +362,9 @@ the GOAL**, so commitment integrity survives — nothing undone is ever counted 
 - UI surfaces it: 已延期 +N 周 pill, `共 5 周（原 4 周）`, a 延期期间 marker on check-in days past the
   original end, and the extension noted in 往期挑战.
 
-**Not built — NEXT BUILD, plan approved pending owner OK (2026-09-27):** the request/confirm
+**Not built — PARKED as next-session work (2026-09-27), full implementation plan recorded in
+`docs/design/PERIODS_AND_GAMIFY.md` D14 ⑪ (read ⑪a first — it is the one part that does *not*
+copy D11):** the request/confirm
 flow — per-member `extension_agreed_at` mirroring D11's abort pattern exactly. The RLS question is
 resolved: each member writes only their **own** `challenge_members` row, both UIs derive "extended"
 from the two member rows, and the **initiator's** client lazily persists `extended_days` — the same

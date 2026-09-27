@@ -1,9 +1,35 @@
 # Dev notes
 
+## ▶ NEXT SESSION STARTS HERE (parked 2026-09-27)
+
+**The one build queued up: the D14 extension request/confirm UI.** Plan is written and
+approved-in-principle; **nothing has been built**. Read, in this order:
+1. `docs/design/PERIODS_AND_GAMIFY.md` → **D14 ⑪** — the full implementation plan
+   (schema 008, hooks, UI, gating, tests, walkthrough). **⑪a is the crux**: it is the one
+   part that does NOT simply copy D11, and getting it wrong means a confirmed extension
+   silently fails to move the end date until the initiator next opens the app.
+2. `docs/PROJECT_RIGOR.md` §3b — what may touch prod. Build and test the flow **locally**;
+   do not repeat the manual `UPDATE`.
+3. This file's "Local dev on a PROD DATA COPY" section — `npm run db:load` gives you the real
+   data. Use a **local-only** test challenge for the request flow (the prod copy's current
+   challenge already has `extended_days = 7` and should read "already extended").
+
+**State of the world right now:**
+- Prod is live on migrations **001→007**. Current challenge `5bab075d` runs
+  **2026-08-31 → 2026-10-04** (extended +7 by hand, the logged exception); **neither side has
+  settled**. When both settle, the next period can start Monday **2026-10-05**.
+- Working tree clean, CI green, everything pushed.
+
+**Also open, not queued:**
+- **橙白 theme** — awaiting your tuning pass on `docs/design/orange-white-colorcard.html`,
+  then the `index.css` block + one `shop_items` row (300, kind `theme`). Do not touch it before
+  the tuning pass.
+- **`docs/design/IDENTITY_AND_COSMETICS.md`** — written, unstarted, to be grilled before any build.
+
 ## Where we are (updated 2026-09-27)
 
 Production: **https://streakpact.vercel.app** (auto-deploys on push to `main`; CI = lint → typecheck
-→ test). Prod DB is on migrations **001→006** + the D11 catch-up. The app now runs the
+→ test). Prod DB is on migrations **001→007** + the D11 catch-up. The app now runs the
 **challenge model** (Periods & Gamify) — the old month/week model is history-only (≤ 2026-06).
 
 ### Done — the Periods & Gamify arc is complete and live

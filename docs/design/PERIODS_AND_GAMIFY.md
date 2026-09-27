@@ -219,3 +219,43 @@ confirm、可调低或调高目标、修改后至少保留 1 个任务)、使用
 - **⑩ 2026-09 本期的处理**:migration `007_challenge_extension.sql` 已落地
   (`challenges.extended_days`,默认 0,附 7 的倍数 CHECK),所有终点日消费者已改为读取它;
   本期延期由**手工 SQL** 设置。请求 / 确认 UI **未建**,留待 grilling 后实现。
+- **⑪ 实现计划(2026-09-27 定稿 · 已 park,下次开工直接照做)**
+  > RLS 疑问已解决:**完全照搬 D11**,每人只写自己的 `challenge_members` 行,
+  > 双方 UI 从两行 member 立即派生「已延期」,由**发起人客户端惰性写** `challenges.extended_days`
+  > —— 与 D11 惰性写 `status='aborted'` 同一形状,**不需要任何新 RLS 策略**。
+  > 已对照代码确认:`setStatusAborted` 就是这么做的,非发起人那侧的写会被策略静默拦掉(0 行),
+  > 而正确性从不依赖那次写 —— 两端都从 member 行自己算出 `aborted`。
+
+  - **⑪a ⚠ 与 D11 唯一不同、也是最关键的一点:`extendedDays` 不只是「持久化」。**
+    D11 里派生出的 `aborted` 只驱动 UI,`status` 写不写都不影响判断;但 `extendedDays` 会被
+    **所有纯日期函数**消费(`challengeSpan` / `challengeEnded` / `paceExpected` / `challengeWeeks`)。
+    若照搬到底,会出现:JX 确认了延期,但发起人 CP 一直没打开 app → `extended_days` 仍是 0 →
+    **两个人看到的挑战仍在旧日期结束**,直到 CP 某天启动应用才「追认」。
+    **解法:派生出「有效延期」再喂给日期函数**,DB 写入退化为纯持久化:
+    ```
+    effectiveExtendedDays = stored > 0 ? stored : (bothAgreed ? EXTENSION_DAYS : 0)
+    ```
+    即把 D11 的「派生态 + 惰性写」哲学**再往下推一层**:UI 与**日期数学**都走派生值,
+    `challenges.extended_days` 只是给下次冷启动/他人客户端看的快照。
+    实现时 `useChallenge` 暴露的 `Challenge.extendedDays` 应当**已经是有效值**,
+    这样现有 11 个消费点一行都不用改(它们已经在 D14 schema 那次改成必填参数了)。
+  - **⑪b schema**:migration `008` 给 `challenge_members` 加可空列 `extension_agreed_at`
+    (与 `abort_requested_at` 并列,同样是 own-row RLS 覆盖)。`challenges` 无新列。
+  - **⑪c hooks**:`requestExtension` / `withdrawExtension` 逐行对照 `requestAbort` /
+    `withdrawAbort`;`setExtendedDays`(发起人惰性写)对照 `setStatusAborted`。
+    派生:`myExt` / `partnerExt` / `extensionPending = myExt !== partnerExt` /
+    `bothAgreed = myExt && partnerExt`。
+  - **⑪d UI**:一条 banner,形状对照 `abortStrip` —— 我方已请求 → 「等待对方确认」+ 撤回;
+    对方已请求 → 「对方申请延期一周」+ 确认。
+  - **⑪e 可申请的判据**(D14 ④⑤ + 每期一次):
+    `iJoined && members.length === 2 && challenge.extendedDays === 0 &&
+     (最后一周内 || (已结束 && 我未结算))`。
+    **`extendedDays === 0` 同时就是「本期没用过」**,不需要额外状态(D14 ③)。
+  - **⑪f 撤回边界**:仅在**恰好一方**已同意时可撤回;**双方都同意即锁定**,不可回退
+    —— 否则「延期一次」会变成可反复横跳的状态。
+  - **⑪g 测试**:可申请判据的边界(最后一周第一天 / 倒数第二周 / 已结束未结算 / 已结算 /
+    已延期过);`effectiveExtendedDays` 的派生(未写入但双方同意时,`challengeEnded` 就应当已经
+    顺延);每期只能一次。
+  - **⑪h 本地走查用「本地专用测试挑战」**:prod 拷贝里的当期挑战 `extended_days` 已是 7,
+    应当正确显示「已延期 / 不可再申请」—— 这本身是一条值得看的断言,但**请求流程**要另造一个
+    未延期的本地挑战来走(见 NOTES「Local dev on a PROD DATA COPY」)。
