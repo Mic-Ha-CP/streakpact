@@ -11,7 +11,7 @@ import {
   startChoicesFor,
   totalWeeks,
   daysMissedAtStart,
-  nextMondayOnOrAfter,
+  earliestStartFor,
   paceExpected,
   totalProgress,
 } from "@/data/challenge";
@@ -51,6 +51,23 @@ import { cn, NO_SPIN } from "@/lib/utils";
 import { toast } from "sonner";
 
 const strMin = (a: string, b: string) => (a < b ? a : b);
+
+/**
+ * "下一期最早可于 X 开始" — every surface that states the next start date renders THIS, so the
+ * settle strips can never again drift from what the create form actually offers (they used
+ * the pre-D13 next-Monday rule and claimed 10-12 on a Tuesday when 10-05 was available).
+ * `prefix` says what still has to happen first ("双方结算后，" / "对方结算后，" / "").
+ */
+const NextStartLine = ({ today, prefix }: { today: string; prefix: string }) => {
+  const e = earliestStartFor(today);
+  return (
+    <p className="text-xs text-muted-foreground">
+      {prefix}下一期最早可于 <b className="text-foreground">{e.date}</b>（周一）开始
+      {e.daysMissed > 0 && `（本周一起算，已过去 ${e.daysMissed} 天，可补签）`}
+      {e.thisWeekStillOpen ? "。周三前开启都还能选本周一，周四起顺延到下周一。" : "。"}
+    </p>
+  );
+};
 
 /**
  * The victory acknowledgment. A successful settlement used to be silent about the
@@ -250,7 +267,7 @@ export const ChallengeHome = () => {
     // D13: initiating Mon–Wed offers a choice; default = start THIS week (backdated up to
     // 2 days). Thu–Sun keeps the old behaviour (next Monday only).
     const choices = startChoicesFor(today);
-    const defaultStart = choices.thisWeek ?? choices.nextMonday;
+    const defaultStart = earliestStartFor(today).date;
     const start = pickedStart || defaultStart;
     const closing = () => setFormMode(null);
     if (formMode === "create") {
@@ -366,9 +383,7 @@ export const ChallengeHome = () => {
   // ---- Dormant (no challenge, or one auto-voided / consensually aborted) ------
   if (!c.challenge || c.voided || c.aborted) {
     // D13: Mon–Wed can start THIS week, so the earliest start is not always next Monday.
-    const dormantChoices = startChoicesFor(today);
-    const start = dormantChoices.thisWeek ?? dormantChoices.nextMonday;
-    const canStartThisWeek = !!dormantChoices.thisWeek;
+    const earliest = earliestStartFor(today);
     return (
       <div className="bg-card rounded-3xl border border-border/60 shadow-card p-8 text-center space-y-4">
         {c.voided && (
@@ -388,8 +403,9 @@ export const ChallengeHome = () => {
           <h2 className="font-display font-extrabold text-xl">当前没有进行中的挑战</h2>
           <p className="text-sm text-muted-foreground">
             休眠中 · 零打卡义务。任一方都可发起一个 4 周挑战 —— 最早{" "}
-            <b className="text-foreground">{start}</b>（周一）开始
-            {canStartThisWeek ? "（本周一起算，已过去的天数可补签）" : ""}。歇一阵再来也没问题。
+            <b className="text-foreground">{earliest.date}</b>（周一）开始
+            {earliest.daysMissed > 0 ? `（本周一起算，已过去 ${earliest.daysMissed} 天，可补签）` : ""}
+            。歇一阵再来也没问题。
           </p>
         </div>
         <Button onClick={() => setFormMode("create")} className="rounded-xl">
@@ -410,9 +426,6 @@ export const ChallengeHome = () => {
   const canEditMid =
     c.iJoined && !ended && midEditOpen(start, ch.weeks, today, c.myMember?.editedAt ?? null);
   const canEdit = canEditFree || canEditMid;
-  // Earliest a NEXT challenge could start (a Monday). Surfaces the settle→start timing
-  // so a rest week is a choice, not a surprise (challenge-to-challenge gap, ROADMAP).
-  const nextStart = nextMondayOnOrAfter(today);
 
   // Check-in / 补签 stays open until I SETTLE — ending is not the lock (D2). After the
   // challenge ends I can still fix up the span (e.g. backfill the final Sunday on Monday
@@ -706,10 +719,7 @@ export const ChallengeHome = () => {
             <b className="text-foreground">结算前仍可补记录</b>：本期日期（{start} ~ {end}）都还能改，
             结算后才锁定。结算预览用的是最新数据。
           </p>
-          <p className="text-xs text-muted-foreground">
-            本期已结束 · 双方结算后可于 <b className="text-foreground">{nextStart}</b>（周一）立即开启下一期。
-            晚于这个周一才结算，最早开始就顺延到再下一个周一（会空出一段）。
-          </p>
+          <NextStartLine today={today} prefix="本期已结束 · 双方结算后，" />
           <Button onClick={() => setSettleOpen(true)} className="rounded-xl">
             结算我的挑战
           </Button>
@@ -725,9 +735,7 @@ export const ChallengeHome = () => {
           <div className="text-sm text-muted-foreground">
             你的结果：<ResultPill result={s.myResult} />
           </div>
-          <p className="text-xs text-muted-foreground">
-            对方结算后即可于 <b className="text-foreground">{nextStart}</b>（周一）开启下一期。
-          </p>
+          <NextStartLine today={today} prefix="对方结算后，" />
           <UnsettleButton onConfirm={() => doUnsettle()} />
         </div>
       );
@@ -760,9 +768,9 @@ export const ChallengeHome = () => {
             : "失败方的押注惩罚已按各自声明记入账本，待手动执行。"}
         </p>
         {teamWin && <VictoryAck coins={COINS.challengeSuccess} stakes={releasedStakes} />}
-        <p className="text-xs text-muted-foreground pt-1">
-          下一期最早可于 <b className="text-foreground">{nextStart}</b>（周一）开始。
-        </p>
+        <div className="pt-1">
+          <NextStartLine today={today} prefix="" />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" className="rounded-xl" onClick={() => setFormMode("create")}>
             开启下一期挑战

@@ -22,7 +22,7 @@ import {
   daysBetween,
   isMonday,
   midEditOpen,
-  nextMondayOnOrAfter,
+  earliestStartFor,
   paceExpected,
   preStartEditable,
   taskPassed,
@@ -65,11 +65,6 @@ describe("date helpers", () => {
     expect(isMonday("2026-02-08")).toBe(false); // Sunday
   });
 
-  it("nextMondayOnOrAfter returns the date itself when already Monday, else the next Monday", () => {
-    expect(nextMondayOnOrAfter(START)).toBe(START);
-    expect(nextMondayOnOrAfter("2026-02-03")).toBe("2026-02-09"); // Tue → next Mon
-    expect(nextMondayOnOrAfter("2026-02-08")).toBe("2026-02-09"); // Sun → next Mon
-  });
 });
 
 describe("challenge weeks & span", () => {
@@ -490,5 +485,47 @@ describe("currentChallengeOf — one rule for 当前挑战 vs 往期挑战", () 
   it("returns null when nothing is active (dormant), ignoring cancelled/aborted", () => {
     expect(currentChallengeOf([])).toBeNull();
     expect(currentChallengeOf(prodShape.filter((c) => c.status !== "active"))).toBeNull();
+  });
+});
+
+// Every "下一期最早可于 X" line renders this. The settle strips used to compute it with the
+// pre-D13 next-Monday rule, so on Tue 2026-10-06 they claimed 10-12 while the create form
+// (correctly) offered 10-05.
+describe("earliestStartFor — the one answer to 下一期最早可于", () => {
+  it("the reported case: Tue 2026-10-06 → this Monday 10-05, not 10-12", () => {
+    expect(earliestStartFor("2026-10-06")).toEqual({
+      date: "2026-10-05",
+      daysMissed: 1,
+      thisWeekStillOpen: true,
+    });
+  });
+
+  it("Mon–Wed: this week's Monday, with the backdated days counted", () => {
+    expect(earliestStartFor("2026-10-05")).toEqual({ date: "2026-10-05", daysMissed: 0, thisWeekStillOpen: true });
+    expect(earliestStartFor("2026-10-07").date).toBe("2026-10-05");
+    expect(earliestStartFor("2026-10-07").daysMissed).toBe(2);
+  });
+
+  it("Thu–Sun: next Monday, nothing backdated", () => {
+    for (const d of ["2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11"])
+      expect(earliestStartFor(d)).toEqual({ date: "2026-10-12", daysMissed: 0, thisWeekStillOpen: false });
+  });
+
+  it("agrees with the create form's default for every day of the week", () => {
+    for (let i = 0; i < 7; i++) {
+      const d = addDays("2026-10-05", i);
+      const c = startChoicesFor(d);
+      expect(earliestStartFor(d).date).toBe(c.thisWeek ?? c.nextMonday);
+    }
+  });
+
+  it("never overlaps the challenge it follows (strips only render once that one has ended)", () => {
+    // Any run ends on a Sunday; for every possible 'today' after that end, the earliest new
+    // start must land strictly after it — including the extended 2026-09 challenge.
+    for (const [start, weeks, ext] of [[START, WEEKS, NO_EXT], ["2026-08-31", 4, 7]] as const) {
+      const { end } = challengeSpan(start, weeks, ext);
+      for (let i = 1; i <= 14; i++)
+        expect(earliestStartFor(addDays(end, i)).date > end).toBe(true);
+    }
   });
 });

@@ -538,12 +538,15 @@ existing ledger matching — needs care, so it is deliberately deferred, not sil
 
 ### Rule interaction: challenge-to-challenge timing (surfaced 2026-07-31 — intentional, do NOT "fix")
 A challenge ends Sunday; settlement opens Monday; a new challenge must start on a **Monday** with both
-sides settled. So **zero gap happens only if both settle on that first Monday.** Settle on Tuesday and the
-earliest next start is the *following* Monday — an accidental **~6-day dead zone**. Deliberately **not**
-changed (Monday alignment + both-settled rule both stay). Instead the gap is made **visible**: the
+sides settled. Monday alignment + the both-settled rule both stay — by design, don't collapse them.
+**D13 (2026-09-02) shrank the dead zone this used to create:** creating Mon–Wed can start on *this*
+week's Monday (missed days are free task-补签), so settling by Wednesday still means zero gap; only
+from Thursday does the earliest start roll to the following Monday. The gap stays **visible**: the
 ended / waiting / settled views and the dormant empty state all show the concrete earliest start date
-(`nextMondayOnOrAfter(today)`), and the 开启下一期 CTA sits on the settled view. A rest week is now an
-informed choice, not a surprise. Future-me: this is by design — don't collapse the Monday alignment.
+via **`earliestStartFor(today)`** — the same function the create form defaults from.
+⚠ **2026-10-06 fix:** the three settle-strip lines were missed by the D13 copy sweep and kept the old
+`nextMondayOnOrAfter(today)` rule — on Tue 10-06 they said 10-12 while the create form offered 10-05.
+Every next-start line now routes through `earliestStartFor` and the old helper is deleted.
 
 ### Timezone (D9 grace day, 2026-07-31)
 "today" is device-local everywhere (`todayISO`). Check-in / 签到 / streak use each user's local date =

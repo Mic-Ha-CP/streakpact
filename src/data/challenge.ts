@@ -46,12 +46,6 @@ export function mondayOfWeek(date: string): string {
   return addDays(date, -(isoDow(date) - 1));
 }
 
-/** The first Monday on or after `date` (returns `date` itself if already Monday). */
-export function nextMondayOnOrAfter(date: string): string {
-  const offset = (8 - isoDow(date)) % 7; // Mon→0, Tue→6, … Sun→1
-  return addDays(date, offset);
-}
-
 export interface ChallengeWeek {
   index: number; // 1-based
   startDate: string; // Monday
@@ -360,6 +354,35 @@ export function startChoicesFor(today: string): StartChoices {
 /** How many days of the challenge are already in the past at `today` (0 if not backdated). */
 export function daysMissedAtStart(startDate: string, today: string): number {
   return Math.max(0, daysBetween(startDate, today));
+}
+
+export interface EarliestStart {
+  /** The earliest start_date a challenge created TODAY can have (always a Monday). */
+  date: string;
+  /** Days of that run already behind us (0 unless it is this week's Monday, Tue/Wed). */
+  daysMissed: number;
+  /** True Mon–Wed: starting this week is still possible, but only until Wednesday. */
+  thisWeekStillOpen: boolean;
+}
+
+/**
+ * The earliest a new challenge can start if created TODAY — the single answer behind every
+ * "下一期最早可于 X 开始" line (dormant view, the three settle strips) and the create form's
+ * default. It is D13's start choice, collapsed to its earliest option.
+ *
+ * Exists because the settle strips once computed this independently with
+ * `nextMondayOnOrAfter(today)` — the pre-D13 rule — and so told the pair on a Tuesday that
+ * the next period could start next Monday, while the create form one tap away correctly
+ * offered this Monday. One rule, one function.
+ *
+ * Never overlaps the challenge it follows: the settle strips only render once that one has
+ * ENDED, i.e. today is after its last day, which is always a Sunday — so this week's Monday
+ * is at the earliest the day after it.
+ */
+export function earliestStartFor(today: string): EarliestStart {
+  const { thisWeek, nextMonday } = startChoicesFor(today);
+  const date = thisWeek ?? nextMonday;
+  return { date, daysMissed: daysMissedAtStart(date, today), thisWeekStillOpen: !!thisWeek };
 }
 
 /**
