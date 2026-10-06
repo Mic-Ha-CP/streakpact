@@ -12,6 +12,11 @@
 
 Until one of those happens, the profile below holds and does not need re-litigating.
 
+> **Pre-work for the 3rd-user trigger exists:** `docs/design/MULTI_MEMBER.md` (2026-10-06). It
+> predicts which rows move — **Data criticality** and **Business risk** (13 read-all RLS tables
+> expose deposit text, penalties and log notes to anyone with an account) — and makes scoping RLS
+> the first build step, *before* any third account is created.
+
 ---
 
 ## 1. Tier

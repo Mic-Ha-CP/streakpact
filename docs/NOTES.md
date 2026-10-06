@@ -25,6 +25,10 @@ approved-in-principle; **nothing has been built**. Read, in this order:
   then the `index.css` block + one `shop_items` row (300, kind `theme`). Do not touch it before
   the tuning pass.
 - **`docs/design/IDENTITY_AND_COSMETICS.md`** — written, unstarted, to be grilled before any build.
+- **`docs/design/MULTI_MEMBER.md`** (2026-10-06) — audit + open questions for 1–3-member /
+  invite / concurrent challenges. **Design only, gated on a confirmed third user.** If that
+  happens it goes BEFORE the identity arc. ⚠ Until its RLS step ships, **do not create a third
+  account** — everything is read-all.
 
 ## Where we are (updated 2026-09-27)
 

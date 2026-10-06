@@ -297,6 +297,24 @@ accounts are minted to carry them, rather than remapping ids across nine FK tabl
 Node, not bash, because the repo checks out CRLF and a `.sh` would break in Git Bash. Full detail
 in NOTES.
 
+### Multi-member (design only — build gated on a confirmed third user)
+A third person *may* join. Sized in `docs/design/MULTI_MEMBER.md` (2026-10-06): a layer-by-layer
+audit of every two-person assumption plus the questions a grilling must answer first. Headlines:
+- **⚠ Do not create a third account before RLS is scoped.** 13 tables are read-all; a third
+  account today would silently see both deposit declarations, the penalty ledger and every log
+  note — and would render with JX's colour, because identity is the display name cast to
+  `"CP" | "JX"`.
+- `challenge_members` is already N-capable; the binary assumptions are in the *logic* (team
+  verdict, both-sides gates, pair consent) and the UI (partner lookup, two-column grids,
+  hardcoded CP/JX switches, 双方/对方 copy), plus the theme contract's two identity slots.
+- Rough cost ~2 weeks of evenings without concurrent challenges, roughly double with them;
+  concurrency also needs the double-coin question answered first.
+- `CLAUDE.md` currently forbids an invite flow — an invite-based model must revisit that rule
+  deliberately.
+- **Sequencing: if it happens, it lands BEFORE the Identity & Cosmetics arc** — profile
+  visibility *is* the membership-visibility question. And a third user is a PROJECT_RIGOR
+  tier-review trigger.
+
 ### Deferred items index (nothing here is committed work — a single place to find them)
 Everything the Periods & Gamify arc consciously **did not** build, so none of it gets re-litigated:
 - **Sakura v2.5** — petals + hand-drawn accents · *pending CP's art* (§ below).
