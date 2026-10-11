@@ -297,14 +297,34 @@ accounts are minted to carry them, rather than remapping ids across nine FK tabl
 Node, not bash, because the repo checks out CRLF and a `.sh` would break in Git Bash. Full detail
 in NOTES.
 
-### ⚠ Incident 2026-10-10 — auto-void cancelled a live challenge · code fixed 2026-10-11
-Full write-up in NOTES. `!isLoading` let an errored/offline-paused members query read as "0
-members"; fixed with `shouldAutoVoid` / `queryDelivered` + a fresh server re-check inside the
-write. **Next session (before D14):** (1) loud destructive writes — `status_reason` +
-`status_changed_at` migration and a both-users notice; (2) review all automatic/lazy writes
-(aborted, D14 extended_days, settlement reconcile) for the same "undelivered data ⇒ irreversible
-write" class; (3) review all non-atomic multi-writes (create/join/edit/buy) and evaluate join +
-create as transactional RPCs.
+### Write-safety fixes — NEXT BUILD (review done 2026-10-11; full findings in NOTES)
+Follows the **2026-10-10 incident** (auto-void cancelled a live challenge because an
+errored/offline-paused query read as "0 members"; fixed `54a9ddf`, prod restored 2026-10-11).
+The review checked every automatic/lazy write and every multi-step write for the same class.
+
+**P1 — hard deadline 2026-11-02 (October settlement opens):**
+1. **Content-aware settlement ledger reconcile.** Un-settle → re-settle that flips the team
+   result leaves the *partner* holding a wrong row (e.g. a penalty for a team that passed),
+   because reconcile only checks that *a* row exists. Fix with a pure
+   `ledgerAction(existing, warranted)`: own-row replace/delete, and surface instead of touching
+   a row already marked used.
+2. **Settle only on delivered data.** Re-read my tasks+logs from the server inside `settleMine`;
+   undelivered logs currently snapshot a false `failure` (+ penalty row).
+3. Gate the reconcile effect on `queryDelivered(myLedgerQ)` (already contained by a server
+   re-check + the unique constraint).
+
+**P2:** coins/shop delivered-data checks (an undelivered `coin_ledger` OVERSTATES the balance and
+`buy` trusts it); **create + join + buy as transactional `security invoker` RPCs** (buy with a
+server-side balance check); edit made retry-safe with client-generated task ids + upsert (a
+retry today can duplicate a task, and a duplicate 0-progress task fails settlement).
+
+**P3:** loud destructive writes (`status_reason` + `status_changed_at` migration, both-users
+notice); abort lazy write re-check; error states instead of zeros; build D14 with the
+delivered-data + server re-check addendum.
+
+**Rule going forward:** an irreversible write acts only on delivered data (`queryDelivered`)
+and re-verifies against the server inside the write; the decision lives in a pure, tested
+function.
 
 ### Multi-member (design only — build gated on a confirmed third user)
 A third person *may* join. Sized in `docs/design/MULTI_MEMBER.md` (2026-10-06): a layer-by-layer

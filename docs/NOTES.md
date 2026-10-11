@@ -1,6 +1,22 @@
 # Dev notes
 
-## ⚠ INCIDENT 2026-10-10 — live challenge auto-voided (fixed in code; prod restore pending owner)
+## URGENT
+**Nothing is at risk of data loss right now.** The auto-void bug is fixed and live (`54a9ddf`),
+and the October challenge is restored (`acecc628`, 2 members, runs to **2026-11-01**).
+**Hard deadline: 2026-11-02**, when October's settlement opens. Ship the review's **P1 items 1–3**
+(settlement ledger) before then. Until they ship:
+- **avoid un-settle → re-settle** if it would flip the team result (it strands a wrong ledger row
+  on the partner's side);
+- on the settle dialog, check that progress isn't showing all zeros before confirming.
+
+## ▶ NEXT SESSION STARTS HERE (updated 2026-10-11)
+1. Read "Write-safety review" below. Build **P1 1–3** (settlement ledger) first, deadline 11-02.
+2. Then P2: coins/shop delivered-data checks, create/join/buy RPCs, edit retry-safety (client ids + upsert).
+3. Then P3: loud destructive writes (status_reason migration + both-users notice), abort re-check.
+4. D14 extension UI stays parked; when built, apply the review's D14 addendum (delivered data + server re-check).
+5. Prod: migrations 001→007; October challenge active to 11-01; 橙白 card + multi-member/identity docs await you.
+
+## INCIDENT 2026-10-10 — live challenge auto-voided (fixed `54a9ddf`; prod restored 2026-10-11)
 **What happened:** the October challenge `acecc628` (start 10-05, both joined, both logging) was
 written `status='cancelled'` by CP's client — the D9/D13 auto-void — at the earliest after
 10-09 17:11 local, most likely at CP's cold start 10-10 19:11. Both member rows were intact the
@@ -19,31 +35,134 @@ delivered member data ⇒ no decision; any task/log owned by a non-initiator blo
 (also covers a partial, non-atomic join). The write itself (`autoVoidChallenge`) re-reads
 members/tasks/logs from the server when it executes and re-applies the rule; any read error ⇒
 no write; the UPDATE is conditional on `status='active'`. 8 tests incl. an incident replay.
-**Restore:** one guarded `UPDATE … set status='active' where id='acecc628…' and status='cancelled'`
-— a necessary data fix under PROJECT_RIGOR §3b, run by the owner **after** the fix deployed.
+**Restored 2026-10-11** by the owner after the fix was verified live: one guarded
+`UPDATE … set status='active' where id='acecc628…' and status='cancelled'` (a necessary data
+fix under PROJECT_RIGOR §3b). Verified: active, 2 members, app OK.
 
-## ▶ NEXT SESSION — incident follow-ups (queued 2026-10-11, before D14)
-1. **Make destructive automatic writes LOUD.** Migration: `challenges.status_reason`
-   ('auto_void' | 'manual_cancel' | 'aborted') + `status_changed_at`. The dormant view tells BOTH
-   users for ~7 days: 「上一个挑战于 X 被自动作废（3 天内无人加入）」. A cancelled challenge
-   that had ≥2 members is flagged as an anomaly. Today an auto-void is silent the moment it is
-   persisted — the challenge just disappears, which is why this incident was noticed only via
-   missing coins.
-2. **Review every automatic / lazy write for this failure class** ("acts on a query state that
-   is not delivered data", "decides on cached data, writes irreversibly"):
-   auto-void (fixed) · lazy `status='aborted'` (D11) · D14's planned lazy `extended_days` write
-   (⑪a — design it with `queryDelivered` + a fresh server re-check from the start) · settlement
-   ledger reconcile (`useChallengeSettlement`, fires on `bothSettled` + `!myLedgerExists` — an
-   errored ledger query reads as "doesn't exist") · coin balance reads gating purchases.
-3. **Review every non-atomic multi-write:** create (challenge → member → tasks), join (member →
-   tasks), edit (task upserts/deletes + member update), buy (spend → redemption → ledger). For
-   each: what partial state can a mid-flow failure leave, and does anything downstream misread
-   it? **Evaluate making join (and create) a single transactional Postgres RPC** — the
-   partial-join state is exactly what the new non-initiator-activity guard now defends against
-   after the fact; an RPC would make it impossible instead.
-4. Consider whether auto-void should persist at all, vs. staying purely derived.
+## Write-safety review (2026-10-11, analysis only — no code changed)
+The incident's failure class has two halves, and the review checked both:
+- **(A) A decision made on data that never arrived.** A query that errored or is paused offline
+  reads as empty (`data ?? []` / `?? false`) and still authorises a write that sticks.
+- **(B) Half-finished multi-step writes.** No transaction, so a mid-way failure leaves partial
+  state, and the form's retry can duplicate what already succeeded.
 
-## ▶ NEXT SESSION STARTS HERE (parked 2026-09-27)
+Prod checked read-only: no partial states exist today. The only odd rows are the two known
+July orphans. `UNIQUE` exists on `reward_ledger (user_id, source)`,
+`challenge_members (challenge_id, user_id)` and `checkin_days (user_id, day)`. **`tasks` has
+none**, so task retries can duplicate.
+
+### Settlement — reviewed first (real settlements depend on it; next one opens 2026-11-02)
+- **S1 · Un-settle can leave the PARTNER with a wrong ledger row.** Not a network bug, and the
+  most important finding. `writeMyLedger` checks only whether *a* row exists for
+  `(user, source)`, not whether it is the *right* row. Sequence:
+  1. CP settles `failure`, JX had settled `success`, so the team fails.
+  2. Each client writes its own **penalty** row.
+  3. CP un-settles. That deletes **only CP's own** row (own-row RLS).
+  4. CP fixes the logs and re-settles `success`, so the team now succeeds.
+  5. JX's reconcile sees "a row exists" and skips. **JX keeps a penalty for a team that passed**
+     (or misses the team reward), and nothing ever corrects it.
+
+  Un-settle has no time limit, so this is a normal path, not an edge case.
+- **S2 · Settling on undelivered logs snapshots a false `failure`. Same flaw as the incident.**
+  `settleMine` computes `myLiveResult` from the cached `logs`. Tasks loaded but logs
+  errored/paused gives `logs = []`, so every task reads 0 and the result is `failure`. That gets
+  written to `challenge_members.result`, and if the partner already settled, a **penalty**
+  ledger row is written too. The confirm dialog shows it (all tasks at 0), so it is
+  user-visible, and the user can un-settle their own side. But combined with S1 the partner's
+  penalty row survives the un-settle.
+- **S3 · Reconcile decides on `myLedgerQ.data ?? false`.** An errored ledger query reads as "no
+  row", so reconcile fires. **Contained:** `writeMyLedger` re-checks the server (an error
+  throws), and the `UNIQUE (user_id, source)` constraint backstops duplicates. Only the flaw
+  shape is wrong; no harm is possible today.
+- **S4 (minor) · Un-settle order.** It deletes the ledger row before clearing `result`. If the
+  second write fails, reconcile re-inserts the row on the next view and the un-settle silently
+  undoes itself. This loses no data, but it confuses. Un-settle also **deletes a row that may
+  already be marked used/executed**, erasing that record (accepted by design in 003; worth a
+  guard).
+
+### Other automatic / lazy writes
+- **Lazy `status='aborted'` (D11): fail-safe.** It needs *both* `abort_requested_at` set; an
+  undelivered member list reads as `[]`, so no write. Withdraw is only offered while pending.
+  The write is unconditional, though. For consistency, add the fresh re-check plus
+  `.eq('status','active')` (cheap, low priority).
+- **D14 planned `extended_days` write: must be built safe from day one.** Same shape as abort
+  (fail-safe on empty members), but ⑪a's *effective extension* is consumed by the date math.
+  An undelivered member list makes an agreed-but-unpersisted extension vanish, so the challenge
+  looks ended on the old date. `canSettle` still needs `myMember`, so settling stays blocked.
+  This is display-only, not destructive. **Addendum to D14 ⑪:** gate on `queryDelivered`, and
+  re-verify both agreements from the server inside the persist write.
+- **Coins / shop: the same flaw, with money-like consequences.** `useCoins.isLoading` uses
+  `isLoading` (same trap). If `coin_ledger` errors or pauses, **spends are left out and the
+  balance is OVERSTATED**. `buy` and `backfillCheckin` check `coins.balance` from cache with no
+  server re-check, so a permanent spend can take the balance negative. If `shop_redemptions` is
+  undelivered, `ownedKeys` is empty and **an owned title/theme can be bought twice**.
+  Recoverable with an `adjust` row, but it is exactly "undelivered data authorises a permanent
+  write".
+
+### Multi-step writes — what a half-finished attempt leaves
+| Flow | Order | Partial state on failure | On retry (form stays open) |
+|---|---|---|---|
+| **create** | challenge → own member → tasks | (a) challenge with **0 members**; (b) member, no tasks | **a second challenge**; the first becomes an orphan `active` row with no members, which no client ever voids (only the *current* challenge is checked) and which shows as 未完成结算 in 往期挑战 forever |
+| **join** | member → tasks | member, no tasks | **stuck**: `UNIQUE (challenge_id, user_id)` rejects the re-insert, so the joiner sees an error and must find the edit form to add tasks |
+| **edit** | delete tasks → update/insert tasks one by one → deposit → team reward → `edited_at` | any prefix applied | **new tasks inserted again** (unsaved rows have no id, and `tasks` has no unique key). A duplicate 0-progress task makes you **fail settlement** (every task must pass). `edited_at` is last, so a failed edit consumes no D7 chance (user-favourable) |
+| **buy** | spend → (unequip same kind) → redemption → voucher ledger row | charged with **no item**; or previous title unequipped plus charged, no new item; or paid voucher with no ledger row to mark used | **charged again** (new `rid` per attempt). Recovery is manual via the shared `source` token (accepted in D12) |
+
+Note: join inserts the member row *before* tasks, so the "tasks but no member row" state the
+incident hypothesis assumed **cannot come from today's join**. The new auto-void guard defends
+against it anyway (e.g. a future reordering, or manual DB edits).
+
+### Should join / create become a transactional RPC? Yes for create + join + buy; edit doesn't need one.
+A `security invoker` Postgres function runs in one transaction, keeps RLS in force (it runs as
+the caller), and is not a "separate backend API": it is the same Supabase-only architecture
+`CLAUDE.md` allows.
+- **create, join → RPC.** These are the flows whose partial states *mislead automatic logic*
+  (membership drives auto-void and `currentChallengeOf`). Atomic means the partial states stop
+  existing, instead of being guarded against after the fact.
+- **buy → RPC.** It is the one multi-write involving value, and the RPC can do the **balance
+  check server-side**, which closes the overstated-balance hole too.
+- **edit → no RPC needed.** Make it **retry-safe** instead: assign new task ids on the client
+  (`crypto.randomUUID()`) and **upsert**, so a resubmit rewrites the same rows instead of adding
+  new ones.
+- Cost: SQL in a migration (task-row shape duplicated from `taskRows`), regenerated types, and
+  RPC tests against the local stack.
+
+### Prioritised fix plan
+**P1 — before the October settlement opens (2026-11-02):**
+1. **S1 content-aware reconcile.** If my existing row's `(type, content)` ≠
+   `warrantedLedger(...)`, replace it. If nothing is warranted but a row exists, delete it. Each
+   user corrects their *own* row on their own client (own-row update/delete RLS already exists,
+   so no new policy). If the stale row is already marked used, **don't auto-change it**: surface
+   it to both users instead. Extract as a pure `ledgerAction(existing, warranted)` with tests for
+   the flip sequence above.
+2. **S2 settle on delivered data only.** `settleMine` refuses unless tasks and logs are
+   delivered, and recomputes `myLiveResult` from a **fresh server read** inside the write (the
+   `autoVoidChallenge` pattern).
+3. **S3** gate the reconcile effect on `queryDelivered(myLedgerQ)`. One line.
+
+**P2 — next:**
+
+4. **Coins/shop:** delivered-based `isLoading`. `buy` and `backfillCheckin` re-verify balance
+   and ownership from the server, or better, the buy RPC (item 6).
+5. **create + join RPCs** (atomic).
+6. **buy RPC** with a server-side balance check.
+7. **edit retry-safety:** client ids + upsert.
+
+**P3 — then:**
+
+8. **Loud destructive writes** (from the incident): `challenges.status_reason` +
+   `status_changed_at` migration. The dormant view tells both users; a cancelled challenge with
+   ≥2 members is flagged as an anomaly.
+9. Abort lazy write: fresh re-check + `.eq('status','active')`.
+10. Show an error state, not zeros, when core queries fail. The incident was only noticed via
+    missing coins because failed loads render as empty.
+11. Build D14 with the addendum above.
+
+**The rule this review distils**, for every future write: an irreversible write must (1) act
+only on **delivered** data (`queryDelivered`, never `!isLoading` / `?? []`), and (2)
+**re-verify against the server inside the write itself**. Put the decision in a pure function
+so it can be tested; the hooks have no tests and that is where both incident-class bugs lived.
+
+## Parked from 2026-09-27 (still valid, now behind the P1 list above)
 
 **The one build queued up: the D14 extension request/confirm UI.** Plan is written and
 approved-in-principle; **nothing has been built**. Read, in this order:
