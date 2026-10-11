@@ -1,5 +1,48 @@
 # Dev notes
 
+## ⚠ INCIDENT 2026-10-10 — live challenge auto-voided (fixed in code; prod restore pending owner)
+**What happened:** the October challenge `acecc628` (start 10-05, both joined, both logging) was
+written `status='cancelled'` by CP's client — the D9/D13 auto-void — at the earliest after
+10-09 17:11 local, most likely at CP's cold start 10-10 19:11. Both member rows were intact the
+whole time (JX joined 10-07 11:04). October task coins vanished (earnings skip cancelled
+challenges — derived, so they return on restore). CP's 签到 streak reset was **unrelated**:
+genuinely no 签到 on 10-07/08/09.
+**Root cause:** the guard was `!membersQ.isLoading`. In TanStack Query v5 `isLoading` =
+`isPending && isFetching`, so an **errored** or **offline-paused** members query is "not
+loading" with no data → `members = []` → "0 members past day +3" → irreversible write. A
+paused mutation also replays itself once back online.
+**Why nothing caught it:** `autoVoidDue` (the date rule) was tested and correct; the bug was in
+the hook glue deciding what to *feed* it, and the suite is pure-functions only. Smoke tests run
+on a healthy local network, where that query never errors or pauses.
+**Fixed (code):** `shouldAutoVoid()` + `queryDelivered()` in `src/data/challenge.ts` — no
+delivered member data ⇒ no decision; any task/log owned by a non-initiator blocks the void
+(also covers a partial, non-atomic join). The write itself (`autoVoidChallenge`) re-reads
+members/tasks/logs from the server when it executes and re-applies the rule; any read error ⇒
+no write; the UPDATE is conditional on `status='active'`. 8 tests incl. an incident replay.
+**Restore:** one guarded `UPDATE … set status='active' where id='acecc628…' and status='cancelled'`
+— a necessary data fix under PROJECT_RIGOR §3b, run by the owner **after** the fix deployed.
+
+## ▶ NEXT SESSION — incident follow-ups (queued 2026-10-11, before D14)
+1. **Make destructive automatic writes LOUD.** Migration: `challenges.status_reason`
+   ('auto_void' | 'manual_cancel' | 'aborted') + `status_changed_at`. The dormant view tells BOTH
+   users for ~7 days: 「上一个挑战于 X 被自动作废（3 天内无人加入）」. A cancelled challenge
+   that had ≥2 members is flagged as an anomaly. Today an auto-void is silent the moment it is
+   persisted — the challenge just disappears, which is why this incident was noticed only via
+   missing coins.
+2. **Review every automatic / lazy write for this failure class** ("acts on a query state that
+   is not delivered data", "decides on cached data, writes irreversibly"):
+   auto-void (fixed) · lazy `status='aborted'` (D11) · D14's planned lazy `extended_days` write
+   (⑪a — design it with `queryDelivered` + a fresh server re-check from the start) · settlement
+   ledger reconcile (`useChallengeSettlement`, fires on `bothSettled` + `!myLedgerExists` — an
+   errored ledger query reads as "doesn't exist") · coin balance reads gating purchases.
+3. **Review every non-atomic multi-write:** create (challenge → member → tasks), join (member →
+   tasks), edit (task upserts/deletes + member update), buy (spend → redemption → ledger). For
+   each: what partial state can a mid-flow failure leave, and does anything downstream misread
+   it? **Evaluate making join (and create) a single transactional Postgres RPC** — the
+   partial-join state is exactly what the new non-initiator-activity guard now defends against
+   after the fact; an RPC would make it impossible instead.
+4. Consider whether auto-void should persist at all, vs. staying purely derived.
+
 ## ▶ NEXT SESSION STARTS HERE (parked 2026-09-27)
 
 **The one build queued up: the D14 extension request/confirm UI.** Plan is written and

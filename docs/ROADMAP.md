@@ -297,6 +297,15 @@ accounts are minted to carry them, rather than remapping ids across nine FK tabl
 Node, not bash, because the repo checks out CRLF and a `.sh` would break in Git Bash. Full detail
 in NOTES.
 
+### ⚠ Incident 2026-10-10 — auto-void cancelled a live challenge · code fixed 2026-10-11
+Full write-up in NOTES. `!isLoading` let an errored/offline-paused members query read as "0
+members"; fixed with `shouldAutoVoid` / `queryDelivered` + a fresh server re-check inside the
+write. **Next session (before D14):** (1) loud destructive writes — `status_reason` +
+`status_changed_at` migration and a both-users notice; (2) review all automatic/lazy writes
+(aborted, D14 extended_days, settlement reconcile) for the same "undelivered data ⇒ irreversible
+write" class; (3) review all non-atomic multi-writes (create/join/edit/buy) and evaluate join +
+create as transactional RPCs.
+
 ### Multi-member (design only — build gated on a confirmed third user)
 A third person *may* join. Sized in `docs/design/MULTI_MEMBER.md` (2026-10-06): a layer-by-layer
 audit of every two-person assumption plus the questions a grilling must answer first. Headlines:

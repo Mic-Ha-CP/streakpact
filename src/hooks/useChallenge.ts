@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfiles, type ProfileMaps } from "@/hooks/useProfiles";
-import { autoVoidDue, currentChallengeOf } from "@/data/challenge";
+import { currentChallengeOf, queryDelivered, shouldAutoVoid } from "@/data/challenge";
 import { todayISO } from "@/lib/dates";
 import type {
   Challenge,
@@ -188,15 +188,22 @@ export function useChallenge() {
   const tasksFor = (u: UserId) => tasks.filter((t) => t.userId === u);
 
   // Auto-void (D9 as re-anchored by D13): partner never joined within the 组建期
-  // (SETUP_WINDOW_DAYS after initiation). Gate on members having loaded so we don't void
-  // prematurely while the second member row is still fetching.
-  // D13: anchored on INITIATION, not start_date — a this-week (backdated) start would
-  // otherwise satisfy the old start-based condition at creation and self-cancel.
-  // created_at is a UTC timestamptz; its date half is the anchor (see autoVoidDue notes).
+  // (SETUP_WINDOW_DAYS after initiation). D13: anchored on INITIATION, not start_date.
+  // The decision is `shouldAutoVoid`; it requires the member list (and tasks, for the
+  // non-initiator-activity check) to have ACTUALLY loaded. This was `!membersQ.isLoading`
+  // until the 2026-10-10 incident: an errored or offline-paused members query is "not
+  // loading" with no data, read as 0 members, and cancelled a live challenge.
+  const isInitiator = (u: UserId) => !!challenge && u === challenge.initiator;
   const voided =
     !!challenge &&
-    !membersQ.isLoading &&
-    autoVoidDue(challenge.createdAt.slice(0, 10), today, members.length);
+    shouldAutoVoid({
+      createdDate: challenge.createdAt.slice(0, 10),
+      today,
+      membersLoaded: queryDelivered(membersQ) && queryDelivered(tasksQ),
+      memberCount: members.length,
+      nonInitiatorActivity:
+        tasks.some((t) => !isInitiator(t.userId)) || logs.some((l) => !isInitiator(l.userId)),
+    });
 
   // Consensual abort (D11): each side sets its own abort_requested_at. Exactly one set =
   // a pending request; both set = aborted (derived void, like auto-void).
@@ -288,6 +295,57 @@ export function useChallenge() {
       if (!cid) throw new Error("No active challenge");
       const { error } = await supabase.from("challenges").update({ status: "cancelled" }).eq("id", cid);
       if (error) throw error;
+    },
+    onSuccess: invalidateAll,
+  });
+
+  // The AUTOMATIC void write. Never trusts what the cached UI believed: it re-reads members,
+  // tasks and logs from the server at the moment it runs and re-applies `shouldAutoVoid`.
+  // That also covers a write queued while offline and replayed later — it re-verifies when
+  // it actually executes. Any read error throws, i.e. no write. The UPDATE is additionally
+  // conditional on status='active' so it can only ever move an active challenge.
+  const autoVoidChallenge = useMutation({
+    mutationFn: async (): Promise<"voided" | "kept"> => {
+      if (!challenge || !cid) throw new Error("No active challenge");
+      const initiatorId = profiles?.byName[challenge.initiator];
+      if (!initiatorId) throw new Error("Cannot resolve initiator — refusing to auto-void");
+
+      const [mRes, tRes] = await Promise.all([
+        supabase.from("challenge_members").select("user_id").eq("challenge_id", cid),
+        supabase.from("tasks").select("id, user_id").eq("challenge_id", cid),
+      ]);
+      if (mRes.error) throw mRes.error;
+      if (tRes.error) throw tRes.error;
+      const freshTasks = tRes.data ?? [];
+
+      let foreignLog = false;
+      if (freshTasks.length > 0) {
+        const lRes = await supabase
+          .from("daily_logs")
+          .select("id")
+          .in("task_id", freshTasks.map((t) => t.id))
+          .neq("user_id", initiatorId)
+          .limit(1);
+        if (lRes.error) throw lRes.error;
+        foreignLog = (lRes.data?.length ?? 0) > 0;
+      }
+
+      const confirmed = shouldAutoVoid({
+        createdDate: challenge.createdAt.slice(0, 10),
+        today: todayISO(),
+        membersLoaded: true, // we hold a successful, fresh server read
+        memberCount: (mRes.data ?? []).length,
+        nonInitiatorActivity: freshTasks.some((t) => t.user_id !== initiatorId) || foreignLog,
+      });
+      if (!confirmed) return "kept";
+
+      const { error } = await supabase
+        .from("challenges")
+        .update({ status: "cancelled" })
+        .eq("id", cid)
+        .eq("status", "active");
+      if (error) throw error;
+      return "voided";
     },
     onSuccess: invalidateAll,
   });
@@ -473,13 +531,15 @@ export function useChallenge() {
   });
 
   // Auto-void (D9): only the initiator can write status='cancelled' (RLS). Both clients
-  // derive dormant from `voided`; this makes it permanent when the initiator loads.
+  // derive dormant from `voided`; this makes it permanent when the initiator loads — via
+  // `autoVoidChallenge`, which re-verifies on the server first (never `cancelChallenge`,
+  // which is the unconditional manual pre-start cancel).
   useEffect(() => {
     if (!challenge || !voided) return;
     if (challenge.status !== "active") return;
     if (challenge.initiator !== userId) return;
-    if (cancelChallenge.isPending) return;
-    cancelChallenge.mutate();
+    if (autoVoidChallenge.isPending) return;
+    autoVoidChallenge.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voided, challenge?.id]);
 

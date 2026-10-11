@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   addDays,
   autoVoidDue,
+  queryDelivered,
+  shouldAutoVoid,
   challengeEnded,
   challengeResultForUser,
   challengeSpan,
@@ -527,5 +529,67 @@ describe("earliestStartFor — the one answer to 下一期最早可于", () => {
       for (let i = 1; i <= 14; i++)
         expect(earliestStartFor(addDays(end, i)).date > end).toBe(true);
     }
+  });
+});
+
+// 2026-10-10 incident: a live two-member challenge (both joined, both logging) was
+// auto-voided because the initiator's client read an un-delivered member query as
+// "0 members". These lock the decision so no-data can never authorise the write again.
+describe("shouldAutoVoid — the auto-void decision (2026-10-10 incident)", () => {
+  const CREATED = "2026-10-06";
+  const PAST_DEADLINE = "2026-10-10"; // day +4
+  const base = {
+    createdDate: CREATED,
+    today: PAST_DEADLINE,
+    membersLoaded: true,
+    memberCount: 1,
+    nonInitiatorActivity: false,
+  };
+
+  it("queryDelivered: only a SUCCESSFUL query counts — the exact trap that caused it", () => {
+    // TanStack v5: isLoading = isPending && isFetching. Both of these are NOT loading and
+    // carry no data — the old `!isLoading` guard let them through as "loaded, 0 members".
+    expect(queryDelivered({ status: "error", fetchStatus: "idle" })).toBe(false);
+    expect(queryDelivered({ status: "pending", fetchStatus: "paused" })).toBe(false); // offline
+    expect(queryDelivered({ status: "pending", fetchStatus: "fetching" })).toBe(false);
+    expect(queryDelivered({ status: "success", fetchStatus: "idle" })).toBe(true);
+    // a background refetch over good data is still delivered data
+    expect(queryDelivered({ status: "success", fetchStatus: "fetching" })).toBe(true);
+  });
+
+  it("members query errored → never void, even if it reads as 0 members", () => {
+    expect(shouldAutoVoid({ ...base, membersLoaded: false, memberCount: 0 })).toBe(false);
+  });
+
+  it("members query paused (device offline at resume) → never void", () => {
+    const paused = queryDelivered({ status: "pending", fetchStatus: "paused" });
+    expect(shouldAutoVoid({ ...base, membersLoaded: paused, memberCount: 0 })).toBe(false);
+  });
+
+  it("two members → never void", () => {
+    expect(shouldAutoVoid({ ...base, memberCount: 2 })).toBe(false);
+  });
+
+  it("non-initiator tasks/logs with NO member row (partial join) → never void", () => {
+    expect(shouldAutoVoid({ ...base, memberCount: 1, nonInitiatorActivity: true })).toBe(false);
+  });
+
+  it("the initiator's own activity does NOT block it — a solo, never-joined challenge still voids", () => {
+    // nonInitiatorActivity counts only OTHER people; an initiator backfilling alone is not
+    // evidence that anyone joined.
+    expect(shouldAutoVoid({ ...base, memberCount: 1, nonInitiatorActivity: false })).toBe(true);
+  });
+
+  it("genuinely un-joined past the deadline → void; before the deadline → not yet", () => {
+    expect(shouldAutoVoid(base)).toBe(true);
+    expect(shouldAutoVoid({ ...base, today: "2026-10-08" })).toBe(false); // day +2, window open
+    expect(shouldAutoVoid({ ...base, today: "2026-10-09" })).toBe(true); // day +3, closes
+  });
+
+  it("replays the incident: what CP's client saw vs what the server had", () => {
+    // Client: members query not delivered → old guard said void. New rule: no decision.
+    expect(shouldAutoVoid({ ...base, membersLoaded: false, memberCount: 0 })).toBe(false);
+    // Fresh server re-check (what the write now does first): 2 members, JX's tasks + logs.
+    expect(shouldAutoVoid({ ...base, memberCount: 2, nonInitiatorActivity: true })).toBe(false);
   });
 });

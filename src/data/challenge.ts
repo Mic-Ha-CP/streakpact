@@ -431,6 +431,50 @@ export function autoVoidDue(createdDate: string, today: string, memberCount: num
 }
 
 /**
+ * Has a query ACTUALLY delivered its data? Only `status === "success"` counts.
+ *
+ * Exists because of the 2026-10-10 incident: auto-void was guarded by `!isLoading`, but in
+ * TanStack Query v5 `isLoading` means "first fetch in flight" (`isPending && isFetching`). A
+ * query that has ERRORED, or is PAUSED because the device is offline (a phone resuming the
+ * PWA before its network is up), is not loading — yet has no data, so the member list read
+ * as `[]`, "0 members past the deadline", and a live two-member challenge was cancelled.
+ */
+export function queryDelivered(q: { status: string; fetchStatus?: string }): boolean {
+  return q.status === "success";
+}
+
+export interface AutoVoidEvidence {
+  createdDate: string;
+  today: string;
+  /** Did the member list actually load? (see `queryDelivered`) — false ⇒ never void. */
+  membersLoaded: boolean;
+  memberCount: number;
+  /** Any task or log owned by someone OTHER than the initiator. */
+  nonInitiatorActivity: boolean;
+}
+
+/**
+ * The full auto-void decision — the ONLY thing allowed to authorise the irreversible
+ * `status='cancelled'` write. `autoVoidDue` is the date rule; this adds the evidence rules:
+ *
+ *   - **No data, no decision.** If the member list did not actually load, do nothing.
+ *     Absence of evidence is never evidence of absence for a destructive write.
+ *   - **Someone else's activity blocks it.** Tasks or logs owned by anyone but the
+ *     initiator prove another person joined — even if their member row is somehow missing
+ *     (a partial, non-atomic join). The initiator's OWN activity does not block it: an
+ *     initiator may backfill alone on a challenge nobody ever joined, and that one should
+ *     still void.
+ *
+ * The hook evaluates this twice: once on cached data (to show dormant), and again on a
+ * fresh server read inside the write itself, immediately before writing.
+ */
+export function shouldAutoVoid(e: AutoVoidEvidence): boolean {
+  if (!e.membersLoaded) return false;
+  if (e.nonInitiatorActivity) return false;
+  return autoVoidDue(e.createdDate, e.today, e.memberCount);
+}
+
+/**
  * Is check-in / 补签 still OPEN for a given user?
  *
  * **Settling is the lock — ending is not.** The challenge ending does NOT close data
